@@ -4,7 +4,8 @@
 import * as vscode from 'vscode';
 import { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
-import type { ResourceNodeData } from './types';
+import type { CapabilityService } from '../services/capabilityService';
+import type { ResourceNodeData, ResourceNodeType } from './types';
 import { toTreeItem } from './shared';
 
 type Client = NonNullable<
@@ -22,6 +23,7 @@ export class ResourceExplorerProvider
   constructor(
     private readonly authProvider: OccConfigAuthProvider,
     private readonly apiClientManager: ApiClientManager,
+    private readonly capabilityService: CapabilityService,
   ) {
     authProvider.onDidChangeSession(() => this.refresh());
   }
@@ -86,6 +88,9 @@ export class ResourceExplorerProvider
         ];
       }
 
+      // Ensure RBAC capabilities are loaded before building nodes
+      await this.capabilityService.ensureLoaded(contextInfo.namespace);
+
       const { data, error } = await client.GET(
         '/namespaces/{namespaceName}/projects',
         { params: { path: { namespaceName: contextInfo.namespace } } },
@@ -116,7 +121,7 @@ export class ResourceExplorerProvider
             : projectItems.map((p) => ({
                 label: p.name as string,
                 type: 'project' as const,
-                contextValue: 'project',
+                contextValue: this.resolveContextValue('project'),
                 namespace: contextInfo.namespace,
                 project: p.name as string,
                 childrenMode: 'lazy' as const,
@@ -178,6 +183,12 @@ export class ResourceExplorerProvider
     }
   }
 
+  private resolveContextValue(type: ResourceNodeType): string {
+    return this.capabilityService.canDelete(type)
+      ? `${type}_deletable`
+      : type;
+  }
+
   private async fetchProjectChildren(
     client: Client,
     element: ResourceNodeData,
@@ -217,7 +228,7 @@ export class ResourceExplorerProvider
       children.push({
         label: compName,
         type: 'component',
-        contextValue: 'component',
+        contextValue: this.resolveContextValue('component'),
         namespace: ns,
         project: proj,
         component: compName,

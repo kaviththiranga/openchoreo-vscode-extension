@@ -14,6 +14,8 @@ import { ApiClientManager } from './api/apiClient';
 import { ResourceExplorerProvider } from './treeView/resourceExplorer';
 import { InfrastructureExplorerProvider } from './treeView/infrastructureExplorer';
 import { StatusBarManager } from './statusBar/statusBar';
+import { CapabilityService } from './services/capabilityService';
+import { DeleteService } from './services/deleteService';
 import { registerCommands } from './commands/commands';
 
 let client: LanguageClient;
@@ -32,10 +34,17 @@ export async function activate(
   const statusBar = new StatusBarManager(authProvider);
   context.subscriptions.push(statusBar);
 
+  // Initialize RBAC capability service
+  const capabilityService = new CapabilityService(authProvider, apiClientManager);
+
+  // Initialize delete service
+  const deleteService = new DeleteService(apiClientManager);
+
   // Initialize resource explorer tree view
   const resourceExplorer = new ResourceExplorerProvider(
     authProvider,
     apiClientManager,
+    capabilityService,
   );
   const resourceTreeView = vscode.window.createTreeView(
     'openchoreo.resourceExplorer',
@@ -50,6 +59,7 @@ export async function activate(
   const infrastructureExplorer = new InfrastructureExplorerProvider(
     authProvider,
     apiClientManager,
+    capabilityService,
   );
   const infrastructureTreeView = vscode.window.createTreeView(
     'openchoreo.infrastructureExplorer',
@@ -67,6 +77,8 @@ export async function activate(
     resourceExplorer,
     infrastructureExplorer,
     apiClientManager,
+    deleteService,
+    capabilityService,
   );
 
   // Start language server

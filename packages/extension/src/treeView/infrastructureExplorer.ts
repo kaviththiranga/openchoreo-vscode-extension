@@ -4,7 +4,8 @@
 import * as vscode from 'vscode';
 import { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
-import type { ResourceNodeData } from './types';
+import type { CapabilityService } from '../services/capabilityService';
+import type { ResourceNodeData, ResourceNodeType } from './types';
 import { toTreeItem } from './shared';
 
 type Client = NonNullable<
@@ -22,6 +23,7 @@ export class InfrastructureExplorerProvider
   constructor(
     private readonly authProvider: OccConfigAuthProvider,
     private readonly apiClientManager: ApiClientManager,
+    private readonly capabilityService: CapabilityService,
   ) {
     authProvider.onDidChangeSession(() => this.refresh());
   }
@@ -200,6 +202,12 @@ export class InfrastructureExplorerProvider
     ];
   }
 
+  private resolveContextValue(type: ResourceNodeType): string {
+    return this.capabilityService.canDelete(type)
+      ? `${type}_deletable`
+      : type;
+  }
+
   private async fetchLazyChildren(
     element: ResourceNodeData,
   ): Promise<ResourceNodeData[]> {
@@ -208,6 +216,9 @@ export class InfrastructureExplorerProvider
       if (!client) {
         return [];
       }
+
+      // Ensure RBAC capabilities are loaded before building nodes
+      await this.capabilityService.ensureLoaded(element.namespace);
 
       switch (element.lazyChildrenKey) {
         case 'environments':
@@ -415,7 +426,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'component-type' as const,
-      contextValue: 'component-type',
+      contextValue: this.resolveContextValue('component-type'),
       namespace: ns,
       resourceName: item.name as string,
       childrenMode: 'none' as const,
@@ -446,7 +457,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'workflow' as const,
-      contextValue: 'workflow',
+      contextValue: this.resolveContextValue('workflow'),
       namespace: ns,
       resourceName: item.name as string,
       childrenMode: 'none' as const,
@@ -482,7 +493,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'component-workflow' as const,
-      contextValue: 'component-workflow',
+      contextValue: this.resolveContextValue('component-workflow'),
       namespace: ns,
       resourceName: item.name as string,
       childrenMode: 'none' as const,
@@ -513,7 +524,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'trait' as const,
-      contextValue: 'trait',
+      contextValue: this.resolveContextValue('trait'),
       namespace: ns,
       resourceName: item.name as string,
       childrenMode: 'none' as const,
@@ -580,7 +591,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'git-secret' as const,
-      contextValue: 'git-secret',
+      contextValue: this.resolveContextValue('git-secret'),
       namespace: ns,
       resourceName: item.name as string,
       childrenMode: 'none' as const,
@@ -617,7 +628,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'namespace-role' as const,
-      contextValue: 'namespace-role',
+      contextValue: this.resolveContextValue('namespace-role'),
       namespace: ns,
       resourceName: item.name as string,
       childrenMode: 'none' as const,
@@ -653,7 +664,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'namespace-role-binding' as const,
-      contextValue: 'namespace-role-binding',
+      contextValue: this.resolveContextValue('namespace-role-binding'),
       namespace: ns,
       resourceName: item.name as string,
       childrenMode: 'none' as const,
@@ -685,7 +696,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'cluster-role' as const,
-      contextValue: 'cluster-role',
+      contextValue: this.resolveContextValue('cluster-role'),
       resourceName: item.name as string,
       childrenMode: 'none' as const,
     }));
@@ -716,7 +727,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'cluster-role-binding' as const,
-      contextValue: 'cluster-role-binding',
+      contextValue: this.resolveContextValue('cluster-role-binding'),
       resourceName: item.name as string,
       childrenMode: 'none' as const,
     }));

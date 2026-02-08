@@ -6,6 +6,8 @@ import { OccConfigAuthProvider } from '../auth/authProvider';
 import { ResourceExplorerProvider } from '../treeView/resourceExplorer';
 import { InfrastructureExplorerProvider } from '../treeView/infrastructureExplorer';
 import type { ApiClientManager } from '../api/apiClient';
+import type { CapabilityService } from '../services/capabilityService';
+import type { DeleteService } from '../services/deleteService';
 import type { ResourceNodeData } from '../treeView/types';
 
 const SCHEME = 'openchoreo';
@@ -16,6 +18,8 @@ export function registerCommands(
   resourceExplorer: ResourceExplorerProvider,
   infrastructureExplorer: InfrastructureExplorerProvider,
   apiClientManager: ApiClientManager,
+  deleteService: DeleteService,
+  capabilityService: CapabilityService,
 ): void {
   // Register virtual document provider for readonly resource views
   const resourceContentProvider = new OpenChoreoResourceProvider(
@@ -30,8 +34,10 @@ export function registerCommands(
 
   // Refresh resources
   context.subscriptions.push(
-    vscode.commands.registerCommand('openchoreo.refreshResources', () => {
+    vscode.commands.registerCommand('openchoreo.refreshResources', async () => {
       authProvider.loadConfig();
+      const ctxInfo = authProvider.getContextInfo();
+      await capabilityService.refresh(ctxInfo?.namespace);
       resourceExplorer.refresh();
     }),
   );
@@ -40,8 +46,10 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.refreshInfrastructure',
-      () => {
+      async () => {
         authProvider.loadConfig();
+        const ctxInfo = authProvider.getContextInfo();
+        await capabilityService.refresh(ctxInfo?.namespace);
         infrastructureExplorer.refresh();
       },
     ),
@@ -119,6 +127,42 @@ export function registerCommands(
         } catch (error) {
           vscode.window.showErrorMessage(
             `Failed to open resource: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // Delete resource with confirmation
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.deleteResource',
+      async (node: ResourceNodeData) => {
+        if (!node) {
+          return;
+        }
+
+        const displayName = node.resourceName ?? node.label;
+        const answer = await vscode.window.showWarningMessage(
+          `Are you sure you want to delete ${node.type} '${displayName}'? This cannot be undone.`,
+          { modal: true },
+          'Delete',
+        );
+
+        if (answer !== 'Delete') {
+          return;
+        }
+
+        try {
+          await deleteService.deleteResource(node);
+          vscode.window.showInformationMessage(
+            `Deleted ${node.type} '${displayName}'.`,
+          );
+          resourceExplorer.refresh();
+          infrastructureExplorer.refresh();
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to delete ${node.type} '${displayName}': ${error instanceof Error ? error.message : 'Unknown error'}`,
           );
         }
       },
