@@ -12,6 +12,7 @@ import {
 import { OccConfigAuthProvider } from './auth/authProvider';
 import { ApiClientManager } from './api/apiClient';
 import { ResourceExplorerProvider } from './treeView/resourceExplorer';
+import { InfrastructureExplorerProvider } from './treeView/infrastructureExplorer';
 import { StatusBarManager } from './statusBar/statusBar';
 import { registerCommands } from './commands/commands';
 
@@ -45,8 +46,28 @@ export async function activate(
   );
   context.subscriptions.push(resourceTreeView);
 
+  // Initialize infrastructure explorer tree view
+  const infrastructureExplorer = new InfrastructureExplorerProvider(
+    authProvider,
+    apiClientManager,
+  );
+  const infrastructureTreeView = vscode.window.createTreeView(
+    'openchoreo.infrastructureExplorer',
+    {
+      treeDataProvider: infrastructureExplorer,
+      showCollapseAll: true,
+    },
+  );
+  context.subscriptions.push(infrastructureTreeView);
+
   // Register commands
-  registerCommands(context, authProvider, resourceExplorer, apiClientManager);
+  registerCommands(
+    context,
+    authProvider,
+    resourceExplorer,
+    infrastructureExplorer,
+    apiClientManager,
+  );
 
   // Start language server
   client = startLanguageServer(context);

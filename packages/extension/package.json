@@ -22,7 +22,8 @@
   ],
   "activationEvents": [
     "onLanguage:yaml",
-    "onView:openchoreo.resourceExplorer"
+    "onView:openchoreo.resourceExplorer",
+    "onView:openchoreo.infrastructureExplorer"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -69,6 +70,12 @@
         "command": "openchoreo.openResource",
         "title": "Open Resource YAML",
         "category": "OpenChoreo"
+      },
+      {
+        "command": "openchoreo.refreshInfrastructure",
+        "title": "Refresh Infrastructure",
+        "category": "OpenChoreo",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -77,12 +84,22 @@
           "command": "openchoreo.refreshResources",
           "when": "view == openchoreo.resourceExplorer",
           "group": "navigation"
+        },
+        {
+          "command": "openchoreo.refreshInfrastructure",
+          "when": "view == openchoreo.infrastructureExplorer",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
         {
           "command": "openchoreo.openResource",
-          "when": "view == openchoreo.resourceExplorer && viewItem =~ /component|project|namespace/",
+          "when": "view == openchoreo.resourceExplorer && viewItem =~ /^(namespace|project|component|deployment-pipeline|workflow-run|component-release|release-binding|component-trait|binding|workload)$/",
+          "group": "inline"
+        },
+        {
+          "command": "openchoreo.openResource",
+          "when": "view == openchoreo.infrastructureExplorer && viewItem =~ /^(environment|data-plane|build-plane|observability-plane|component-type|workflow|component-workflow|trait|secret-reference|git-secret|namespace-role|namespace-role-binding|cluster-role|cluster-role-binding)$/",
           "group": "inline"
         }
       ]
