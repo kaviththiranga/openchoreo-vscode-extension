@@ -1,0 +1,125 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ComponentType",
+  "title": "OpenChoreo ComponentType",
+  "description": "Defines how different application types deploy. Platform Engineers create ComponentTypes to provide templates for developers.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ComponentType"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Standard Kubernetes metadata",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the ComponentType"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace (organization) this ComponentType belongs to"
+        }
+      },
+      "required": ["name"]
+    },
+    "spec": {
+      "type": "object",
+      "description": "ComponentType specification",
+      "properties": {
+        "workloadType": {
+          "type": "string",
+          "enum": ["deployment", "statefulset", "cronjob", "job", "proxy"],
+          "description": "Type of Kubernetes workload to create. Determines the base resource template."
+        },
+        "allowedWorkflows": {
+          "type": "array",
+          "description": "Optional list of allowed build workflows for this component type",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of an allowed Workflow resource"
+              }
+            },
+            "required": ["name"]
+          }
+        },
+        "allowedTraits": {
+          "type": "array",
+          "description": "Optional list of allowed traits for this component type",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of an allowed Trait resource"
+              }
+            },
+            "required": ["name"]
+          }
+        },
+        "schema": {
+          "type": "object",
+          "description": "Schema definitions for developer-facing parameters and PE-controlled overrides",
+          "properties": {
+            "types": {
+              "type": "object",
+              "description": "Reusable type definitions referenced by parameters and envOverrides",
+              "additionalProperties": true
+            },
+            "parameters": {
+              "type": "object",
+              "description": "Developer-facing configuration parameters. Values use schema DSL format: \"type | constraint=value\"",
+              "additionalProperties": true
+            },
+            "envOverrides": {
+              "type": "object",
+              "description": "Platform Engineer-controlled per-environment overrides",
+              "additionalProperties": true
+            }
+          }
+        },
+        "resources": {
+          "type": "array",
+          "description": "Kubernetes resource templates to generate. Uses CEL expressions for dynamic values.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for this resource template. For the primary resource, must match workloadType."
+              },
+              "includeWhen": {
+                "type": "string",
+                "description": "CEL expression that determines whether to include this resource. Empty = always include."
+              },
+              "forEach": {
+                "type": "string",
+                "description": "CEL expression that returns a list to iterate over, generating one resource per item."
+              },
+              "var": {
+                "type": "string",
+                "description": "Variable name for the current item when using forEach."
+              },
+              "template": {
+                "type": "object",
+                "description": "Kubernetes resource template with CEL expressions in ${...} blocks",
+                "additionalProperties": true
+              }
+            },
+            "required": ["id", "template"]
+          }
+        }
+      },
+      "required": ["workloadType", "resources"]
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"]
+}

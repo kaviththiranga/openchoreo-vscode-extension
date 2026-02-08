@@ -1,0 +1,26 @@
+{
+  "name": "@openchoreo/language-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Language server for OpenChoreo CRD YAML validation, completion, and hover documentation",
+  "license": "Apache-2.0",
+  "main": "dist/server.js",
+  "scripts": {
+    "build": "esbuild ./src/server.ts --bundle --outfile=dist/server.js --format=cjs --platform=node --sourcemap",
+    "dev": "pnpm build --watch",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "vscode-languageserver": "^9.0.1",
+    "vscode-languageserver-textdocument": "^1.0.12",
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  }
+}

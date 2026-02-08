@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "Environment",
+  "title": "OpenChoreo Environment",
+  "description": "Deployment target configuration bound to a DataPlane.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "Environment"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the Environment"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace (organization)"
+        }
+      },
+      "required": ["name"]
+    },
+    "spec": {
+      "type": "object",
+      "description": "Environment specification",
+      "properties": {
+        "dataPlaneRef": {
+          "type": "string",
+          "description": "Reference to a DataPlane resource"
+        },
+        "isProduction": {
+          "type": "boolean",
+          "description": "Production flag — affects controller reconciliation frequency and safety checks",
+          "default": false
+        },
+        "gateway": {
+          "type": "object",
+          "description": "Gateway configuration for this environment",
+          "properties": {
+            "dnsPrefix": {
+              "type": "string",
+              "description": "DNS prefix for environment-specific domains"
+            },
+            "security": {
+              "type": "object",
+              "properties": {
+                "remoteJwks": {
+                  "type": "object",
+                  "properties": {
+                    "uri": {
+                      "type": "string",
+                      "description": "JWKS endpoint URL for JWT authentication"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "required": ["dataPlaneRef"]
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"]
+}

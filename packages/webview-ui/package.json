@@ -1,0 +1,14 @@
+{
+  "name": "@openchoreo/webview-ui",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Webview panels for OpenChoreo VSCode extension (Phase 3)",
+  "license": "Apache-2.0",
+  "scripts": {
+    "build": "echo 'Phase 3 — not yet implemented'",
+    "dev": "echo 'Phase 3 — not yet implemented'",
+    "lint": "echo 'Phase 3 — not yet implemented'",
+    "test": "echo 'Phase 3 — not yet implemented'",
+    "clean": "rm -rf dist"
+  }
+}

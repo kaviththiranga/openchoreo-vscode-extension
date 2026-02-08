@@ -1,0 +1,137 @@
+{
+  "name": "openchoreo",
+  "displayName": "OpenChoreo",
+  "description": "IDE-native tooling for the OpenChoreo developer platform — CRD editing, resource explorer, and platform workflows",
+  "version": "0.1.0",
+  "publisher": "openchoreo",
+  "license": "Apache-2.0",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Snippets",
+    "Other"
+  ],
+  "keywords": [
+    "openchoreo",
+    "kubernetes",
+    "crd",
+    "yaml",
+    "platform-engineering"
+  ],
+  "activationEvents": [
+    "onLanguage:yaml",
+    "onView:openchoreo.resourceExplorer"
+  ],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "openchoreo",
+          "title": "OpenChoreo",
+          "icon": "resources/openchoreo.svg"
+        }
+      ]
+    },
+    "views": {
+      "openchoreo": [
+        {
+          "id": "openchoreo.resourceExplorer",
+          "name": "Resources"
+        },
+        {
+          "id": "openchoreo.infrastructureExplorer",
+          "name": "Infrastructure",
+          "visibility": "collapsed"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "openchoreo.refreshResources",
+        "title": "Refresh Resources",
+        "category": "OpenChoreo",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "openchoreo.switchContext",
+        "title": "Switch Context",
+        "category": "OpenChoreo"
+      },
+      {
+        "command": "openchoreo.login",
+        "title": "Login (via occ CLI)",
+        "category": "OpenChoreo"
+      },
+      {
+        "command": "openchoreo.openResource",
+        "title": "Open Resource YAML",
+        "category": "OpenChoreo"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "openchoreo.refreshResources",
+          "when": "view == openchoreo.resourceExplorer",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "openchoreo.openResource",
+          "when": "view == openchoreo.resourceExplorer && viewItem =~ /component|project|namespace/",
+          "group": "inline"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "OpenChoreo",
+      "properties": {
+        "openchoreo.configPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to occ CLI config file. Defaults to ~/.openchoreo/config"
+        },
+        "openchoreo.autoRefresh": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically refresh resource tree on changes"
+        },
+        "openchoreo.autoRefreshInterval": {
+          "type": "number",
+          "default": 30,
+          "description": "Auto-refresh interval in seconds"
+        }
+      }
+    },
+    "snippets": [
+      {
+        "language": "yaml",
+        "path": "./snippets/openchoreo.json"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "dev": "pnpm build --watch",
+    "lint": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rm -rf dist out",
+    "package": "pnpm build && vsce package --no-dependencies"
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1",
+    "yaml": "^2.6.0"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0",
+    "@vscode/vsce": "^3.2.0"
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "Component",
+  "title": "OpenChoreo Component",
+  "description": "An application unit (service, web app, scheduled task, etc.) that can be built and deployed.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "Component"
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Standard Kubernetes metadata",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the Component"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace (organization) this Component belongs to"
+        }
+      },
+      "required": ["name"]
+    },
+    "spec": {
+      "type": "object",
+      "description": "Component specification",
+      "properties": {
+        "owner": {
+          "type": "object",
+          "description": "Ownership information linking this component to a project",
+          "properties": {
+            "projectName": {
+              "type": "string",
+              "description": "Name of the project that owns this component",
+              "minLength": 1
+            }
+          },
+          "required": ["projectName"]
+        },
+        "componentType": {
+          "type": "string",
+          "description": "Reference to a ComponentType resource that defines how this component deploys"
+        },
+        "workflow": {
+          "type": "object",
+          "description": "Build workflow configuration. Optional for from-image components.",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name of the Workflow resource to use for builds"
+            },
+            "parameters": {
+              "type": "object",
+              "description": "Workflow-specific parameters (e.g., dockerfile path)",
+              "additionalProperties": true
+            },
+            "systemParameters": {
+              "type": "object",
+              "description": "System-managed parameters like repository configuration",
+              "properties": {
+                "repository": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "Git repository URL"
+                    },
+                    "revision": {
+                      "type": "object",
+                      "properties": {
+                        "branch": {
+                          "type": "string",
+                          "description": "Git branch to build from"
+                        }
+                      }
+                    },
+                    "appPath": {
+                      "type": "string",
+                      "description": "Path within the repository to the application source"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Component parameters defined by the ComponentType schema",
+          "additionalProperties": true
+        },
+        "traits": {
+          "type": "array",
+          "description": "Traits attached to this component",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Name of the Trait resource"
+              },
+              "instanceName": {
+                "type": "string",
+                "description": "Unique instance name for this trait attachment"
+              },
+              "parameters": {
+                "type": "object",
+                "description": "Trait-specific parameters",
+                "additionalProperties": true
+              }
+            },
+            "required": ["name"]
+          }
+        },
+        "autoDeploy": {
+          "type": "boolean",
+          "description": "If true, automatically deploy new releases to the first environment in the pipeline",
+          "default": false
+        }
+      },
+      "required": ["owner", "componentType"]
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"]
+}

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "Project",
+  "title": "OpenChoreo Project",
+  "description": "Groups components with a shared deployment pipeline.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "Project"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the Project"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace (organization)"
+        }
+      },
+      "required": ["name"]
+    },
+    "spec": {
+      "type": "object",
+      "description": "Project specification",
+      "properties": {
+        "deploymentPipelineRef": {
+          "type": "string",
+          "description": "Reference to a DeploymentPipeline resource in the same namespace"
+        }
+      },
+      "required": ["deploymentPipelineRef"]
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"]
+}

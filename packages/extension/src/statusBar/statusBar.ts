@@ -1,0 +1,55 @@
+// Copyright 2026 The OpenChoreo Authors
+// SPDX-License-Identifier: Apache-2.0
+
+import * as vscode from 'vscode';
+import { OccConfigAuthProvider } from '../auth/authProvider';
+
+export class StatusBarManager implements vscode.Disposable {
+  private statusBarItem: vscode.StatusBarItem;
+  private disposables: vscode.Disposable[] = [];
+
+  constructor(private readonly authProvider: OccConfigAuthProvider) {
+    this.statusBarItem = vscode.window.createStatusBarItem(
+      vscode.StatusBarAlignment.Left,
+      100,
+    );
+    this.statusBarItem.command = 'openchoreo.switchContext';
+    this.disposables.push(this.statusBarItem);
+
+    // Update on session changes
+    const sub = authProvider.onDidChangeSession(() => this.update());
+    this.disposables.push(sub);
+
+    this.update();
+    this.statusBarItem.show();
+  }
+
+  private update(): void {
+    const contextInfo = this.authProvider.getContextInfo();
+
+    if (!contextInfo) {
+      this.statusBarItem.text = '$(cloud-offline) OpenChoreo: Not connected';
+      this.statusBarItem.tooltip =
+        'Not connected to OpenChoreo. Run "occ login" to authenticate.';
+      this.statusBarItem.backgroundColor = new vscode.ThemeColor(
+        'statusBarItem.warningBackground',
+      );
+      return;
+    }
+
+    this.statusBarItem.text = `$(cloud) OpenChoreo: ${contextInfo.contextName}`;
+    this.statusBarItem.tooltip = [
+      `Context: ${contextInfo.contextName}`,
+      `Namespace: ${contextInfo.namespace}`,
+      `Project: ${contextInfo.project}`,
+      `API: ${contextInfo.controlPlaneUrl}`,
+    ].join('\n');
+    this.statusBarItem.backgroundColor = undefined;
+  }
+
+  dispose(): void {
+    for (const d of this.disposables) {
+      d.dispose();
+    }
+  }
+}

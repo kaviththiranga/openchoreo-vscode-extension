@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "Workload",
+  "title": "OpenChoreo Workload",
+  "description": "The developer's application contract — what should run, not how it runs. Gets transformed into Kubernetes resources by ComponentType templates.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "Workload"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the Workload"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace (organization)"
+        }
+      },
+      "required": ["name"]
+    },
+    "spec": {
+      "type": "object",
+      "description": "Workload specification",
+      "properties": {
+        "owner": {
+          "type": "object",
+          "description": "Ownership linking to project and component",
+          "properties": {
+            "projectName": {
+              "type": "string",
+              "description": "Name of the owning project",
+              "minLength": 1
+            },
+            "componentName": {
+              "type": "string",
+              "description": "Name of the owning component",
+              "minLength": 1
+            }
+          },
+          "required": ["projectName", "componentName"]
+        },
+        "containers": {
+          "type": "object",
+          "description": "Container specifications keyed by container name",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "image": {
+                "type": "string",
+                "description": "OCI container image (digest or tag)"
+              },
+              "command": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Container command override"
+              },
+              "args": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "Container arguments"
+              },
+              "env": {
+                "type": "array",
+                "description": "Environment variables",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": { "type": "string" },
+                    "value": { "type": "string" },
+                    "valueFrom": {
+                      "type": "object",
+                      "properties": {
+                        "configurationGroupRef": {
+                          "type": "object",
+                          "properties": {
+                            "name": { "type": "string" },
+                            "key": { "type": "string" }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": ["key"]
+                }
+              },
+              "files": {
+                "type": "array",
+                "description": "File mount configurations",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "key": { "type": "string" },
+                    "mountPath": { "type": "string" },
+                    "value": { "type": "string" }
+                  },
+                  "required": ["key", "mountPath"]
+                }
+              }
+            }
+          }
+        },
+        "endpoints": {
+          "type": "object",
+          "description": "Network endpoints exposed by the application",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["HTTP", "gRPC", "TCP", "UDP"],
+                "description": "Protocol type"
+              },
+              "port": {
+                "type": "integer",
+                "description": "Port number"
+              },
+              "schema": {
+                "type": "object",
+                "description": "API schema definition",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["openapi", "graphql", "grpc", "asyncapi"]
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Inline API schema content"
+                  }
+                }
+              }
+            },
+            "required": ["type", "port"]
+          }
+        },
+        "connections": {
+          "type": "array",
+          "description": "Connections to other components' endpoints",
+          "items": {
+            "type": "object",
+            "properties": {
+              "componentRef": {
+                "type": "string",
+                "description": "Reference to the target component"
+              },
+              "endpointRef": {
+                "type": "string",
+                "description": "Reference to the target endpoint"
+              }
+            }
+          }
+        }
+      },
+      "required": ["owner"]
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"]
+}
