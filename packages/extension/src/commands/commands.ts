@@ -4,6 +4,7 @@
 import * as vscode from 'vscode';
 import { OccConfigAuthProvider } from '../auth/authProvider';
 import { ResourceExplorerProvider } from '../treeView/resourceExplorer';
+import type { ApiClientManager } from '../api/apiClient';
 
 const SCHEME = 'openchoreo';
 
@@ -11,9 +12,12 @@ export function registerCommands(
   context: vscode.ExtensionContext,
   authProvider: OccConfigAuthProvider,
   resourceExplorer: ResourceExplorerProvider,
+  apiClientManager: ApiClientManager,
 ): void {
   // Register virtual document provider for readonly resource views
-  const resourceContentProvider = new OpenChoreoResourceProvider(authProvider);
+  const resourceContentProvider = new OpenChoreoResourceProvider(
+    apiClientManager,
+  );
   context.subscriptions.push(
     vscode.workspace.registerTextDocumentContentProvider(
       SCHEME,
@@ -78,25 +82,27 @@ export function registerCommands(
           return;
         }
 
-        // Build a descriptive file name and API path based on node type
+        // Build a descriptive file name and encode structured params in query
         let fileName: string;
-        let apiPath: string;
-        const base = `/api/v1/namespaces/${node.namespace}`;
+        const params = new URLSearchParams();
+        params.set('ns', node.namespace);
 
         if (node.component && node.project) {
           fileName = `${node.namespace}/${node.project}/${node.component}.json`;
-          apiPath = `${base}/projects/${node.project}/components/${node.component}`;
+          params.set('type', 'component');
+          params.set('proj', node.project);
+          params.set('comp', node.component);
         } else if (node.project) {
           fileName = `${node.namespace}/${node.project}.json`;
-          apiPath = `${base}/projects/${node.project}`;
+          params.set('type', 'project');
+          params.set('proj', node.project);
         } else {
           fileName = `${node.namespace}.json`;
-          apiPath = `${base}`;
+          params.set('type', 'namespace');
         }
 
-        // Encode the API path in the URI query so the content provider can fetch it
         const uri = vscode.Uri.parse(
-          `${SCHEME}:${fileName}?path=${encodeURIComponent(apiPath)}`,
+          `${SCHEME}:${fileName}?${params.toString()}`,
         );
 
         try {
@@ -113,7 +119,7 @@ export function registerCommands(
 }
 
 /**
- * Virtual document provider that fetches OpenChoreo resources via API
+ * Virtual document provider that fetches OpenChoreo resources via the typed API client
  * and presents them as readonly JSON documents.
  */
 class OpenChoreoResourceProvider
@@ -122,30 +128,81 @@ class OpenChoreoResourceProvider
   private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
   readonly onDidChange = this.onDidChangeEmitter.event;
 
-  constructor(private readonly authProvider: OccConfigAuthProvider) {}
+  constructor(private readonly apiClientManager: ApiClientManager) {}
 
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
-    const session = this.authProvider.getSession();
-    const token = await this.authProvider.getToken();
-
-    if (!session || !token) {
+    const client = await this.apiClientManager.getClient();
+    if (!client) {
       return '// Not authenticated. Run "occ login" first.';
     }
 
-    const apiPath = decodeURIComponent(uri.query.replace('path=', ''));
-    const url = `${session.controlPlaneUrl}${apiPath}`;
+    const params = new URLSearchParams(uri.query);
+    const type = params.get('type');
+    const ns = params.get('ns');
 
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (!response.ok) {
-      return `// Error: HTTP ${response.status} from ${apiPath}`;
+    if (!ns) {
+      return '// Error: missing namespace parameter';
     }
 
-    const json = (await response.json()) as { data?: unknown };
-    // Unwrap the { success, data } envelope
-    const payload = json.data ?? json;
-    return JSON.stringify(payload, null, 2);
+    try {
+      let payload: unknown;
+
+      if (type === 'component') {
+        const proj = params.get('proj');
+        const comp = params.get('comp');
+        if (!proj || !comp) {
+          return '// Error: missing project or component parameter';
+        }
+        const { data, error } = await client.GET(
+          '/namespaces/{namespaceName}/projects/{projectName}/components/{componentName}',
+          {
+            params: {
+              path: {
+                namespaceName: ns,
+                projectName: proj,
+                componentName: comp,
+              },
+            },
+          },
+        );
+        if (error) {
+          return `// Error fetching component: ${JSON.stringify(error)}`;
+        }
+        payload = data?.data ?? data;
+      } else if (type === 'project') {
+        const proj = params.get('proj');
+        if (!proj) {
+          return '// Error: missing project parameter';
+        }
+        const { data, error } = await client.GET(
+          '/namespaces/{namespaceName}/projects/{projectName}',
+          {
+            params: {
+              path: { namespaceName: ns, projectName: proj },
+            },
+          },
+        );
+        if (error) {
+          return `// Error fetching project: ${JSON.stringify(error)}`;
+        }
+        payload = data?.data ?? data;
+      } else {
+        // namespace: list projects as a summary
+        const { data, error } = await client.GET(
+          '/namespaces/{namespaceName}/projects',
+          {
+            params: { path: { namespaceName: ns } },
+          },
+        );
+        if (error) {
+          return `// Error fetching namespace projects: ${JSON.stringify(error)}`;
+        }
+        payload = data?.data ?? data;
+      }
+
+      return JSON.stringify(payload, null, 2);
+    } catch (error) {
+      return `// Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    }
   }
 }

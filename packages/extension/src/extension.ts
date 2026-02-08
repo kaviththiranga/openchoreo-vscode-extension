@@ -10,6 +10,7 @@ import {
   TransportKind,
 } from 'vscode-languageclient/node';
 import { OccConfigAuthProvider } from './auth/authProvider';
+import { ApiClientManager } from './api/apiClient';
 import { ResourceExplorerProvider } from './treeView/resourceExplorer';
 import { StatusBarManager } from './statusBar/statusBar';
 import { registerCommands } from './commands/commands';
@@ -23,12 +24,18 @@ export async function activate(
   const authProvider = new OccConfigAuthProvider(context);
   context.subscriptions.push(authProvider);
 
+  // Initialize typed API client manager
+  const apiClientManager = new ApiClientManager(authProvider);
+
   // Initialize status bar
   const statusBar = new StatusBarManager(authProvider);
   context.subscriptions.push(statusBar);
 
   // Initialize resource explorer tree view
-  const resourceExplorer = new ResourceExplorerProvider(authProvider);
+  const resourceExplorer = new ResourceExplorerProvider(
+    authProvider,
+    apiClientManager,
+  );
   const resourceTreeView = vscode.window.createTreeView(
     'openchoreo.resourceExplorer',
     {
@@ -39,7 +46,7 @@ export async function activate(
   context.subscriptions.push(resourceTreeView);
 
   // Register commands
-  registerCommands(context, authProvider, resourceExplorer);
+  registerCommands(context, authProvider, resourceExplorer, apiClientManager);
 
   // Start language server
   client = startLanguageServer(context);

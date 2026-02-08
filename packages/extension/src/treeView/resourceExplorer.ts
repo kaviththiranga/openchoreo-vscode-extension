@@ -3,6 +3,7 @@
 
 import * as vscode from 'vscode';
 import { OccConfigAuthProvider } from '../auth/authProvider';
+import type { ApiClientManager } from '../api/apiClient';
 
 type ResourceNodeType =
   | 'namespace'
@@ -29,7 +30,10 @@ export class ResourceExplorerProvider
   >();
   readonly onDidChangeTreeData = this.onDidChangeTreeDataEmitter.event;
 
-  constructor(private readonly authProvider: OccConfigAuthProvider) {
+  constructor(
+    private readonly authProvider: OccConfigAuthProvider,
+    private readonly apiClientManager: ApiClientManager,
+  ) {
     // Refresh tree when auth session changes
     authProvider.onDidChangeSession(() => this.refresh());
   }
@@ -92,20 +96,18 @@ export class ResourceExplorerProvider
   }
 
   private async getRootNodes(): Promise<ResourceNodeData[]> {
-    const session = this.authProvider.getSession();
-
-    if (!session) {
-      return [
-        {
-          label: 'Not connected. Run "occ login" to authenticate.',
-          type: 'no-connection',
-          contextValue: 'no-connection',
-        },
-      ];
-    }
-
     const contextInfo = this.authProvider.getContextInfo();
     if (!contextInfo) {
+      const session = this.authProvider.getSession();
+      if (!session) {
+        return [
+          {
+            label: 'Not connected. Run "occ login" to authenticate.',
+            type: 'no-connection',
+            contextValue: 'no-connection',
+          },
+        ];
+      }
       return [
         {
           label: 'No context configured',
@@ -116,8 +118,8 @@ export class ResourceExplorerProvider
     }
 
     try {
-      const token = await this.authProvider.getToken();
-      if (!token) {
+      const client = await this.apiClientManager.getClient();
+      if (!client) {
         return [
           {
             label: 'Session expired. Run "occ login" to re-authenticate.',
@@ -127,11 +129,10 @@ export class ResourceExplorerProvider
         ];
       }
 
-      // Fetch projects from the API
+      // Fetch projects from the API using typed client
       const projects = await this.fetchProjects(
-        session.controlPlaneUrl,
+        client,
         contextInfo.namespace,
-        token,
       );
 
       if (projects.length === 0) {
@@ -181,58 +182,53 @@ export class ResourceExplorerProvider
   }
 
   private async fetchProjects(
-    controlPlaneUrl: string,
+    client: NonNullable<Awaited<ReturnType<ApiClientManager['getClient']>>>,
     namespace: string,
-    token: string,
   ): Promise<
     Array<{
       name: string;
       components: Array<{ name: string }>;
     }>
   > {
-    const baseUrl = `${controlPlaneUrl}/api/v1`;
-
-    // Fetch projects
-    const projectsRes = await fetch(
-      `${baseUrl}/namespaces/${namespace}/projects`,
+    // Fetch projects using typed client
+    const { data: projectsData, error: projectsError } = await client.GET(
+      '/namespaces/{namespaceName}/projects',
       {
-        headers: { Authorization: `Bearer ${token}` },
+        params: { path: { namespaceName: namespace } },
       },
     );
 
-    if (!projectsRes.ok) {
-      throw new Error(`Failed to fetch projects: ${projectsRes.status}`);
+    if (projectsError) {
+      throw new Error('Failed to fetch projects');
     }
 
-    const projectsData = (await projectsRes.json()) as {
-      data?: { items?: Array<{ name: string }> };
-    };
-    const projectItems = projectsData.data?.items ?? [];
+    const projectItems = projectsData?.data?.items ?? [];
 
     // Fetch components for each project
     const results = await Promise.all(
       projectItems.map(async (project) => {
+        const projectName = project.name as string;
         try {
-          const componentsRes = await fetch(
-            `${baseUrl}/namespaces/${namespace}/projects/${project.name}/components`,
+          const { data: componentsData } = await client.GET(
+            '/namespaces/{namespaceName}/projects/{projectName}/components',
             {
-              headers: { Authorization: `Bearer ${token}` },
+              params: {
+                path: {
+                  namespaceName: namespace,
+                  projectName,
+                },
+              },
             },
           );
 
-          if (!componentsRes.ok) {
-            return { name: project.name, components: [] };
-          }
-
-          const componentsData = (await componentsRes.json()) as {
-            data?: { items?: Array<{ name: string }> };
-          };
           return {
-            name: project.name,
-            components: componentsData.data?.items ?? [],
+            name: projectName,
+            components: (componentsData?.data?.items ?? []).map((c) => ({
+              name: c.name as string,
+            })),
           };
         } catch {
-          return { name: project.name, components: [] };
+          return { name: projectName, components: [] };
         }
       }),
     );

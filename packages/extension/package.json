@@ -123,6 +123,8 @@
     "package": "pnpm build && vsce package --no-dependencies"
   },
   "dependencies": {
+    "@openchoreo/openchoreo-client-node": "link:/Users/kavithlokuhewage/git/backstage-plugins/packages/openchoreo-client-node",
+    "openapi-fetch": "0.13.8",
     "vscode-languageclient": "^9.0.1",
     "yaml": "^2.6.0"
   },
