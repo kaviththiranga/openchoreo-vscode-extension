@@ -111,7 +111,10 @@ function startLanguageServer(
   };
 
   const clientOptions: LanguageClientOptions = {
-    documentSelector: [{ scheme: 'file', language: 'yaml' }],
+    documentSelector: [
+      { scheme: 'file', language: 'yaml' },
+      { scheme: 'untitled', language: 'yaml' },
+    ],
     synchronize: {
       fileEvents: vscode.workspace.createFileSystemWatcher('**/*.yaml'),
     },

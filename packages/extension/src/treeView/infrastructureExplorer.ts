@@ -202,10 +202,34 @@ export class InfrastructureExplorerProvider
     ];
   }
 
+  private static readonly EDITABLE_TYPES: ReadonlySet<ResourceNodeType> =
+    new Set([
+      'component-type',
+      'workflow',
+      'component-workflow',
+      'trait',
+      'environment',
+      'data-plane',
+      'build-plane',
+      'observability-plane',
+      'deployment-pipeline',
+      'secret-reference',
+      'git-secret',
+      'namespace-role',
+      'namespace-role-binding',
+      'cluster-role',
+      'cluster-role-binding',
+    ]);
+
   private resolveContextValue(type: ResourceNodeType): string {
-    return this.capabilityService.canDelete(type)
-      ? `${type}_deletable`
-      : type;
+    let value: string = type;
+    if (InfrastructureExplorerProvider.EDITABLE_TYPES.has(type)) {
+      value += '_editable';
+    }
+    if (this.capabilityService.canDelete(type)) {
+      value += '_deletable';
+    }
+    return value;
   }
 
   private async fetchLazyChildren(
@@ -289,7 +313,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'environment' as const,
-      contextValue: 'environment',
+      contextValue: this.resolveContextValue('environment'),
       description: item.dataPlane ? `dp: ${item.dataPlane}` : undefined,
       namespace: ns,
       resourceName: item.name as string,
@@ -322,7 +346,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'data-plane' as const,
-      contextValue: 'data-plane',
+      contextValue: this.resolveContextValue('data-plane'),
       description: item.status as string | undefined,
       namespace: ns,
       resourceName: item.name as string,
@@ -354,7 +378,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'build-plane' as const,
-      contextValue: 'build-plane',
+      contextValue: this.resolveContextValue('build-plane'),
       namespace: ns,
       resourceName: item.name as string,
       childrenMode: 'none' as const,
@@ -390,7 +414,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'observability-plane' as const,
-      contextValue: 'observability-plane',
+      contextValue: this.resolveContextValue('observability-plane'),
       namespace: ns,
       resourceName: item.name as string,
       childrenMode: 'none' as const,
@@ -560,7 +584,7 @@ export class InfrastructureExplorerProvider
     return items.map((item) => ({
       label: (item.name as string) ?? 'unknown',
       type: 'secret-reference' as const,
-      contextValue: 'secret-reference',
+      contextValue: this.resolveContextValue('secret-reference'),
       namespace: ns,
       resourceName: item.name as string,
       childrenMode: 'none' as const,

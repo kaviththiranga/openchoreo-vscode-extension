@@ -2,13 +2,20 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
+import { parse as parseYaml } from 'yaml';
 import { OccConfigAuthProvider } from '../auth/authProvider';
 import { ResourceExplorerProvider } from '../treeView/resourceExplorer';
 import { InfrastructureExplorerProvider } from '../treeView/infrastructureExplorer';
 import type { ApiClientManager } from '../api/apiClient';
 import type { CapabilityService } from '../services/capabilityService';
 import type { DeleteService } from '../services/deleteService';
-import type { ResourceNodeData } from '../treeView/types';
+import type { ResourceNodeData, ResourceNodeType } from '../treeView/types';
+import {
+  DEFINITION_RESOURCE_TYPES,
+  crdToYaml,
+  CRD_KIND_TO_SCAFFOLD,
+} from '../services/yamlService';
+import { ResourceService } from '../services/resourceService';
 
 const SCHEME = 'openchoreo';
 
@@ -90,7 +97,7 @@ export function registerCommands(
     }),
   );
 
-  // Open resource as readonly virtual document
+  // Open resource — editable YAML for definition types, readonly JSON for others
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.openResource',
@@ -99,6 +106,42 @@ export function registerCommands(
           return;
         }
 
+        // Definition resources open as editable YAML untitled documents
+        if (DEFINITION_RESOURCE_TYPES.has(node.type)) {
+          try {
+            const client = await apiClientManager.getClient();
+            if (!client) {
+              vscode.window.showErrorMessage(
+                'Not authenticated. Run "occ login" first.',
+              );
+              return;
+            }
+
+            const provider = resourceContentProvider;
+            const crd = (await provider.fetchResourcePublic(
+              client,
+              node.type,
+              node.namespace ?? null,
+              node.project ?? null,
+              node.component ?? null,
+              node.resourceName ?? null,
+            )) as Record<string, unknown>;
+
+            const yamlContent = crdToYaml(crd);
+            const doc = await vscode.workspace.openTextDocument({
+              language: 'yaml',
+              content: yamlContent,
+            });
+            await vscode.window.showTextDocument(doc);
+          } catch (error) {
+            vscode.window.showErrorMessage(
+              `Failed to open resource: ${error instanceof Error ? error.message : 'Unknown error'}`,
+            );
+          }
+          return;
+        }
+
+        // All other resources: readonly virtual JSON document
         const params = new URLSearchParams();
         params.set('type', node.type);
 
@@ -168,6 +211,114 @@ export function registerCommands(
       },
     ),
   );
+
+  // Apply resource from active YAML editor to cluster
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.applyResource',
+      async () => {
+        const editor = vscode.window.activeTextEditor;
+        if (!editor) {
+          vscode.window.showWarningMessage('No active editor.');
+          return;
+        }
+
+        const content = editor.document.getText();
+        let resource: Record<string, unknown>;
+        try {
+          resource = parseYaml(content) as Record<string, unknown>;
+        } catch {
+          vscode.window.showErrorMessage(
+            'Failed to parse YAML. Fix syntax errors and try again.',
+          );
+          return;
+        }
+
+        if (
+          resource?.apiVersion !== 'openchoreo.dev/v1alpha1' ||
+          typeof resource?.kind !== 'string'
+        ) {
+          vscode.window.showErrorMessage(
+            'Document must have apiVersion: openchoreo.dev/v1alpha1 and a kind field.',
+          );
+          return;
+        }
+
+        const client = await apiClientManager.getClient();
+        if (!client) {
+          vscode.window.showErrorMessage(
+            'Not authenticated. Run "occ login" first.',
+          );
+          return;
+        }
+
+        try {
+          const { data, error, response } = await client.POST('/apply', {
+            body: resource,
+          });
+
+          if (error) {
+            const msg =
+              typeof error === 'object' && error !== null && 'message' in error
+                ? (error as { message: string }).message
+                : JSON.stringify(error);
+            vscode.window.showErrorMessage(
+              `Failed to apply resource: ${msg}`,
+            );
+            return;
+          }
+
+          const operation = response.status === 201 ? 'created' : 'updated';
+          const name =
+            (resource.metadata as { name?: string } | undefined)?.name ??
+            resource.kind;
+          vscode.window.showInformationMessage(
+            `${resource.kind} '${name}' ${operation} successfully.`,
+          );
+
+          resourceExplorer.refresh();
+          infrastructureExplorer.refresh();
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to apply resource: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // Create new resource from scaffold
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.createResource',
+      async () => {
+        const kinds = Object.keys(CRD_KIND_TO_SCAFFOLD);
+        const selected = await vscode.window.showQuickPick(kinds, {
+          placeHolder: 'Select resource kind to create',
+        });
+
+        if (!selected) {
+          return;
+        }
+
+        let scaffold = CRD_KIND_TO_SCAFFOLD[selected];
+        if (!scaffold) {
+          return;
+        }
+
+        // Replace namespace placeholder with current context namespace
+        const ctxInfo = authProvider.getContextInfo();
+        const ns = ctxInfo?.namespace ?? 'default';
+        scaffold = scaffold.replace(/\{\{namespace\}\}/g, ns);
+
+        const doc = await vscode.workspace.openTextDocument({
+          language: 'yaml',
+          content: scaffold,
+        });
+        await vscode.window.showTextDocument(doc);
+      },
+    ),
+  );
 }
 
 function buildFileName(node: ResourceNodeData): string {
@@ -202,8 +353,26 @@ class OpenChoreoResourceProvider
 {
   private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
   readonly onDidChange = this.onDidChangeEmitter.event;
+  private readonly resourceService = new ResourceService();
 
   constructor(private readonly apiClientManager: ApiClientManager) {}
+
+  /**
+   * Public access to fetchResource for use by the openResource command
+   * when opening definition resources as editable YAML.
+   */
+  async fetchResourcePublic(
+    client: NonNullable<
+      Awaited<ReturnType<ApiClientManager['getClient']>>
+    >,
+    type: string | null,
+    ns: string | null,
+    proj: string | null,
+    comp: string | null,
+    name: string | null,
+  ): Promise<unknown> {
+    return this.fetchResource(client, type, ns, proj, comp, name);
+  }
 
   async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
     const client = await this.apiClientManager.getClient();
@@ -246,7 +415,7 @@ class OpenChoreoResourceProvider
     // --- Resource view types ---
     if (type === 'namespace' && ns) {
       const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/projects',
+        '/namespaces/{namespaceName}',
         { params: { path: { namespaceName: ns } } },
       );
       if (error) {
@@ -255,51 +424,22 @@ class OpenChoreoResourceProvider
       return data?.data ?? data;
     }
 
-    if (type === 'project' && ns && proj) {
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/projects/{projectName}',
-        { params: { path: { namespaceName: ns, projectName: proj } } },
-      );
-      if (error) {
-        throw new Error(`Failed to fetch project: ${JSON.stringify(error)}`);
-      }
-      return data?.data ?? data;
-    }
-
-    if (type === 'component' && ns && proj && comp) {
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/projects/{projectName}/components/{componentName}',
-        {
-          params: {
-            path: {
-              namespaceName: ns,
-              projectName: proj,
-              componentName: comp,
-            },
-          },
-        },
-      );
-      if (error) {
-        throw new Error(`Failed to fetch component: ${JSON.stringify(error)}`);
-      }
-      return data?.data ?? data;
-    }
-
-    if (type === 'deployment-pipeline' && ns && proj) {
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/projects/{projectName}/deployment-pipeline',
-        {
-          params: {
-            path: { namespaceName: ns, projectName: proj },
-          },
-        },
-      );
-      if (error) {
-        throw new Error(
-          `Failed to fetch deployment pipeline: ${JSON.stringify(error)}`,
+    // Generic handler for all namespaced definition resources
+    if (
+      type &&
+      ns &&
+      this.resourceService.isGenericGetSupported(type as ResourceNodeType)
+    ) {
+      const resourceName =
+        name ?? (type === 'project' ? proj : type === 'component' ? comp : null);
+      if (resourceName) {
+        return this.resourceService.getResource(
+          client,
+          ns,
+          type as ResourceNodeType,
+          resourceName,
         );
       }
-      return data?.data ?? data;
     }
 
     if (type === 'workflow-run' && ns && proj && comp && name) {
@@ -437,197 +577,6 @@ class OpenChoreoResourceProvider
       if (error) {
         throw new Error(
           `Failed to fetch workloads: ${JSON.stringify(error)}`,
-        );
-      }
-      return data?.data ?? data;
-    }
-
-    // --- Infrastructure view types ---
-    if (type === 'environment' && ns && name) {
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/environments/{envName}',
-        {
-          params: {
-            path: { namespaceName: ns, envName: name },
-          },
-        },
-      );
-      if (error) {
-        throw new Error(
-          `Failed to fetch environment: ${JSON.stringify(error)}`,
-        );
-      }
-      return data?.data ?? data;
-    }
-
-    if (type === 'data-plane' && ns && name) {
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/dataplanes/{dpName}',
-        {
-          params: {
-            path: { namespaceName: ns, dpName: name },
-          },
-        },
-      );
-      if (error) {
-        throw new Error(
-          `Failed to fetch data plane: ${JSON.stringify(error)}`,
-        );
-      }
-      return data?.data ?? data;
-    }
-
-    if (type === 'build-plane' && ns && name) {
-      // No GET-by-name; fetch list and filter
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/buildplanes',
-        { params: { path: { namespaceName: ns } } },
-      );
-      if (error) {
-        throw new Error(
-          `Failed to fetch build planes: ${JSON.stringify(error)}`,
-        );
-      }
-      const items =
-        (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
-      return items.find((i) => i.name === name) ?? data?.data ?? data;
-    }
-
-    if (type === 'observability-plane' && ns && name) {
-      // No GET-by-name; fetch list and filter
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/observabilityplanes',
-        { params: { path: { namespaceName: ns } } },
-      );
-      if (error) {
-        throw new Error(
-          `Failed to fetch observability planes: ${JSON.stringify(error)}`,
-        );
-      }
-      const items =
-        (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
-      return items.find((i) => i.name === name) ?? data?.data ?? data;
-    }
-
-    if (type === 'component-type' && ns && name) {
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/component-types/{ctName}/definition',
-        {
-          params: {
-            path: { namespaceName: ns, ctName: name },
-          },
-        },
-      );
-      if (error) {
-        throw new Error(
-          `Failed to fetch component type: ${JSON.stringify(error)}`,
-        );
-      }
-      return data?.data ?? data;
-    }
-
-    if (type === 'workflow' && ns && name) {
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/workflows/{workflowName}/definition',
-        {
-          params: {
-            path: { namespaceName: ns, workflowName: name },
-          },
-        },
-      );
-      if (error) {
-        throw new Error(
-          `Failed to fetch workflow: ${JSON.stringify(error)}`,
-        );
-      }
-      return data?.data ?? data;
-    }
-
-    if (type === 'component-workflow' && ns && name) {
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/component-workflows/{cwName}/definition',
-        {
-          params: {
-            path: { namespaceName: ns, cwName: name },
-          },
-        },
-      );
-      if (error) {
-        throw new Error(
-          `Failed to fetch component workflow: ${JSON.stringify(error)}`,
-        );
-      }
-      return data?.data ?? data;
-    }
-
-    if (type === 'trait' && ns && name) {
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/traits/{traitName}/definition',
-        {
-          params: {
-            path: { namespaceName: ns, traitName: name },
-          },
-        },
-      );
-      if (error) {
-        throw new Error(`Failed to fetch trait: ${JSON.stringify(error)}`);
-      }
-      return data?.data ?? data;
-    }
-
-    if (type === 'secret-reference' && ns && name) {
-      // No GET-by-name; fetch list and filter
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/secret-references',
-        { params: { path: { namespaceName: ns } } },
-      );
-      if (error) {
-        throw new Error(
-          `Failed to fetch secret references: ${JSON.stringify(error)}`,
-        );
-      }
-      const items =
-        (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
-      return items.find((i) => i.name === name) ?? data?.data ?? data;
-    }
-
-    if (type === 'git-secret' && ns && name) {
-      // No GET-by-name; fetch list and filter
-      const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/git-secrets',
-        { params: { path: { namespaceName: ns } } },
-      );
-      if (error) {
-        throw new Error(
-          `Failed to fetch git secrets: ${JSON.stringify(error)}`,
-        );
-      }
-      const items =
-        (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
-      return items.find((i) => i.name === name) ?? data?.data ?? data;
-    }
-
-    if (type === 'namespace-role' && ns && name) {
-      const { data, error } = await client.GET(
-        '/namespaces/{namespace}/roles/{name}',
-        { params: { path: { namespace: ns, name } } },
-      );
-      if (error) {
-        throw new Error(
-          `Failed to fetch namespace role: ${JSON.stringify(error)}`,
-        );
-      }
-      return data?.data ?? data;
-    }
-
-    if (type === 'namespace-role-binding' && ns && name) {
-      const { data, error } = await client.GET(
-        '/namespaces/{namespace}/rolebindings/{name}',
-        { params: { path: { namespace: ns, name } } },
-      );
-      if (error) {
-        throw new Error(
-          `Failed to fetch namespace role binding: ${JSON.stringify(error)}`,
         );
       }
       return data?.data ?? data;

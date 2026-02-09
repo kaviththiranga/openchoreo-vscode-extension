@@ -183,10 +183,18 @@ export class ResourceExplorerProvider
     }
   }
 
+  private static readonly EDITABLE_TYPES: ReadonlySet<ResourceNodeType> =
+    new Set(['project', 'component', 'deployment-pipeline', 'workload']);
+
   private resolveContextValue(type: ResourceNodeType): string {
-    return this.capabilityService.canDelete(type)
-      ? `${type}_deletable`
-      : type;
+    let value: string = type;
+    if (ResourceExplorerProvider.EDITABLE_TYPES.has(type)) {
+      value += '_editable';
+    }
+    if (this.capabilityService.canDelete(type)) {
+      value += '_deletable';
+    }
+    return value;
   }
 
   private async fetchProjectChildren(
@@ -208,7 +216,7 @@ export class ResourceExplorerProvider
       children.push({
         label: pipeline.name ?? 'deployment-pipeline',
         type: 'deployment-pipeline',
-        contextValue: 'deployment-pipeline',
+        contextValue: this.resolveContextValue('deployment-pipeline'),
         namespace: ns,
         project: proj,
         resourceName: pipeline.name ?? 'deployment-pipeline',
@@ -535,7 +543,7 @@ export class ResourceExplorerProvider
       {
         label: workload.name,
         type: 'workload',
-        contextValue: 'workload',
+        contextValue: this.resolveContextValue('workload'),
         namespace: element.namespace,
         project: element.project,
         component: element.component,
