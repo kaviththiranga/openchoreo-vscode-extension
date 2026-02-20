@@ -14,8 +14,6 @@ export const NODE_ICON_MAP: Record<ResourceNodeType, string> = {
   'workflow-run': 'play-circle',
   'component-release': 'tag',
   'release-binding': 'link',
-  'component-trait': 'extensions',
-  binding: 'plug',
   workload: 'server-process',
   'deployment-pipeline': 'git-merge',
   // Infrastructure view
@@ -29,7 +27,6 @@ export const NODE_ICON_MAP: Record<ResourceNodeType, string> = {
   'component-workflow': 'tasklist',
   trait: 'extensions',
   'secret-reference': 'key',
-  'git-secret': 'lock',
   'namespace-role': 'shield',
   'namespace-role-binding': 'person',
   'cluster-role': 'shield',

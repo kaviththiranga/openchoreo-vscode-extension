@@ -12,7 +12,8 @@ export class DeleteService {
 
   async deleteResource(node: ResourceNodeData): Promise<void> {
     const client = await this.apiClientManager.getClient();
-    if (!client) {
+    const legacyClient = await this.apiClientManager.getLegacyClient();
+    if (!client || !legacyClient) {
       throw new Error('Not authenticated. Run "occ login" first.');
     }
 
@@ -24,6 +25,7 @@ export class DeleteService {
     const name = node.resourceName ?? node.label;
     await this.resourceService.deleteResource(
       client,
+      legacyClient,
       node.type,
       node.namespace,
       name,

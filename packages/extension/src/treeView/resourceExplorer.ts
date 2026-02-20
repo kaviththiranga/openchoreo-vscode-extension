@@ -92,7 +92,7 @@ export class ResourceExplorerProvider
       await this.capabilityService.ensureLoaded(contextInfo.namespace);
 
       const { data, error } = await client.GET(
-        '/namespaces/{namespaceName}/projects',
+        '/api/v1/namespaces/{namespaceName}/projects',
         { params: { path: { namespaceName: contextInfo.namespace } } },
       );
 
@@ -100,7 +100,7 @@ export class ResourceExplorerProvider
         throw new Error('Failed to fetch projects');
       }
 
-      const projectItems = data?.data?.items ?? [];
+      const projectItems = data?.items ?? [];
 
       const namespaceNode: ResourceNodeData = {
         label: contextInfo.namespace,
@@ -119,11 +119,11 @@ export class ResourceExplorerProvider
                 },
               ]
             : projectItems.map((p) => ({
-                label: p.name as string,
+                label: p.metadata?.name as string,
                 type: 'project' as const,
                 contextValue: this.resolveContextValue('project'),
                 namespace: contextInfo.namespace,
-                project: p.name as string,
+                project: p.metadata?.name as string,
                 childrenMode: 'lazy' as const,
                 lazyChildrenKey: 'project-children',
               })),
@@ -162,10 +162,6 @@ export class ResourceExplorerProvider
           return this.fetchComponentReleases(client, element);
         case 'release-bindings':
           return this.fetchReleaseBindings(client, element);
-        case 'component-traits':
-          return this.fetchComponentTraits(client, element);
-        case 'bindings':
-          return this.fetchBindings(client, element);
         case 'workloads':
           return this.fetchWorkloads(client, element);
         default:
@@ -205,34 +201,35 @@ export class ResourceExplorerProvider
     const proj = element.project!;
     const children: ResourceNodeData[] = [];
 
-    // Fetch deployment pipeline
+    // Fetch deployment pipelines for this project
     const { data: pipelineData } = await client.GET(
-      '/namespaces/{namespaceName}/projects/{projectName}/deployment-pipeline',
-      { params: { path: { namespaceName: ns, projectName: proj } } },
+      '/api/v1/namespaces/{namespaceName}/deployment-pipelines',
+      { params: { path: { namespaceName: ns }, query: { project: proj } } },
     );
 
-    if (pipelineData?.data) {
-      const pipeline = pipelineData.data as { name?: string };
+    const pipelines = pipelineData?.items ?? [];
+    for (const pipeline of pipelines) {
+      const pipelineName = pipeline.metadata?.name as string;
       children.push({
-        label: pipeline.name ?? 'deployment-pipeline',
+        label: pipelineName ?? 'deployment-pipeline',
         type: 'deployment-pipeline',
         contextValue: this.resolveContextValue('deployment-pipeline'),
         namespace: ns,
         project: proj,
-        resourceName: pipeline.name ?? 'deployment-pipeline',
+        resourceName: pipelineName ?? 'deployment-pipeline',
         childrenMode: 'none',
       });
     }
 
-    // Fetch components
+    // Fetch components for this project
     const { data: componentsData } = await client.GET(
-      '/namespaces/{namespaceName}/projects/{projectName}/components',
-      { params: { path: { namespaceName: ns, projectName: proj } } },
+      '/api/v1/namespaces/{namespaceName}/components',
+      { params: { path: { namespaceName: ns }, query: { project: proj } } },
     );
 
-    const componentItems = componentsData?.data?.items ?? [];
+    const componentItems = componentsData?.items ?? [];
     for (const comp of componentItems) {
-      const compName = comp.name as string;
+      const compName = comp.metadata?.name as string;
       children.push({
         label: compName,
         type: 'component',
@@ -294,22 +291,6 @@ export class ResourceExplorerProvider
         lazyChildrenKey: 'release-bindings',
       },
       {
-        label: 'Traits',
-        type: 'component-category',
-        contextValue: 'component-category',
-        ...base,
-        childrenMode: 'lazy',
-        lazyChildrenKey: 'component-traits',
-      },
-      {
-        label: 'Bindings',
-        type: 'component-category',
-        contextValue: 'component-category',
-        ...base,
-        childrenMode: 'lazy',
-        lazyChildrenKey: 'bindings',
-      },
-      {
         label: 'Workloads',
         type: 'component-category',
         contextValue: 'component-category',
@@ -325,13 +306,13 @@ export class ResourceExplorerProvider
     element: ResourceNodeData,
   ): Promise<ResourceNodeData[]> {
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/projects/{projectName}/components/{componentName}/workflow-runs',
+      '/api/v1/namespaces/{namespaceName}/component-workflow-runs',
       {
         params: {
-          path: {
-            namespaceName: element.namespace!,
-            projectName: element.project!,
-            componentName: element.component!,
+          path: { namespaceName: element.namespace! },
+          query: {
+            project: element.project!,
+            component: element.component!,
           },
         },
       },
@@ -341,20 +322,20 @@ export class ResourceExplorerProvider
       return [];
     }
 
-    const items = (data?.data as { items?: Array<{ name?: string; status?: string }> })?.items ?? [];
+    const items = data?.items ?? [];
     if (items.length === 0) {
       return [{ label: 'No workflow runs', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
     }
 
     return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
+      label: (item.metadata?.name as string) ?? 'unknown',
       type: 'workflow-run' as const,
       contextValue: 'workflow-run',
-      description: item.status as string | undefined,
+      description: (item as { status?: { phase?: string } }).status?.phase,
       namespace: element.namespace,
       project: element.project,
       component: element.component,
-      resourceName: item.name as string,
+      resourceName: item.metadata?.name as string,
       childrenMode: 'none' as const,
     }));
   }
@@ -364,13 +345,12 @@ export class ResourceExplorerProvider
     element: ResourceNodeData,
   ): Promise<ResourceNodeData[]> {
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/projects/{projectName}/components/{componentName}/component-releases',
+      '/api/v1/namespaces/{namespaceName}/component-releases',
       {
         params: {
-          path: {
-            namespaceName: element.namespace!,
-            projectName: element.project!,
-            componentName: element.component!,
+          path: { namespaceName: element.namespace! },
+          query: {
+            component: element.component!,
           },
         },
       },
@@ -380,19 +360,19 @@ export class ResourceExplorerProvider
       return [];
     }
 
-    const items = (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
+    const items = data?.items ?? [];
     if (items.length === 0) {
       return [{ label: 'No releases', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
     }
 
     return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
+      label: (item.metadata?.name as string) ?? 'unknown',
       type: 'component-release' as const,
       contextValue: 'component-release',
       namespace: element.namespace,
       project: element.project,
       component: element.component,
-      resourceName: item.name as string,
+      resourceName: item.metadata?.name as string,
       childrenMode: 'none' as const,
     }));
   }
@@ -402,13 +382,12 @@ export class ResourceExplorerProvider
     element: ResourceNodeData,
   ): Promise<ResourceNodeData[]> {
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/projects/{projectName}/components/{componentName}/release-bindings',
+      '/api/v1/namespaces/{namespaceName}/release-bindings',
       {
         params: {
-          path: {
-            namespaceName: element.namespace!,
-            projectName: element.project!,
-            componentName: element.component!,
+          path: { namespaceName: element.namespace! },
+          query: {
+            component: element.component!,
           },
         },
       },
@@ -418,96 +397,19 @@ export class ResourceExplorerProvider
       return [];
     }
 
-    const items = (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
+    const items = data?.items ?? [];
     if (items.length === 0) {
       return [{ label: 'No release bindings', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
     }
 
     return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
+      label: (item.metadata?.name as string) ?? 'unknown',
       type: 'release-binding' as const,
       contextValue: 'release-binding',
       namespace: element.namespace,
       project: element.project,
       component: element.component,
-      resourceName: item.name as string,
-      childrenMode: 'none' as const,
-    }));
-  }
-
-  private async fetchComponentTraits(
-    client: Client,
-    element: ResourceNodeData,
-  ): Promise<ResourceNodeData[]> {
-    const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/projects/{projectName}/components/{componentName}/traits',
-      {
-        params: {
-          path: {
-            namespaceName: element.namespace!,
-            projectName: element.project!,
-            componentName: element.component!,
-          },
-        },
-      },
-    );
-
-    if (error) {
-      return [];
-    }
-
-    const items = (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
-    if (items.length === 0) {
-      return [{ label: 'No traits', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
-    }
-
-    return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
-      type: 'component-trait' as const,
-      contextValue: 'component-trait',
-      namespace: element.namespace,
-      project: element.project,
-      component: element.component,
-      resourceName: item.name as string,
-      childrenMode: 'none' as const,
-    }));
-  }
-
-  private async fetchBindings(
-    client: Client,
-    element: ResourceNodeData,
-  ): Promise<ResourceNodeData[]> {
-    const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/projects/{projectName}/components/{componentName}/bindings',
-      {
-        params: {
-          path: {
-            namespaceName: element.namespace!,
-            projectName: element.project!,
-            componentName: element.component!,
-          },
-        },
-      },
-    );
-
-    if (error) {
-      return [];
-    }
-
-    const items = (data?.data as { items?: Array<{ name?: string; status?: string }> })?.items ?? [];
-    if (items.length === 0) {
-      return [{ label: 'No bindings', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
-    }
-
-    return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
-      type: 'binding' as const,
-      contextValue: 'binding',
-      description: item.status as string | undefined,
-      namespace: element.namespace,
-      project: element.project,
-      component: element.component,
-      resourceName: item.name as string,
+      resourceName: item.metadata?.name as string,
       childrenMode: 'none' as const,
     }));
   }
@@ -517,13 +419,12 @@ export class ResourceExplorerProvider
     element: ResourceNodeData,
   ): Promise<ResourceNodeData[]> {
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/projects/{projectName}/components/{componentName}/workloads',
+      '/api/v1/namespaces/{namespaceName}/workloads',
       {
         params: {
-          path: {
-            namespaceName: element.namespace!,
-            projectName: element.project!,
-            componentName: element.component!,
+          path: { namespaceName: element.namespace! },
+          query: {
+            component: element.component!,
           },
         },
       },
@@ -533,23 +434,20 @@ export class ResourceExplorerProvider
       return [];
     }
 
-    // Workloads endpoint returns a singular response, not a list
-    const workload = data?.data as { name?: string } | undefined;
-    if (!workload?.name) {
+    const items = data?.items ?? [];
+    if (items.length === 0) {
       return [{ label: 'No workloads', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
     }
 
-    return [
-      {
-        label: workload.name,
-        type: 'workload',
-        contextValue: this.resolveContextValue('workload'),
-        namespace: element.namespace,
-        project: element.project,
-        component: element.component,
-        resourceName: workload.name,
-        childrenMode: 'none',
-      },
-    ];
+    return items.map((item) => ({
+      label: (item.metadata?.name as string) ?? 'unknown',
+      type: 'workload' as const,
+      contextValue: this.resolveContextValue('workload'),
+      namespace: element.namespace,
+      project: element.project,
+      component: element.component,
+      resourceName: item.metadata?.name as string,
+      childrenMode: 'none' as const,
+    }));
   }
 }

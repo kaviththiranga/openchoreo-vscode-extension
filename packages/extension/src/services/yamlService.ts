@@ -3,7 +3,7 @@
 
 import { stringify } from 'yaml';
 
-/** Resource types whose GET endpoints return full Kubernetes CRD definitions. */
+/** Resource types whose GET endpoints return full resource definitions for editing. */
 export const DEFINITION_RESOURCE_TYPES = new Set([
   'component-type',
   'workflow',
@@ -18,7 +18,6 @@ export const DEFINITION_RESOURCE_TYPES = new Set([
   'deployment-pipeline',
   'workload',
   'secret-reference',
-  'git-secret',
   'namespace-role',
   'namespace-role-binding',
   'cluster-role',
@@ -26,7 +25,7 @@ export const DEFINITION_RESOURCE_TYPES = new Set([
 ]);
 
 /**
- * Strips noisy Kubernetes metadata fields from a CRD object,
+ * Strips noisy Kubernetes metadata fields from a resource object,
  * leaving only the fields relevant for editing.
  */
 export function cleanCrdForEditing(
@@ -39,10 +38,6 @@ export function cleanCrdForEditing(
 
     // Remove noisy k8s metadata fields
     delete meta.managedFields;
-    delete meta.creationTimestamp;
-    delete meta.generation;
-    delete meta.resourceVersion;
-    delete meta.uid;
 
     // Clean annotations
     if (meta.annotations && typeof meta.annotations === 'object') {
@@ -65,7 +60,7 @@ export function cleanCrdForEditing(
 }
 
 /**
- * Converts a CRD JSON object to a clean YAML string for editing.
+ * Converts a resource JSON object to a clean YAML string for editing.
  */
 export function crdToYaml(crd: Record<string, unknown>): string {
   const cleaned = cleanCrdForEditing(crd);

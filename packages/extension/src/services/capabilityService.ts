@@ -7,12 +7,11 @@ import type { ResourceNodeType } from '../treeView/types';
 
 /**
  * Maps deletable node types to their candidate authz action name.
- * Action names are matched against the discovered actions from GET /authz/actions.
+ * Action names are matched against the discovered actions from GET /api/v1/authz/actions.
  */
 const DELETE_ACTION_MAP: Partial<Record<ResourceNodeType, string>> = {
   project: 'project:delete',
   component: 'component:delete',
-  'git-secret': 'gitsecret:delete',
   'component-type': 'componenttype:delete',
   workflow: 'workflow:delete',
   'component-workflow': 'componentworkflow:delete',
@@ -56,25 +55,25 @@ export class CapabilityService {
         return;
       }
 
-      // Fetch available actions (may fail if authz is disabled — that's OK)
-      const { data: actionsData } = await client.GET('/authz/actions');
-      if (actionsData?.data) {
-        this.availableActions = new Set(actionsData.data as string[]);
+      // Fetch available actions (may fail if authz is disabled -- that's OK)
+      const { data: actionsData } = await client.GET('/api/v1/authz/actions');
+      if (actionsData) {
+        this.availableActions = new Set(actionsData as string[]);
       } else {
-        // Authz disabled or actions unavailable — skip action-name validation
+        // Authz disabled or actions unavailable -- skip action-name validation
         this.availableActions = undefined;
       }
 
       // Fetch user capabilities profile
       const { data: profileData, error: profileError } = await client.GET(
-        '/authz/profile',
+        '/api/v1/authz/profile',
         {
           params: {
             query: namespace ? { namespace } : undefined,
           },
         },
       );
-      if (profileError || !profileData?.data) {
+      if (profileError || !profileData) {
         this.capabilities = undefined;
         // Mark as loaded even on failure so we don't retry every tree render
         this.loaded = true;
@@ -82,7 +81,7 @@ export class CapabilityService {
       }
 
       this.capabilities =
-        (profileData.data as { capabilities?: Record<string, ActionCapability> })
+        (profileData as { capabilities?: Record<string, ActionCapability> })
           .capabilities ?? undefined;
       this.loaded = true;
     } catch {
@@ -111,7 +110,7 @@ export class CapabilityService {
 
   /**
    * Check if the current user can delete a resource of the given type.
-   * Synchronous — uses cached data from the last refresh().
+   * Synchronous -- uses cached data from the last refresh().
    *
    * Returns true only if:
    * 1. The node type has a known delete action mapping
@@ -123,7 +122,7 @@ export class CapabilityService {
       return false;
     }
 
-    // Wildcard capability — user can do everything
+    // Wildcard capability -- user can do everything
     const wildcard = this.capabilities['*'];
     if (wildcard?.allowed?.some((r) => r.path === '*')) {
       return nodeType in DELETE_ACTION_MAP;

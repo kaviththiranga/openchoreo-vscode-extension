@@ -10,8 +10,6 @@ export type ResourceNodeType =
   | 'workflow-run'
   | 'component-release'
   | 'release-binding'
-  | 'component-trait'
-  | 'binding'
   | 'workload'
   | 'deployment-pipeline'
   // Infrastructure view nodes
@@ -25,7 +23,6 @@ export type ResourceNodeType =
   | 'component-workflow'
   | 'trait'
   | 'secret-reference'
-  | 'git-secret'
   | 'namespace-role'
   | 'namespace-role-binding'
   | 'cluster-role'

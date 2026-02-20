@@ -12,6 +12,10 @@ type Client = NonNullable<
   Awaited<ReturnType<ApiClientManager['getClient']>>
 >;
 
+type LegacyClient = NonNullable<
+  Awaited<ReturnType<ApiClientManager['getLegacyClient']>>
+>;
+
 export class InfrastructureExplorerProvider
   implements vscode.TreeDataProvider<ResourceNodeData>
 {
@@ -151,14 +155,6 @@ export class InfrastructureExplorerProvider
         lazyChildrenKey: 'secret-references',
       },
       {
-        label: 'Git Secrets',
-        type: 'infra-category',
-        contextValue: 'infra-category',
-        namespace: ns,
-        childrenMode: 'lazy',
-        lazyChildrenKey: 'git-secrets',
-      },
-      {
         label: 'RBAC',
         type: 'infra-category',
         contextValue: 'infra-category',
@@ -214,7 +210,6 @@ export class InfrastructureExplorerProvider
       'observability-plane',
       'deployment-pipeline',
       'secret-reference',
-      'git-secret',
       'namespace-role',
       'namespace-role-binding',
       'cluster-role',
@@ -236,43 +231,36 @@ export class InfrastructureExplorerProvider
     element: ResourceNodeData,
   ): Promise<ResourceNodeData[]> {
     try {
-      const client = await this.apiClientManager.getClient();
-      if (!client) {
-        return [];
-      }
-
       // Ensure RBAC capabilities are loaded before building nodes
       await this.capabilityService.ensureLoaded(element.namespace);
 
       switch (element.lazyChildrenKey) {
-        case 'environments':
-          return this.fetchEnvironments(client, element.namespace!);
-        case 'data-planes':
-          return this.fetchDataPlanes(client, element.namespace!);
-        case 'build-planes':
-          return this.fetchBuildPlanes(client, element.namespace!);
-        case 'observability-planes':
-          return this.fetchObservabilityPlanes(client, element.namespace!);
-        case 'component-types':
-          return this.fetchComponentTypes(client, element.namespace!);
         case 'workflows':
-          return this.fetchWorkflows(client, element.namespace!);
+          return this.fetchWorkflows(element.namespace!);
+        case 'environments':
+          return this.fetchEnvironments(element.namespace!);
+        case 'data-planes':
+          return this.fetchDataPlanes(element.namespace!);
+        case 'build-planes':
+          return this.fetchBuildPlanes(element.namespace!);
+        case 'observability-planes':
+          return this.fetchObservabilityPlanes(element.namespace!);
+        case 'component-types':
+          return this.fetchComponentTypes(element.namespace!);
         case 'component-workflows':
-          return this.fetchComponentWorkflows(client, element.namespace!);
+          return this.fetchComponentWorkflows(element.namespace!);
         case 'traits':
-          return this.fetchTraits(client, element.namespace!);
+          return this.fetchTraits(element.namespace!);
         case 'secret-references':
-          return this.fetchSecretReferences(client, element.namespace!);
-        case 'git-secrets':
-          return this.fetchGitSecrets(client, element.namespace!);
+          return this.fetchSecretReferences(element.namespace!);
         case 'namespace-roles':
-          return this.fetchNamespaceRoles(client, element.namespace!);
+          return this.fetchNamespaceRoles(element.namespace!);
         case 'namespace-role-bindings':
-          return this.fetchNamespaceRoleBindings(client, element.namespace!);
+          return this.fetchNamespaceRoleBindings(element.namespace!);
         case 'cluster-roles':
-          return this.fetchClusterRoles(client);
+          return this.fetchClusterRoles();
         case 'cluster-role-bindings':
-          return this.fetchClusterRoleBindings(client);
+          return this.fetchClusterRoleBindings();
         default:
           return [];
       }
@@ -288,12 +276,12 @@ export class InfrastructureExplorerProvider
     }
   }
 
-  private async fetchEnvironments(
-    client: Client,
-    ns: string,
-  ): Promise<ResourceNodeData[]> {
+  // --- New API endpoints ---
+
+  private async fetchEnvironments(ns: string): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/environments',
+      '/api/v1/namespaces/{namespaceName}/environments',
       { params: { path: { namespaceName: ns } } },
     );
 
@@ -301,9 +289,7 @@ export class InfrastructureExplorerProvider
       return [];
     }
 
-    const items =
-      (data?.data as { items?: Array<{ name?: string; dataPlane?: string }> })
-        ?.items ?? [];
+    const items = data?.items ?? [];
     if (items.length === 0) {
       return [
         { label: 'No environments', type: 'empty', contextValue: 'empty', childrenMode: 'none' },
@@ -311,22 +297,22 @@ export class InfrastructureExplorerProvider
     }
 
     return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
+      label: (item.metadata?.name as string) ?? 'unknown',
       type: 'environment' as const,
       contextValue: this.resolveContextValue('environment'),
-      description: item.dataPlane ? `dp: ${item.dataPlane}` : undefined,
+      description: (item.spec as { dataPlaneRef?: string } | undefined)?.dataPlaneRef
+        ? `dp: ${(item.spec as { dataPlaneRef?: string }).dataPlaneRef}`
+        : undefined,
       namespace: ns,
-      resourceName: item.name as string,
+      resourceName: item.metadata?.name as string,
       childrenMode: 'none' as const,
     }));
   }
 
-  private async fetchDataPlanes(
-    client: Client,
-    ns: string,
-  ): Promise<ResourceNodeData[]> {
+  private async fetchDataPlanes(ns: string): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/dataplanes',
+      '/api/v1/namespaces/{namespaceName}/dataplanes',
       { params: { path: { namespaceName: ns } } },
     );
 
@@ -334,9 +320,7 @@ export class InfrastructureExplorerProvider
       return [];
     }
 
-    const items =
-      (data?.data as { items?: Array<{ name?: string; status?: string }> })
-        ?.items ?? [];
+    const items = data?.items ?? [];
     if (items.length === 0) {
       return [
         { label: 'No data planes', type: 'empty', contextValue: 'empty', childrenMode: 'none' },
@@ -344,22 +328,19 @@ export class InfrastructureExplorerProvider
     }
 
     return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
+      label: (item.metadata?.name as string) ?? 'unknown',
       type: 'data-plane' as const,
       contextValue: this.resolveContextValue('data-plane'),
-      description: item.status as string | undefined,
       namespace: ns,
-      resourceName: item.name as string,
+      resourceName: item.metadata?.name as string,
       childrenMode: 'none' as const,
     }));
   }
 
-  private async fetchBuildPlanes(
-    client: Client,
-    ns: string,
-  ): Promise<ResourceNodeData[]> {
+  private async fetchBuildPlanes(ns: string): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/buildplanes',
+      '/api/v1/namespaces/{namespaceName}/buildplanes',
       { params: { path: { namespaceName: ns } } },
     );
 
@@ -367,8 +348,7 @@ export class InfrastructureExplorerProvider
       return [];
     }
 
-    const items =
-      (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
+    const items = data?.items ?? [];
     if (items.length === 0) {
       return [
         { label: 'No build planes', type: 'empty', contextValue: 'empty', childrenMode: 'none' },
@@ -376,21 +356,21 @@ export class InfrastructureExplorerProvider
     }
 
     return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
+      label: (item.metadata?.name as string) ?? 'unknown',
       type: 'build-plane' as const,
       contextValue: this.resolveContextValue('build-plane'),
       namespace: ns,
-      resourceName: item.name as string,
+      resourceName: item.metadata?.name as string,
       childrenMode: 'none' as const,
     }));
   }
 
   private async fetchObservabilityPlanes(
-    client: Client,
     ns: string,
   ): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/observabilityplanes',
+      '/api/v1/namespaces/{namespaceName}/observabilityplanes',
       { params: { path: { namespaceName: ns } } },
     );
 
@@ -398,8 +378,7 @@ export class InfrastructureExplorerProvider
       return [];
     }
 
-    const items =
-      (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
+    const items = data?.items ?? [];
     if (items.length === 0) {
       return [
         {
@@ -412,21 +391,19 @@ export class InfrastructureExplorerProvider
     }
 
     return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
+      label: (item.metadata?.name as string) ?? 'unknown',
       type: 'observability-plane' as const,
       contextValue: this.resolveContextValue('observability-plane'),
       namespace: ns,
-      resourceName: item.name as string,
+      resourceName: item.metadata?.name as string,
       childrenMode: 'none' as const,
     }));
   }
 
-  private async fetchComponentTypes(
-    client: Client,
-    ns: string,
-  ): Promise<ResourceNodeData[]> {
+  private async fetchComponentTypes(ns: string): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/component-types',
+      '/api/v1/namespaces/{namespaceName}/component-types',
       { params: { path: { namespaceName: ns } } },
     );
 
@@ -434,8 +411,7 @@ export class InfrastructureExplorerProvider
       return [];
     }
 
-    const items =
-      (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
+    const items = data?.items ?? [];
     if (items.length === 0) {
       return [
         {
@@ -448,20 +424,19 @@ export class InfrastructureExplorerProvider
     }
 
     return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
+      label: (item.metadata?.name as string) ?? 'unknown',
       type: 'component-type' as const,
       contextValue: this.resolveContextValue('component-type'),
       namespace: ns,
-      resourceName: item.name as string,
+      resourceName: item.metadata?.name as string,
       childrenMode: 'none' as const,
     }));
   }
 
-  private async fetchWorkflows(
-    client: Client,
-    ns: string,
-  ): Promise<ResourceNodeData[]> {
-    const { data, error } = await client.GET(
+  /** Workflows use the legacy API (not yet in new API). */
+  private async fetchWorkflows(ns: string): Promise<ResourceNodeData[]> {
+    const legacyClient = await this.requireLegacyClient();
+    const { data, error } = await legacyClient.GET(
       '/namespaces/{namespaceName}/workflows',
       { params: { path: { namespaceName: ns } } },
     );
@@ -489,11 +464,11 @@ export class InfrastructureExplorerProvider
   }
 
   private async fetchComponentWorkflows(
-    client: Client,
     ns: string,
   ): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/component-workflows',
+      '/api/v1/namespaces/{namespaceName}/component-workflows',
       { params: { path: { namespaceName: ns } } },
     );
 
@@ -501,8 +476,7 @@ export class InfrastructureExplorerProvider
       return [];
     }
 
-    const items =
-      (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
+    const items = data?.items ?? [];
     if (items.length === 0) {
       return [
         {
@@ -524,12 +498,10 @@ export class InfrastructureExplorerProvider
     }));
   }
 
-  private async fetchTraits(
-    client: Client,
-    ns: string,
-  ): Promise<ResourceNodeData[]> {
+  private async fetchTraits(ns: string): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/traits',
+      '/api/v1/namespaces/{namespaceName}/traits',
       { params: { path: { namespaceName: ns } } },
     );
 
@@ -537,8 +509,7 @@ export class InfrastructureExplorerProvider
       return [];
     }
 
-    const items =
-      (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
+    const items = data?.items ?? [];
     if (items.length === 0) {
       return [
         { label: 'No traits', type: 'empty', contextValue: 'empty', childrenMode: 'none' },
@@ -546,21 +517,21 @@ export class InfrastructureExplorerProvider
     }
 
     return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
+      label: (item.metadata?.name as string) ?? 'unknown',
       type: 'trait' as const,
       contextValue: this.resolveContextValue('trait'),
       namespace: ns,
-      resourceName: item.name as string,
+      resourceName: item.metadata?.name as string,
       childrenMode: 'none' as const,
     }));
   }
 
   private async fetchSecretReferences(
-    client: Client,
     ns: string,
   ): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/secret-references',
+      '/api/v1/namespaces/{namespaceName}/secret-references',
       { params: { path: { namespaceName: ns } } },
     );
 
@@ -568,8 +539,7 @@ export class InfrastructureExplorerProvider
       return [];
     }
 
-    const items =
-      (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
+    const items = data?.items ?? [];
     if (items.length === 0) {
       return [
         {
@@ -582,21 +552,19 @@ export class InfrastructureExplorerProvider
     }
 
     return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
+      label: (item.metadata?.name as string) ?? 'unknown',
       type: 'secret-reference' as const,
       contextValue: this.resolveContextValue('secret-reference'),
       namespace: ns,
-      resourceName: item.name as string,
+      resourceName: item.metadata?.name as string,
       childrenMode: 'none' as const,
     }));
   }
 
-  private async fetchGitSecrets(
-    client: Client,
-    ns: string,
-  ): Promise<ResourceNodeData[]> {
+  private async fetchNamespaceRoles(ns: string): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
     const { data, error } = await client.GET(
-      '/namespaces/{namespaceName}/git-secrets',
+      '/api/v1/namespaces/{namespaceName}/roles',
       { params: { path: { namespaceName: ns } } },
     );
 
@@ -604,40 +572,8 @@ export class InfrastructureExplorerProvider
       return [];
     }
 
-    const items =
-      (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
-    if (items.length === 0) {
-      return [
-        { label: 'No git secrets', type: 'empty', contextValue: 'empty', childrenMode: 'none' },
-      ];
-    }
-
-    return items.map((item) => ({
-      label: (item.name as string) ?? 'unknown',
-      type: 'git-secret' as const,
-      contextValue: this.resolveContextValue('git-secret'),
-      namespace: ns,
-      resourceName: item.name as string,
-      childrenMode: 'none' as const,
-    }));
-  }
-
-  private async fetchNamespaceRoles(
-    client: Client,
-    ns: string,
-  ): Promise<ResourceNodeData[]> {
-    // Note: RBAC endpoints use {namespace} not {namespaceName}
-    const { data, error } = await client.GET(
-      '/namespaces/{namespace}/roles',
-      { params: { path: { namespace: ns } } },
-    );
-
-    if (error) {
-      return [];
-    }
-
-    const items =
-      (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
+    // RBAC roles return an array directly, not { items: [...] }
+    const items = (data as Array<{ name?: string }>) ?? [];
     if (items.length === 0) {
       return [
         {
@@ -660,20 +596,19 @@ export class InfrastructureExplorerProvider
   }
 
   private async fetchNamespaceRoleBindings(
-    client: Client,
     ns: string,
   ): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
     const { data, error } = await client.GET(
-      '/namespaces/{namespace}/rolebindings',
-      { params: { path: { namespace: ns } } },
+      '/api/v1/namespaces/{namespaceName}/rolebindings',
+      { params: { path: { namespaceName: ns } } },
     );
 
     if (error) {
       return [];
     }
 
-    const items =
-      (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
+    const items = (data as Array<{ name?: string }>) ?? [];
     if (items.length === 0) {
       return [
         {
@@ -695,17 +630,15 @@ export class InfrastructureExplorerProvider
     }));
   }
 
-  private async fetchClusterRoles(
-    client: Client,
-  ): Promise<ResourceNodeData[]> {
-    const { data, error } = await client.GET('/clusterroles');
+  private async fetchClusterRoles(): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
+    const { data, error } = await client.GET('/api/v1/clusterroles');
 
     if (error) {
       return [];
     }
 
-    const items =
-      (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
+    const items = (data as Array<{ name?: string }>) ?? [];
     if (items.length === 0) {
       return [
         {
@@ -726,17 +659,15 @@ export class InfrastructureExplorerProvider
     }));
   }
 
-  private async fetchClusterRoleBindings(
-    client: Client,
-  ): Promise<ResourceNodeData[]> {
-    const { data, error } = await client.GET('/clusterrolebindings');
+  private async fetchClusterRoleBindings(): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
+    const { data, error } = await client.GET('/api/v1/clusterrolebindings');
 
     if (error) {
       return [];
     }
 
-    const items =
-      (data?.data as { items?: Array<{ name?: string }> })?.items ?? [];
+    const items = (data as Array<{ name?: string }>) ?? [];
     if (items.length === 0) {
       return [
         {
@@ -755,5 +686,23 @@ export class InfrastructureExplorerProvider
       resourceName: item.name as string,
       childrenMode: 'none' as const,
     }));
+  }
+
+  // --- Helpers ---
+
+  private async requireClient(): Promise<Client> {
+    const client = await this.apiClientManager.getClient();
+    if (!client) {
+      throw new Error('Not authenticated');
+    }
+    return client;
+  }
+
+  private async requireLegacyClient(): Promise<LegacyClient> {
+    const client = await this.apiClientManager.getLegacyClient();
+    if (!client) {
+      throw new Error('Not authenticated');
+    }
+    return client;
   }
 }
