@@ -124,6 +124,7 @@ export class ResourceExplorerProvider
                 contextValue: this.resolveContextValue('project'),
                 namespace: contextInfo.namespace,
                 project: p.metadata?.name as string,
+                resourceName: p.metadata?.name as string,
                 childrenMode: 'lazy' as const,
                 lazyChildrenKey: 'project-children',
               })),
@@ -237,6 +238,7 @@ export class ResourceExplorerProvider
         namespace: ns,
         project: proj,
         component: compName,
+        resourceName: compName,
         childrenMode: 'lazy',
         lazyChildrenKey: 'component-children',
       });

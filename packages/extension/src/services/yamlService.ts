@@ -31,10 +31,15 @@ export const DEFINITION_RESOURCE_TYPES = new Set([
 export function cleanCrdForEditing(
   crd: Record<string, unknown>,
 ): Record<string, unknown> {
-  const cleaned = { ...crd };
+  const { apiVersion, kind, metadata, ...rest } = crd;
+  const cleaned: Record<string, unknown> = {};
 
-  if (cleaned.metadata && typeof cleaned.metadata === 'object') {
-    const meta = { ...(cleaned.metadata as Record<string, unknown>) };
+  // Ensure CRD envelope fields come first
+  if (apiVersion !== undefined) cleaned.apiVersion = apiVersion;
+  if (kind !== undefined) cleaned.kind = kind;
+
+  if (metadata && typeof metadata === 'object') {
+    const meta = { ...(metadata as Record<string, unknown>) };
 
     // Remove noisy k8s metadata fields
     delete meta.managedFields;
@@ -55,6 +60,8 @@ export function cleanCrdForEditing(
 
     cleaned.metadata = meta;
   }
+
+  Object.assign(cleaned, rest);
 
   return cleaned;
 }

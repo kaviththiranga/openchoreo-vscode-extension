@@ -9,6 +9,7 @@ import { InfrastructureExplorerProvider } from '../treeView/infrastructureExplor
 import type { ApiClientManager } from '../api/apiClient';
 import type { CapabilityService } from '../services/capabilityService';
 import type { DeleteService } from '../services/deleteService';
+import { ResourceService } from '../services/resourceService';
 import type { ResourceNodeData } from '../treeView/types';
 import {
   DEFINITION_RESOURCE_TYPES,
@@ -247,6 +248,15 @@ export function registerCommands(
               node.component ?? null,
               node.resourceName ?? null,
             )) as Record<string, unknown>;
+
+            // Inject apiVersion + kind if missing (new API responses omit them)
+            if (!crd.apiVersion) {
+              const kind = new ResourceService().getCrdKind(node.type);
+              if (kind) {
+                crd.apiVersion = 'openchoreo.dev/v1alpha1';
+                crd.kind = kind;
+              }
+            }
 
             const yamlContent = crdToYaml(crd);
             const doc = await vscode.workspace.openTextDocument({
