@@ -37,10 +37,11 @@ export class StatusBarManager implements vscode.Disposable {
       return;
     }
 
-    this.statusBarItem.text = `$(cloud) OpenChoreo: ${contextInfo.contextName}`;
+    const ns = contextInfo.namespace || 'none';
+    this.statusBarItem.text = `$(cloud) OpenChoreo: ${contextInfo.contextName} $(globe) ${ns}`;
     this.statusBarItem.tooltip = [
       `Context: ${contextInfo.contextName}`,
-      `Namespace: ${contextInfo.namespace}`,
+      `Namespace: ${ns}`,
       `Project: ${contextInfo.project}`,
       `API: ${contextInfo.controlPlaneUrl}`,
     ].join('\n');

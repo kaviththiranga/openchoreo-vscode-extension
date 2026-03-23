@@ -94,6 +94,12 @@
         "title": "Create New Resource",
         "category": "OpenChoreo",
         "icon": "$(add)"
+      },
+      {
+        "command": "openchoreo.selectNamespace",
+        "title": "Select Namespace",
+        "category": "OpenChoreo",
+        "icon": "$(globe)"
       }
     ],
     "menus": {
@@ -106,6 +112,11 @@
       ],
       "view/title": [
         {
+          "command": "openchoreo.selectNamespace",
+          "when": "view == openchoreo.resourceExplorer",
+          "group": "navigation"
+        },
+        {
           "command": "openchoreo.refreshResources",
           "when": "view == openchoreo.resourceExplorer",
           "group": "navigation"
@@ -113,6 +124,11 @@
         {
           "command": "openchoreo.createResource",
           "when": "view == openchoreo.resourceExplorer",
+          "group": "navigation"
+        },
+        {
+          "command": "openchoreo.selectNamespace",
+          "when": "view == openchoreo.infrastructureExplorer",
           "group": "navigation"
         },
         {

@@ -214,6 +214,38 @@ export class OccConfigAuthProvider implements vscode.Disposable {
   }
 
   /**
+   * Update the namespace in the current occ CLI context.
+   * Writes the change to disk and fires a session change event.
+   */
+  updateNamespace(namespace: string): void {
+    if (!this.config) {
+      return;
+    }
+
+    const currentCtx = this.config.contexts.find(
+      (c) => c.name === this.config!.currentContext,
+    );
+    if (!currentCtx) {
+      return;
+    }
+
+    currentCtx.namespace = namespace;
+
+    // Write back to config file
+    try {
+      const configPath = this.getConfigPath();
+      const { stringify } = require('yaml');
+      fs.writeFileSync(configPath, stringify(this.config), {
+        mode: 0o600,
+      });
+    } catch {
+      // Non-fatal
+    }
+
+    this.onDidChangeSessionEmitter.fire();
+  }
+
+  /**
    * Check if a JWT token is expired (with 60s buffer).
    */
   private isTokenExpired(token: string): boolean {

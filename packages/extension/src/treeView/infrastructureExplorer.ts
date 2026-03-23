@@ -64,58 +64,27 @@ export class InfrastructureExplorerProvider
       ];
     }
 
-    try {
-      const client = await this.apiClientManager.getClient();
-      if (!client) {
-        return [
-          {
-            label: 'Session expired. Run "occ login" to re-authenticate.',
-            type: 'no-connection',
-            contextValue: 'no-connection',
-            childrenMode: 'none',
-          },
-        ];
-      }
+    const contextInfo = this.authProvider.getContextInfo();
+    const ns = contextInfo?.namespace;
 
-      const { data, error } = await client.GET('/api/v1/namespaces');
-      if (error) {
-        throw new Error('Failed to fetch namespaces');
-      }
+    const nodes: ResourceNodeData[] = [];
 
-      const namespaceItems = data?.items ?? [];
-      const contextInfo = this.authProvider.getContextInfo();
-      const currentNs = contextInfo?.namespace;
-
-      const nodes: ResourceNodeData[] = [];
-
-      // Each namespace gets its own expandable node containing infrastructure categories
-      for (const nsItem of namespaceItems) {
-        const ns = (nsItem.metadata?.name as string) ?? 'unknown';
-        const isCurrent = ns === currentNs;
-
-        nodes.push({
-          label: ns,
-          type: 'namespace',
-          contextValue: 'namespace',
-          description: isCurrent ? '(current)' : undefined,
-          namespace: ns,
-          resourceName: ns,
-          childrenMode: 'preloaded',
-          children: this.buildNamespaceInfraCategories(ns),
-        });
-      }
-
-      if (nodes.length === 0) {
-        nodes.push({
-          label: 'No namespaces available',
-          type: 'empty',
-          contextValue: 'empty',
-          childrenMode: 'none',
-        });
-      }
-
-      // Cluster-scoped resources (not namespace-bound)
+    // Namespace-scoped categories (only if namespace is selected)
+    if (ns) {
+      nodes.push(
+        ...this.buildNamespaceInfraCategories(ns),
+      );
+    } else {
       nodes.push({
+        label: 'No namespace selected. Click $(globe) to select one.',
+        type: 'no-connection',
+        contextValue: 'no-connection',
+        childrenMode: 'none',
+      });
+    }
+
+    // Cluster-scoped resources (always visible, not namespace-bound)
+    nodes.push({
         label: 'Cluster Resources',
         type: 'infra-category',
         contextValue: 'infra-category',
@@ -166,17 +135,7 @@ export class InfrastructureExplorerProvider
         ],
       });
 
-      return nodes;
-    } catch (error) {
-      return [
-        {
-          label: `Error: ${error instanceof Error ? error.message : 'Failed to fetch infrastructure'}`,
-          type: 'no-connection',
-          contextValue: 'no-connection',
-          childrenMode: 'none',
-        },
-      ];
-    }
+    return nodes;
   }
 
   /** Build the namespace-scoped infrastructure categories for a given namespace. */

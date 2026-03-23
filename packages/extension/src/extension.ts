@@ -17,6 +17,7 @@ import { StatusBarManager } from './statusBar/statusBar';
 import { CapabilityService } from './services/capabilityService';
 import { DeleteService } from './services/deleteService';
 import { registerCommands } from './commands/commands';
+import { registerNamespaceSelector } from './commands/namespaceSelector';
 import {
   OpenChoreoFileSystemProvider,
   FS_SCHEME,
@@ -99,6 +100,9 @@ export async function activate(
     deleteService,
     capabilityService,
   );
+
+  // Register namespace selector
+  registerNamespaceSelector(context, authProvider, apiClientManager);
 
   // Start language server
   client = startLanguageServer(context);
