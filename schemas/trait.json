@@ -23,7 +23,8 @@
         },
         "namespace": {
           "type": "string",
-          "description": "Namespace (organization) this Trait belongs to"
+          "description": "Namespace (organization) this Trait belongs to",
+          "x-openchoreo-ref": "Namespace"
         }
       },
       "required": ["name"]

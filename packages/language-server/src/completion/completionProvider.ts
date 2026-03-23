@@ -8,8 +8,29 @@ import {
   InsertTextFormat,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { parseDocument, isMap, isScalar, isPair } from 'yaml';
 import type { JsonSchema } from '../schemas/schemaLoader';
+import { OPENCHOREO_CRD_KINDS } from '../validation/crdDetector';
+
+/** Common OpenChoreo labels offered as key completions inside metadata.labels. */
+const COMMON_LABELS = [
+  'openchoreo.dev/project',
+  'openchoreo.dev/component',
+  'openchoreo.dev/environment',
+  'app.kubernetes.io/name',
+  'app.kubernetes.io/part-of',
+  'app.kubernetes.io/managed-by',
+];
+
+/** Common OpenChoreo annotations offered as key completions inside metadata.annotations. */
+const COMMON_ANNOTATIONS = [
+  'openchoreo.dev/description',
+];
+
+/** CRD scaffold templates offered when the document is empty. */
+const SCAFFOLD_KINDS = [
+  'Project', 'Component', 'ComponentType', 'Trait', 'Environment',
+  'DataPlane', 'Workflow', 'Workload', 'DeploymentPipeline', 'SecretReference',
+];
 
 /**
  * Provide completion items based on the current cursor position
@@ -18,22 +39,41 @@ import type { JsonSchema } from '../schemas/schemaLoader';
 export function getCompletionItems(
   document: TextDocument,
   position: Position,
-  schema: JsonSchema,
+  schema: JsonSchema | null,
   resourceNames: Record<string, string[]> = {},
 ): CompletionItem[] {
   const text = document.getText();
   const lines = text.split('\n');
   const currentLine = lines[position.line] ?? '';
 
-  // Calculate indentation level to determine context
-  // Use cursor position as effective indent for empty/whitespace-only lines
+  // Empty document → offer CRD scaffold completions
+  if (text.trim() === '' || (lines.length <= 2 && text.trim().length < 5)) {
+    return getScaffoldCompletions();
+  }
+
+  // If no schema matched (not a recognized CRD yet), offer apiVersion/kind bootstrap
+  if (!schema) {
+    return getBootstrapCompletions(text, currentLine, position);
+  }
+
   const firstNonSpace = currentLine.search(/\S/);
   const indent = firstNonSpace < 0 ? position.character : firstNonSpace;
 
-  // Determine the YAML path at the current position by walking indentation
   const yamlPath = resolveYamlPath(lines, position.line);
-  const contextSchema = resolveSchemaAtPath(schema, yamlPath);
 
+  // Special: inside metadata.labels or metadata.annotations → offer common keys
+  if (yamlPath.length >= 2) {
+    const parent = yamlPath.slice(-1)[0];
+    const grandparent = yamlPath.slice(-2)[0];
+    if (grandparent === 'metadata' && (parent === 'labels' || parent === 'annotations')) {
+      const colonIndex = currentLine.indexOf(':');
+      if (colonIndex < 0 || position.character <= colonIndex) {
+        return getLabelAnnotationKeyCompletions(parent);
+      }
+    }
+  }
+
+  const contextSchema = resolveSchemaAtPath(schema, yamlPath);
   if (!contextSchema) {
     return [];
   }
@@ -41,19 +81,149 @@ export function getCompletionItems(
   // Check if we're completing a value (after ":") or a key
   const colonIndex = currentLine.indexOf(':');
   if (colonIndex >= 0 && position.character > colonIndex) {
-    // Value completion — find the schema for the specific key on this line
-    const keyMatch = currentLine.match(/^\s*(\w[\w.-]*):/);
-    if (keyMatch && contextSchema.properties) {
-      const fieldSchema = contextSchema.properties[keyMatch[1]];
-      if (fieldSchema) {
-        return getValueCompletions(fieldSchema, resourceNames);
+    const keyMatch = currentLine.match(/^\s*(?:-\s+)?(\w[\w.-]*):/);
+    if (keyMatch) {
+      const fieldName = keyMatch[1];
+
+      // Special: kind field at root level → offer all CRD kinds
+      if (fieldName === 'kind' && yamlPath.length === 0) {
+        return getKindCompletions();
+      }
+
+      // Special: apiVersion field → offer known API versions
+      if (fieldName === 'apiVersion' && yamlPath.length === 0) {
+        return [
+          {
+            label: 'openchoreo.dev/v1alpha1',
+            kind: CompletionItemKind.Value,
+            detail: 'OpenChoreo API version',
+          },
+        ];
+      }
+
+      // Look up field in context schema properties, or in array items properties
+      const props = contextSchema.properties ??
+        (contextSchema.type === 'array' && contextSchema.items?.properties
+          ? contextSchema.items.properties : undefined);
+      if (props) {
+        const fieldSchema = props[fieldName];
+        if (fieldSchema) {
+          return getValueCompletions(fieldSchema, resourceNames);
+        }
       }
     }
     return [];
   }
 
-  // Key completion
-  return getPropertyCompletions(contextSchema, indent);
+  // Key completion — if context is an array, offer properties from items schema
+  const keySchema = (contextSchema.type === 'array' && contextSchema.items?.properties)
+    ? contextSchema.items
+    : contextSchema;
+  return getPropertyCompletions(keySchema, indent);
+}
+
+/**
+ * Bootstrap completions for files that don't yet have a recognized CRD.
+ * Offers apiVersion and kind to get started.
+ */
+function getBootstrapCompletions(
+  text: string,
+  currentLine: string,
+  position: Position,
+): CompletionItem[] {
+  const items: CompletionItem[] = [];
+  const colonIndex = currentLine.indexOf(':');
+
+  // If we're after a colon on a kind: line, offer CRD kinds
+  if (colonIndex >= 0 && position.character > colonIndex) {
+    const keyMatch = currentLine.match(/^\s*kind\s*:/);
+    if (keyMatch) {
+      return getKindCompletions();
+    }
+    const apiMatch = currentLine.match(/^\s*apiVersion\s*:/);
+    if (apiMatch) {
+      return [
+        {
+          label: 'openchoreo.dev/v1alpha1',
+          kind: CompletionItemKind.Value,
+          detail: 'OpenChoreo API version',
+        },
+      ];
+    }
+    return [];
+  }
+
+  // Key completions: offer apiVersion and kind if not present
+  if (!text.includes('apiVersion:')) {
+    items.push({
+      label: 'apiVersion',
+      kind: CompletionItemKind.Property,
+      detail: 'string',
+      insertTextFormat: InsertTextFormat.Snippet,
+      insertText: 'apiVersion: openchoreo.dev/v1alpha1',
+    });
+  }
+  if (!text.includes('kind:')) {
+    items.push({
+      label: 'kind',
+      kind: CompletionItemKind.Property,
+      detail: 'string',
+      insertTextFormat: InsertTextFormat.Snippet,
+      insertText: `kind: \${1|${OPENCHOREO_CRD_KINDS.join(',')}|}`,
+    });
+  }
+
+  return items;
+}
+
+/**
+ * Offer all OpenChoreo CRD kinds as value completions.
+ */
+function getKindCompletions(): CompletionItem[] {
+  return OPENCHOREO_CRD_KINDS.map((kind) => ({
+    label: kind,
+    kind: CompletionItemKind.EnumMember,
+    detail: 'OpenChoreo CRD',
+  }));
+}
+
+/**
+ * Scaffold completions for empty documents — full CRD templates.
+ */
+function getScaffoldCompletions(): CompletionItem[] {
+  return SCAFFOLD_KINDS.map((kind) => ({
+    label: `oc-${kind.toLowerCase()}`,
+    kind: CompletionItemKind.Snippet,
+    detail: `OpenChoreo ${kind} scaffold`,
+    documentation: `Scaffold a new ${kind} resource`,
+    insertTextFormat: InsertTextFormat.Snippet,
+    insertText: [
+      `apiVersion: openchoreo.dev/v1alpha1`,
+      `kind: ${kind}`,
+      `metadata:`,
+      `  name: \${1:my-${kind.toLowerCase()}}`,
+      `  namespace: \${2:default}`,
+      `spec:`,
+      `  $0`,
+    ].join('\n'),
+    sortText: '0', // Show at top
+  }));
+}
+
+/**
+ * Common label/annotation key completions.
+ */
+function getLabelAnnotationKeyCompletions(
+  section: string,
+): CompletionItem[] {
+  const keys = section === 'labels' ? COMMON_LABELS : COMMON_ANNOTATIONS;
+  return keys.map((key) => ({
+    label: key,
+    kind: CompletionItemKind.Property,
+    detail: section === 'labels' ? 'Common label' : 'Common annotation',
+    insertTextFormat: InsertTextFormat.Snippet,
+    insertText: `${key}: $0`,
+  }));
 }
 
 function getPropertyCompletions(
@@ -68,7 +238,7 @@ function getPropertyCompletions(
   const indentStr = ' '.repeat(indent);
 
   for (const [key, propSchema] of Object.entries(schema.properties)) {
-    // Skip standard k8s fields
+    // Skip standard k8s fields — they're handled separately
     if (['apiVersion', 'kind', 'metadata', 'status'].includes(key)) {
       continue;
     }
@@ -107,17 +277,29 @@ function getValueCompletions(
 ): CompletionItem[] {
   const items: CompletionItem[] = [];
 
-  // Dynamic resource name completions from cluster
+  // Dynamic resource name completions — supports "Kind1+Kind2" merged refs
   const refKind = schema['x-openchoreo-ref'];
   if (refKind) {
-    const names = resourceNames[refKind] ?? [];
-    for (const name of names) {
-      items.push({
-        label: name,
-        kind: CompletionItemKind.Reference,
-        detail: refKind,
-      });
+    const kinds = refKind.split('+');
+    for (const kind of kinds) {
+      const names = resourceNames[kind] ?? [];
+      for (const name of names) {
+        items.push({
+          label: name,
+          kind: CompletionItemKind.Reference,
+          detail: kind,
+        });
+      }
     }
+  }
+
+  // Const value
+  if (schema.const !== undefined) {
+    items.push({
+      label: String(schema.const),
+      kind: CompletionItemKind.Value,
+      detail: 'Required value',
+    });
   }
 
   if (schema.enum) {
@@ -137,7 +319,7 @@ function getValueCompletions(
     );
   }
 
-  if (schema.default !== undefined) {
+  if (schema.default !== undefined && !items.some(i => i.label === String(schema.default))) {
     items.push({
       label: String(schema.default),
       kind: CompletionItemKind.Value,
@@ -162,7 +344,8 @@ function resolveYamlPath(lines: string[], targetLine: number): string[] {
     }
 
     const indent = line.search(/\S/);
-    const keyMatch = line.match(/^\s*(\w[\w.-]*):/);
+    // Match both regular keys and array item keys (- key:)
+    const keyMatch = line.match(/^\s*(?:-\s+)?(\w[\w.-]*):/);
 
     if (!keyMatch) {
       continue;
@@ -197,6 +380,13 @@ function resolveSchemaAtPath(
   for (const key of path) {
     if (current.properties && current.properties[key]) {
       current = current.properties[key];
+    } else if (current.type === 'array' && current.items?.properties) {
+      // Walk into array items schema
+      current = current.items;
+      // Try to find the key in items properties
+      if (current.properties && current.properties[key]) {
+        current = current.properties[key];
+      }
     } else {
       return undefined;
     }

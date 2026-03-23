@@ -47,6 +47,10 @@ connection.onNotification(
   'openchoreo/updateResources',
   (params: Record<string, string[]>) => {
     resourceNames = params;
+    const summary = Object.entries(params)
+      .map(([k, v]) => `${k}(${v.length})`)
+      .join(', ');
+    connection.console.log(`[OpenChoreo] Received resource names: ${summary}`);
   },
 );
 
@@ -93,14 +97,9 @@ connection.onCompletion((params): CompletionItem[] => {
 
   const text = document.getText();
   const crdKind = detectCrdKind(text);
-  if (!crdKind) {
-    return [];
-  }
-
-  const schema = schemas[crdKind];
-  if (!schema) {
-    return [];
-  }
+  // Pass null schema if no CRD detected or no schema — completions can still
+  // offer apiVersion/kind bootstrap and empty-doc scaffolds
+  const schema = crdKind ? (schemas[crdKind] ?? null) : null;
 
   return getCompletionItems(document, params.position, schema, resourceNames);
 });

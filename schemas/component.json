@@ -23,7 +23,8 @@
         },
         "namespace": {
           "type": "string",
-          "description": "Namespace (organization) this Component belongs to"
+          "description": "Namespace (organization) this Component belongs to",
+          "x-openchoreo-ref": "Namespace"
         }
       },
       "required": ["name"]
@@ -49,7 +50,7 @@
         "componentType": {
           "type": "string",
           "description": "Reference to a ComponentType resource that defines how this component deploys",
-          "x-openchoreo-ref": "ComponentType"
+          "x-openchoreo-ref": "ComponentType+ClusterComponentType"
         },
         "workflow": {
           "type": "object",
@@ -58,7 +59,7 @@
             "name": {
               "type": "string",
               "description": "Name of the Workflow resource to use for builds",
-              "x-openchoreo-ref": "Workflow"
+              "x-openchoreo-ref": "Workflow+ClusterWorkflow"
             },
             "parameters": {
               "type": "object",
@@ -109,7 +110,7 @@
               "name": {
                 "type": "string",
                 "description": "Name of the Trait resource",
-                "x-openchoreo-ref": "Trait"
+                "x-openchoreo-ref": "Trait+ClusterTrait"
               },
               "instanceName": {
                 "type": "string",

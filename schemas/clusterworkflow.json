@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ClusterWorkflow",
+  "title": "OpenChoreo ClusterWorkflow",
+  "description": "Cluster-scoped workflow template available across all namespaces.",
+  "type": "object",
+  "properties": {
+    "apiVersion": { "type": "string", "const": "openchoreo.dev/v1alpha1" },
+    "kind": { "type": "string", "const": "ClusterWorkflow" },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the ClusterWorkflow" }
+      },
+      "required": ["name"]
+    },
+    "spec": {
+      "type": "object",
+      "description": "ClusterWorkflow specification",
+      "additionalProperties": false,
+      "required": ["runTemplate"],
+      "properties": {
+        "workflowPlaneRef": {
+          "type": "object",
+          "description": "Reference to a ClusterWorkflowPlane",
+          "required": ["kind", "name"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["ClusterWorkflowPlane"] },
+            "name": { "type": "string", "x-openchoreo-ref": "ClusterWorkflowPlane" }
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "properties": {
+            "openAPIV3Schema": { "type": "object", "additionalProperties": true }
+          }
+        },
+        "runTemplate": { "type": "object", "description": "Kubernetes resource template for workflow runs", "additionalProperties": true },
+        "resources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "template"],
+            "properties": {
+              "id": { "type": "string" },
+              "includeWhen": { "type": "string" },
+              "template": { "type": "object", "additionalProperties": true }
+            }
+          }
+        },
+        "externalRefs": {
+          "type": "array",
+          "description": "External CR references resolved and injected into CEL context",
+          "items": {
+            "type": "object",
+            "required": ["id", "apiVersion", "kind", "name"],
+            "properties": {
+              "id": { "type": "string", "minLength": 2, "maxLength": 63 },
+              "apiVersion": { "type": "string" },
+              "kind": { "type": "string", "enum": ["SecretReference"] },
+              "name": { "type": "string" }
+            }
+          }
+        },
+        "ttlAfterCompletion": { "type": "string", "description": "TTL for WorkflowRun instances after completion (e.g. 10d1h30m)" }
+      }
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"]
+}

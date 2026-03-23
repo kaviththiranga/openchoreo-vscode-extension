@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ClusterComponentType",
+  "title": "OpenChoreo ClusterComponentType",
+  "description": "Cluster-scoped component type definition available across all namespaces.",
+  "type": "object",
+  "properties": {
+    "apiVersion": { "type": "string", "const": "openchoreo.dev/v1alpha1" },
+    "kind": { "type": "string", "const": "ClusterComponentType" },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the ClusterComponentType" }
+      },
+      "required": ["name"]
+    },
+    "spec": {
+      "type": "object",
+      "description": "ClusterComponentType specification",
+      "required": ["workloadType", "resources"],
+      "properties": {
+        "workloadType": {
+          "type": "string",
+          "enum": ["deployment", "statefulset", "cronjob", "job", "proxy"],
+          "description": "Primary workload resource type"
+        },
+        "allowedWorkflows": {
+          "type": "array",
+          "description": "Allowed ClusterWorkflow references",
+          "items": {
+            "type": "object",
+            "required": ["kind", "name"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["ClusterWorkflow"], "description": "Must be ClusterWorkflow" },
+              "name": { "type": "string", "description": "Name of the ClusterWorkflow", "minLength": 1, "x-openchoreo-ref": "ClusterWorkflow" }
+            }
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Schema section for parameters",
+          "properties": {
+            "openAPIV3Schema": { "type": "object", "additionalProperties": true }
+          }
+        },
+        "environmentConfigs": {
+          "type": "object",
+          "description": "Schema section for per-environment overrides",
+          "properties": {
+            "openAPIV3Schema": { "type": "object", "additionalProperties": true }
+          }
+        },
+        "traits": {
+          "type": "array",
+          "description": "Pre-configured trait instances",
+          "items": {
+            "type": "object",
+            "required": ["name", "instanceName"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["ClusterTrait"], "default": "ClusterTrait" },
+              "name": { "type": "string", "minLength": 1, "x-openchoreo-ref": "ClusterTrait" },
+              "instanceName": { "type": "string", "minLength": 1 },
+              "parameters": { "type": "object", "additionalProperties": true },
+              "environmentConfigs": { "type": "object", "additionalProperties": true }
+            }
+          }
+        },
+        "allowedTraits": {
+          "type": "array",
+          "description": "Restricts which ClusterTraits developers can attach",
+          "items": {
+            "type": "object",
+            "required": ["kind", "name"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["ClusterTrait"] },
+              "name": { "type": "string", "minLength": 1, "x-openchoreo-ref": "ClusterTrait" }
+            }
+          }
+        },
+        "validations": {
+          "type": "array",
+          "description": "CEL-based validation rules",
+          "items": {
+            "type": "object",
+            "required": ["rule", "message"],
+            "properties": {
+              "rule": { "type": "string" },
+              "message": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "resources": {
+          "type": "array",
+          "description": "Kubernetes resource templates",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["id", "template"],
+            "properties": {
+              "id": { "type": "string" },
+              "targetPlane": { "type": "string", "enum": ["dataplane", "observabilityplane"], "default": "dataplane" },
+              "includeWhen": { "type": "string" },
+              "forEach": { "type": "string" },
+              "var": { "type": "string" },
+              "template": { "type": "object", "additionalProperties": true }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"]
+}

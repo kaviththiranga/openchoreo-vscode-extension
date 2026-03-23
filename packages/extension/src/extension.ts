@@ -154,7 +154,8 @@ async function pushResourceNames(
     const resources: Record<string, string[]> = {};
 
     // Fetch all resource types in parallel, skip individual failures
-    const results = await Promise.allSettled([
+    await Promise.allSettled([
+      // Namespace-scoped resources
       api.GET('/api/v1/namespaces/{namespaceName}/projects', params).then(r => { resources['Project'] = names(r.data?.items ?? []); }),
       api.GET('/api/v1/namespaces/{namespaceName}/components', params).then(r => { resources['Component'] = names(r.data?.items ?? []); }),
       api.GET('/api/v1/namespaces/{namespaceName}/componenttypes', params).then(r => { resources['ComponentType'] = names(r.data?.items ?? []); }),
@@ -164,6 +165,11 @@ async function pushResourceNames(
       api.GET('/api/v1/namespaces/{namespaceName}/dataplanes', params).then(r => { resources['DataPlane'] = names(r.data?.items ?? []); }),
       api.GET('/api/v1/namespaces/{namespaceName}/workflowplanes', params).then(r => { resources['WorkflowPlane'] = names(r.data?.items ?? []); }),
       api.GET('/api/v1/namespaces/{namespaceName}/deploymentpipelines', params).then(r => { resources['DeploymentPipeline'] = names(r.data?.items ?? []); }),
+      // Cluster-scoped resources (no namespace param)
+      api.GET('/api/v1/namespaces').then(r => { resources['Namespace'] = names(r.data?.items ?? []); }),
+      api.GET('/api/v1/clustercomponenttypes').then(r => { resources['ClusterComponentType'] = names(r.data?.items ?? []); }),
+      api.GET('/api/v1/clusterworkflows').then(r => { resources['ClusterWorkflow'] = names(r.data?.items ?? []); }),
+      api.GET('/api/v1/clustertraits').then(r => { resources['ClusterTrait'] = names(r.data?.items ?? []); }),
     ]);
 
     log.debug(`Pushing resource names to language server: ${Object.entries(resources).map(([k, v]) => `${k}(${v.length})`).join(', ')}`);

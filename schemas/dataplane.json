@@ -22,7 +22,8 @@
         },
         "namespace": {
           "type": "string",
-          "description": "Namespace (organization)"
+          "description": "Namespace (organization)",
+          "x-openchoreo-ref": "Namespace"
         }
       },
       "required": ["name"]

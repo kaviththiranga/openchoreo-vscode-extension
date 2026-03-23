@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ClusterWorkflowPlane",
+  "title": "OpenChoreo ClusterWorkflowPlane",
+  "description": "Cluster-scoped workflow plane for CI/CD build infrastructure available across all namespaces.",
+  "type": "object",
+  "properties": {
+    "apiVersion": { "type": "string", "const": "openchoreo.dev/v1alpha1" },
+    "kind": { "type": "string", "const": "ClusterWorkflowPlane" },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the ClusterWorkflowPlane" }
+      },
+      "required": ["name"]
+    },
+    "spec": {
+      "type": "object",
+      "description": "ClusterWorkflowPlane specification",
+      "additionalProperties": false,
+      "properties": {
+        "planeID": { "type": "string", "description": "Logical plane identifier for the physical cluster" },
+        "clusterAgent": {
+          "type": "object",
+          "description": "Cluster agent configuration",
+          "properties": {
+            "clientCA": {
+              "type": "object",
+              "properties": {
+                "secretKeyRef": {
+                  "type": "object",
+                  "properties": {
+                    "name": { "type": "string" },
+                    "namespace": { "type": "string" },
+                    "key": { "type": "string" }
+                  }
+                },
+                "value": { "type": "string" }
+              }
+            }
+          }
+        },
+        "secretStoreRef": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" }
+          }
+        },
+        "observabilityPlaneRef": {
+          "type": "object",
+          "required": ["kind", "name"],
+          "properties": {
+            "kind": { "type": "string", "enum": ["ClusterObservabilityPlane"] },
+            "name": { "type": "string", "minLength": 1, "x-openchoreo-ref": "ClusterObservabilityPlane" }
+          }
+        }
+      }
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata"]
+}
