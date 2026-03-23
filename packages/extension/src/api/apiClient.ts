@@ -3,6 +3,7 @@
 
 import { createOpenChoreoApiClient } from '@openchoreo/openchoreo-client-node';
 import type { OccConfigAuthProvider } from '../auth/authProvider';
+import { log } from '../logging/logger';
 
 type OpenChoreoClient = ReturnType<typeof createOpenChoreoApiClient>;
 
@@ -43,6 +44,7 @@ export class ApiClientManager {
       return this.client;
     }
 
+    log.debug(`Creating API client for ${baseUrl}`);
     this.client = createOpenChoreoApiClient({ baseUrl, token });
     this.clientBaseUrl = baseUrl;
     this.clientToken = token;

@@ -8,6 +8,7 @@ import type { ResourceNodeData, ResourceNodeType } from '../treeView/types';
 import { ResourceService } from '../services/resourceService';
 import { DEFINITION_RESOURCE_TYPES, crdToYaml } from '../services/yamlService';
 import { buildPutRequest, fetchResource } from '../services/apiRoutes';
+import { log } from '../logging/logger';
 
 export const FS_SCHEME = 'openchoreo';
 
@@ -116,29 +117,40 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
   async readFile(uri: vscode.Uri): Promise<Uint8Array> {
     const parsed = parseResourceUri(uri);
 
-    const client = await this.apiClientManager.getClient();
-    if (!client) {
-      throw vscode.FileSystemError.Unavailable('Not authenticated. Run "occ login" first.');
-    }
-
-    const crd = (await fetchResource(
-      client,
-      parsed.type,
-      parsed.namespace,
-      parsed.name,
-    )) as Record<string, unknown>;
-
-    // Inject apiVersion + kind if missing (API responses may omit them)
-    if (!crd.apiVersion) {
-      const kind = this.resourceService.getCrdKind(parsed.type);
-      if (kind) {
-        crd.apiVersion = 'openchoreo.dev/v1alpha1';
-        crd.kind = kind;
+    try {
+      const client = await this.apiClientManager.getClient();
+      if (!client) {
+        throw vscode.FileSystemError.Unavailable('Not authenticated. Run "occ login" first.');
       }
-    }
 
-    const yamlContent = crdToYaml(crd);
-    return new TextEncoder().encode(yamlContent);
+      log.debug(`Reading resource: ${parsed.type}/${parsed.name} in ${parsed.namespace ?? 'cluster'}`);
+      const crd = (await fetchResource(
+        client,
+        parsed.type,
+        parsed.namespace,
+        parsed.name,
+      )) as Record<string, unknown>;
+
+      // Inject apiVersion + kind if missing (API responses may omit them)
+      if (!crd.apiVersion) {
+        const kind = this.resourceService.getCrdKind(parsed.type);
+        if (kind) {
+          crd.apiVersion = 'openchoreo.dev/v1alpha1';
+          crd.kind = kind;
+        }
+      }
+
+      const yamlContent = crdToYaml(crd);
+      return new TextEncoder().encode(yamlContent);
+    } catch (err) {
+      if (err instanceof vscode.FileSystemError) {
+        throw err;
+      }
+      log.error(`Failed to read resource: ${parsed.type}/${parsed.name}`, err);
+      throw vscode.FileSystemError.Unavailable(
+        `Failed to load resource: ${err instanceof Error ? err.message : 'Connection error'}`,
+      );
+    }
   }
 
   async writeFile(

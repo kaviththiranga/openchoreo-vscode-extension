@@ -247,22 +247,85 @@ export function registerCommands(
           return;
         }
 
-        let scaffold = CRD_KIND_TO_SCAFFOLD[selected];
-        if (!scaffold) {
-          return;
-        }
-
-        // Replace namespace placeholder with current context namespace
         const ctxInfo = authProvider.getContextInfo();
-        const ns = ctxInfo?.namespace ?? 'default';
-        scaffold = scaffold.replace(/\{\{namespace\}\}/g, ns);
-
-        const doc = await vscode.workspace.openTextDocument({
-          language: 'yaml',
-          content: scaffold,
-        });
-        await vscode.window.showTextDocument(doc);
+        openScaffold(selected, ctxInfo?.namespace, ctxInfo?.project);
       },
     ),
   );
+
+  // Create child resource from tree item context (inline "+" button)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.createChildResource',
+      async (node: ResourceNodeData) => {
+        if (!node) {
+          return;
+        }
+
+        const ctxInfo = authProvider.getContextInfo();
+        const ns = node.namespace ?? ctxInfo?.namespace;
+
+        if (node.type === 'project') {
+          // Project node → ask: Component or DeploymentPipeline?
+          const choice = await vscode.window.showQuickPick(
+            ['Component', 'DeploymentPipeline'],
+            { placeHolder: `Create resource in project '${node.project}'` },
+          );
+          if (!choice) {
+            return;
+          }
+          openScaffold(choice, ns, node.project);
+          return;
+        }
+
+        if (node.type === 'infra-category' && node.lazyChildrenKey) {
+          // Infrastructure category → create the matching kind
+          const kindMap: Record<string, string> = {
+            'environments': 'Environment',
+            'data-planes': 'DataPlane',
+            'workflow-planes': 'Workflow',
+            'component-types': 'ComponentType',
+            'workflows': 'Workflow',
+            'traits': 'Trait',
+            'secret-references': 'SecretReference',
+          };
+          const kind = kindMap[node.lazyChildrenKey];
+          if (kind) {
+            openScaffold(kind, ns);
+          }
+          return;
+        }
+
+        // Fallback: generic picker
+        const kinds = Object.keys(CRD_KIND_TO_SCAFFOLD);
+        const selected = await vscode.window.showQuickPick(kinds, {
+          placeHolder: 'Select resource kind to create',
+        });
+        if (selected) {
+          openScaffold(selected, ns, node.project);
+        }
+      },
+    ),
+  );
+}
+
+/** Open a scaffold YAML as an untitled document, pre-filling namespace and project. */
+async function openScaffold(
+  kind: string,
+  namespace?: string,
+  project?: string,
+): Promise<void> {
+  let scaffold = CRD_KIND_TO_SCAFFOLD[kind];
+  if (!scaffold) {
+    return;
+  }
+
+  scaffold = scaffold.replace(/\{\{namespace\}\}/g, namespace ?? 'default');
+  scaffold = scaffold.replace(/\{\{project\}\}/g, project ?? 'default');
+
+  const doc = await vscode.workspace.openTextDocument({
+    language: 'yaml',
+    content: scaffold,
+  });
+  await vscode.window.showTextDocument(doc);
 }

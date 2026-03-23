@@ -177,6 +177,10 @@ export class ResourceExplorerProvider
   private static readonly EDITABLE_TYPES: ReadonlySet<ResourceNodeType> =
     new Set(['project', 'component', 'deployment-pipeline', 'workload']);
 
+  /** Types that support creating child resources via inline "+" button. */
+  private static readonly CREATABLE_TYPES: ReadonlySet<ResourceNodeType> =
+    new Set(['project']);
+
   private resolveContextValue(type: ResourceNodeType): string {
     let value: string = type;
     if (ResourceExplorerProvider.EDITABLE_TYPES.has(type)) {
@@ -184,6 +188,9 @@ export class ResourceExplorerProvider
     }
     if (this.capabilityService.canDelete(type)) {
       value += '_deletable';
+    }
+    if (ResourceExplorerProvider.CREATABLE_TYPES.has(type)) {
+      value += '_creatable';
     }
     return value;
   }

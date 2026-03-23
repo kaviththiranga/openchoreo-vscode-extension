@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 import { parse as parseYaml } from 'yaml';
+import { log } from '../logging/logger';
 
 /**
  * Config types matching the occ CLI config format at ~/.openchoreo/config
@@ -174,10 +175,13 @@ export class OccConfigAuthProvider implements vscode.Disposable {
 
     // Check if token is expired
     if (this.isTokenExpired(session.token)) {
+      log.info('Token expired, attempting refresh...');
       const refreshed = await this.refreshToken(session);
       if (refreshed) {
+        log.info('Token refreshed successfully');
         return refreshed;
       }
+      log.error('Token refresh failed');
       return undefined;
     }
 
@@ -281,9 +285,10 @@ export class OccConfigAuthProvider implements vscode.Disposable {
 
     try {
       // Step 1: Fetch OAuth protected resource metadata (RFC 9728)
+      log.debug(`Fetching auth metadata from ${session.controlPlaneUrl}`);
       const metadata = await this.fetchAuthMetadata(session.controlPlaneUrl);
       if (!metadata || !metadata.openchoreo_security_enabled) {
-        // If security is disabled, token doesn't matter
+        log.debug('Security disabled or metadata unavailable, using existing token');
         return session.token;
       }
 
@@ -295,10 +300,11 @@ export class OccConfigAuthProvider implements vscode.Disposable {
       }
 
       // Step 2: Fetch OIDC discovery from the authorization server
-      const oidcConfig = await this.fetchOidcDiscovery(
-        metadata.authorization_servers[0],
-      );
+      const authServer = metadata.authorization_servers[0];
+      log.debug(`Fetching OIDC discovery from ${authServer}`);
+      const oidcConfig = await this.fetchOidcDiscovery(authServer);
       if (!oidcConfig) {
+        log.error('Failed to fetch OIDC discovery');
         return undefined;
       }
 
@@ -332,7 +338,8 @@ export class OccConfigAuthProvider implements vscode.Disposable {
       );
 
       return data.access_token;
-    } catch {
+    } catch (err) {
+      log.error('Token refresh failed', err);
       return undefined;
     }
   }

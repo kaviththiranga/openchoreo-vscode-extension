@@ -102,7 +102,7 @@ metadata:
   namespace: "{{namespace}}"
 spec:
   owner:
-    projectName: default
+    projectName: "{{project}}"
 
   componentType: service
 
@@ -263,7 +263,7 @@ metadata:
   namespace: "{{namespace}}"
 spec:
   owner:
-    projectName: default
+    projectName: "{{project}}"
     componentName: my-component
 
   containers:

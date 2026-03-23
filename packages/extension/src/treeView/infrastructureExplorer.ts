@@ -144,7 +144,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Environments',
         type: 'infra-category',
-        contextValue: 'infra-category',
+        contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
         lazyChildrenKey: 'environments',
@@ -152,7 +152,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Data Planes',
         type: 'infra-category',
-        contextValue: 'infra-category',
+        contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
         lazyChildrenKey: 'data-planes',
@@ -176,7 +176,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Component Types',
         type: 'infra-category',
-        contextValue: 'infra-category',
+        contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
         lazyChildrenKey: 'component-types',
@@ -184,7 +184,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Workflows',
         type: 'infra-category',
-        contextValue: 'infra-category',
+        contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
         lazyChildrenKey: 'workflows',
@@ -192,7 +192,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Traits Catalog',
         type: 'infra-category',
-        contextValue: 'infra-category',
+        contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
         lazyChildrenKey: 'traits',

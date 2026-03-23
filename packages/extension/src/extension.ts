@@ -18,6 +18,7 @@ import { CapabilityService } from './services/capabilityService';
 import { DeleteService } from './services/deleteService';
 import { registerCommands } from './commands/commands';
 import { registerNamespaceSelector } from './commands/namespaceSelector';
+import { initLogger } from './logging/logger';
 import {
   OpenChoreoFileSystemProvider,
   FS_SCHEME,
@@ -28,6 +29,9 @@ let client: LanguageClient;
 export async function activate(
   context: vscode.ExtensionContext,
 ): Promise<void> {
+  // Initialize output channel logger
+  initLogger();
+
   // Initialize authentication provider (reads occ CLI session)
   const authProvider = new OccConfigAuthProvider(context);
   context.subscriptions.push(authProvider);
