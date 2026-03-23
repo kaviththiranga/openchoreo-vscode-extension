@@ -17,6 +17,10 @@ import { StatusBarManager } from './statusBar/statusBar';
 import { CapabilityService } from './services/capabilityService';
 import { DeleteService } from './services/deleteService';
 import { registerCommands } from './commands/commands';
+import {
+  OpenChoreoFileSystemProvider,
+  FS_SCHEME,
+} from './filesystem/fileSystemProvider';
 
 let client: LanguageClient;
 
@@ -70,6 +74,21 @@ export async function activate(
   );
   context.subscriptions.push(infrastructureTreeView);
 
+  // Register virtual filesystem provider for resource editing
+  const fsProvider = new OpenChoreoFileSystemProvider(
+    apiClientManager,
+    () => {
+      resourceExplorer.refresh();
+      infrastructureExplorer.refresh();
+    },
+  );
+  context.subscriptions.push(
+    vscode.workspace.registerFileSystemProvider(FS_SCHEME, fsProvider, {
+      isCaseSensitive: true,
+      isReadonly: false,
+    }),
+  );
+
   // Register commands
   registerCommands(
     context,
@@ -114,6 +133,7 @@ function startLanguageServer(
     documentSelector: [
       { scheme: 'file', language: 'yaml' },
       { scheme: 'untitled', language: 'yaml' },
+      { scheme: FS_SCHEME, language: 'yaml' },
     ],
     synchronize: {
       fileEvents: vscode.workspace.createFileSystemWatcher('**/*.yaml'),

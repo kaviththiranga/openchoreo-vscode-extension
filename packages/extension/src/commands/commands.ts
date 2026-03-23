@@ -9,180 +9,10 @@ import { InfrastructureExplorerProvider } from '../treeView/infrastructureExplor
 import type { ApiClientManager } from '../api/apiClient';
 import type { CapabilityService } from '../services/capabilityService';
 import type { DeleteService } from '../services/deleteService';
-import { ResourceService } from '../services/resourceService';
 import type { ResourceNodeData } from '../treeView/types';
-import {
-  DEFINITION_RESOURCE_TYPES,
-  crdToYaml,
-  CRD_KIND_TO_SCAFFOLD,
-} from '../services/yamlService';
-
-type Client = NonNullable<
-  Awaited<ReturnType<ApiClientManager['getClient']>>
->;
-
-const SCHEME = 'openchoreo';
-
-/**
- * Maps CRD kinds to their new API PUT endpoint builder.
- * Returns { path, params, body } for client.PUT() call.
- */
-function buildPutRequest(
-  kind: string,
-  name: string,
-  ns: string,
-  body: Record<string, unknown>,
-): {
-  path: string;
-  params: { path: Record<string, string> };
-  body: unknown;
-} | null {
-  // Strip apiVersion and kind — new API expects { metadata, spec }
-  const { apiVersion: _a, kind: _k, ...rest } = body;
-
-  switch (kind) {
-    case 'Project':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/projects/{projectName}',
-        params: { path: { namespaceName: ns, projectName: name } },
-        body: rest,
-      };
-    case 'Component':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/components/{componentName}',
-        params: { path: { namespaceName: ns, componentName: name } },
-        body: rest,
-      };
-    case 'Environment':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/environments/{envName}',
-        params: { path: { namespaceName: ns, envName: name } },
-        body: rest,
-      };
-    case 'DataPlane':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/dataplanes/{dpName}',
-        params: { path: { namespaceName: ns, dpName: name } },
-        body: rest,
-      };
-    case 'WorkflowPlane':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/workflowplanes/{workflowPlaneName}',
-        params: { path: { namespaceName: ns, workflowPlaneName: name } },
-        body: rest,
-      };
-    case 'ObservabilityPlane':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/observabilityplanes/{observabilityPlaneName}',
-        params: { path: { namespaceName: ns, observabilityPlaneName: name } },
-        body: rest,
-      };
-    case 'DeploymentPipeline':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/deploymentpipelines/{deploymentPipelineName}',
-        params: { path: { namespaceName: ns, deploymentPipelineName: name } },
-        body: rest,
-      };
-    case 'Workload':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/workloads/{workloadName}',
-        params: { path: { namespaceName: ns, workloadName: name } },
-        body: rest,
-      };
-    case 'SecretReference':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/secretreferences/{secretReferenceName}',
-        params: { path: { namespaceName: ns, secretReferenceName: name } },
-        body: rest,
-      };
-    case 'ReleaseBinding':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/releasebindings/{releaseBindingName}',
-        params: { path: { namespaceName: ns, releaseBindingName: name } },
-        body: rest,
-      };
-    case 'Workflow':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/workflows/{workflowName}',
-        params: { path: { namespaceName: ns, workflowName: name } },
-        body: rest,
-      };
-    case 'ComponentType':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/componenttypes/{ctName}',
-        params: { path: { namespaceName: ns, ctName: name } },
-        body: rest,
-      };
-    case 'Trait':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/traits/{traitName}',
-        params: { path: { namespaceName: ns, traitName: name } },
-        body: rest,
-      };
-    case 'NamespaceRole':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/authzroles/{name}',
-        params: { path: { namespaceName: ns, name } },
-        body: rest,
-      };
-    case 'NamespaceRoleBinding':
-      return {
-        path: '/api/v1/namespaces/{namespaceName}/authzrolebindings/{name}',
-        params: { path: { namespaceName: ns, name } },
-        body: rest,
-      };
-    case 'ClusterRole':
-      return {
-        path: '/api/v1/clusterauthzroles/{name}',
-        params: { path: { name } },
-        body: rest,
-      };
-    case 'ClusterRoleBinding':
-      return {
-        path: '/api/v1/clusterauthzrolebindings/{name}',
-        params: { path: { name } },
-        body: rest,
-      };
-    case 'ClusterComponentType':
-      return {
-        path: '/api/v1/clustercomponenttypes/{cctName}',
-        params: { path: { cctName: name } },
-        body: rest,
-      };
-    case 'ClusterWorkflow':
-      return {
-        path: '/api/v1/clusterworkflows/{clusterWorkflowName}',
-        params: { path: { clusterWorkflowName: name } },
-        body: rest,
-      };
-    case 'ClusterTrait':
-      return {
-        path: '/api/v1/clustertraits/{clusterTraitName}',
-        params: { path: { clusterTraitName: name } },
-        body: rest,
-      };
-    case 'ClusterDataPlane':
-      return {
-        path: '/api/v1/clusterdataplanes/{cdpName}',
-        params: { path: { cdpName: name } },
-        body: rest,
-      };
-    case 'ClusterWorkflowPlane':
-      return {
-        path: '/api/v1/clusterworkflowplanes/{clusterWorkflowPlaneName}',
-        params: { path: { clusterWorkflowPlaneName: name } },
-        body: rest,
-      };
-    case 'ClusterObservabilityPlane':
-      return {
-        path: '/api/v1/clusterobservabilityplanes/{clusterObservabilityPlaneName}',
-        params: { path: { clusterObservabilityPlaneName: name } },
-        body: rest,
-      };
-    default:
-      return null;
-  }
-}
+import { CRD_KIND_TO_SCAFFOLD } from '../services/yamlService';
+import { buildPutRequest } from '../services/apiRoutes';
+import { buildResourceUri } from '../filesystem/fileSystemProvider';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -193,17 +23,6 @@ export function registerCommands(
   deleteService: DeleteService,
   capabilityService: CapabilityService,
 ): void {
-  // Register virtual document provider for readonly resource views
-  const resourceContentProvider = new OpenChoreoResourceProvider(
-    apiClientManager,
-  );
-  context.subscriptions.push(
-    vscode.workspace.registerTextDocumentContentProvider(
-      SCHEME,
-      resourceContentProvider,
-    ),
-  );
-
   // Refresh resources
   context.subscriptions.push(
     vscode.commands.registerCommand('openchoreo.refreshResources', async () => {
@@ -262,7 +81,7 @@ export function registerCommands(
     }),
   );
 
-  // Open resource — editable YAML for definition types, readonly JSON for others
+  // Open resource via the virtual filesystem
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.openResource',
@@ -271,66 +90,10 @@ export function registerCommands(
           return;
         }
 
-        // Definition resources open as editable YAML untitled documents
-        if (DEFINITION_RESOURCE_TYPES.has(node.type)) {
-          try {
-            const crd = (await resourceContentProvider.fetchResourcePublic(
-              node.type,
-              node.namespace ?? null,
-              node.project ?? null,
-              node.component ?? null,
-              node.resourceName ?? null,
-            )) as Record<string, unknown>;
-
-            // Inject apiVersion + kind if missing (new API responses omit them)
-            if (!crd.apiVersion) {
-              const kind = new ResourceService().getCrdKind(node.type);
-              if (kind) {
-                crd.apiVersion = 'openchoreo.dev/v1alpha1';
-                crd.kind = kind;
-              }
-            }
-
-            const yamlContent = crdToYaml(crd);
-            const doc = await vscode.workspace.openTextDocument({
-              language: 'yaml',
-              content: yamlContent,
-            });
-            await vscode.window.showTextDocument(doc);
-          } catch (error) {
-            vscode.window.showErrorMessage(
-              `Failed to open resource: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            );
-          }
-          return;
-        }
-
-        // All other resources: readonly virtual JSON document
-        const params = new URLSearchParams();
-        params.set('type', node.type);
-
-        if (node.namespace) {
-          params.set('ns', node.namespace);
-        }
-        if (node.project) {
-          params.set('proj', node.project);
-        }
-        if (node.component) {
-          params.set('comp', node.component);
-        }
-        if (node.resourceName) {
-          params.set('name', node.resourceName);
-        }
-
-        // Build a descriptive file name
-        const fileName = buildFileName(node);
-        const uri = vscode.Uri.parse(
-          `${SCHEME}:${fileName}?${params.toString()}`,
-        );
-
         try {
+          const uri = buildResourceUri(node);
           const doc = await vscode.workspace.openTextDocument(uri);
-          await vscode.window.showTextDocument(doc, { preview: true });
+          await vscode.window.showTextDocument(doc);
         } catch (error) {
           vscode.window.showErrorMessage(
             `Failed to open resource: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -376,7 +139,7 @@ export function registerCommands(
     ),
   );
 
-  // Apply resource from active YAML editor to cluster
+  // Apply resource from active YAML editor to cluster (for untitled documents / scaffolds)
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.applyResource',
@@ -423,7 +186,6 @@ export function registerCommands(
         }
 
         try {
-          // All kinds use the new API PUT endpoint
           const client = await apiClientManager.getClient();
           if (!client) {
             vscode.window.showErrorMessage(
@@ -440,7 +202,6 @@ export function registerCommands(
             return;
           }
 
-          // Use the generic PUT method with computed path
           const { error } = await client.PUT(putReq.path as never, {
             params: putReq.params,
             body: putReq.body,
@@ -458,7 +219,7 @@ export function registerCommands(
           }
 
           vscode.window.showInformationMessage(
-            `${kind} '${name}' updated successfully.`,
+            `${kind} '${name}' applied successfully.`,
           );
 
           resourceExplorer.refresh();
@@ -472,7 +233,7 @@ export function registerCommands(
     ),
   );
 
-  // Create new resource from scaffold
+  // Create new resource from scaffold (opens as untitled document)
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.createResource',
@@ -504,444 +265,4 @@ export function registerCommands(
       },
     ),
   );
-}
-
-function buildFileName(node: ResourceNodeData): string {
-  const parts: string[] = [];
-  if (node.namespace) {
-    parts.push(node.namespace);
-  }
-  if (node.project) {
-    parts.push(node.project);
-  }
-  if (node.component) {
-    parts.push(node.component);
-  }
-  if (node.resourceName) {
-    parts.push(node.resourceName);
-  }
-
-  // For top-level resources without namespace context, use the type
-  if (parts.length === 0) {
-    parts.push(node.type);
-  }
-
-  return parts.join('/') + '.json';
-}
-
-/**
- * Virtual document provider that fetches OpenChoreo resources via typed API clients
- * and presents them as readonly JSON documents.
- */
-class OpenChoreoResourceProvider
-  implements vscode.TextDocumentContentProvider
-{
-  private onDidChangeEmitter = new vscode.EventEmitter<vscode.Uri>();
-  readonly onDidChange = this.onDidChangeEmitter.event;
-
-  constructor(private readonly apiClientManager: ApiClientManager) {}
-
-  /**
-   * Public access to fetchResource for use by the openResource command
-   * when opening definition resources as editable YAML.
-   */
-  async fetchResourcePublic(
-    type: string | null,
-    ns: string | null,
-    proj: string | null,
-    comp: string | null,
-    name: string | null,
-  ): Promise<unknown> {
-    return this.fetchResource(type, ns, proj, comp, name);
-  }
-
-  async provideTextDocumentContent(uri: vscode.Uri): Promise<string> {
-    const params = new URLSearchParams(uri.query);
-    const type = params.get('type');
-    const ns = params.get('ns');
-    const proj = params.get('proj');
-    const comp = params.get('comp');
-    const name = params.get('name');
-
-    try {
-      const payload = await this.fetchResource(type, ns, proj, comp, name);
-      return JSON.stringify(payload, null, 2);
-    } catch (error) {
-      return `// Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
-    }
-  }
-
-  private async fetchResource(
-    type: string | null,
-    ns: string | null,
-    _proj: string | null,
-    _comp: string | null,
-    name: string | null,
-  ): Promise<unknown> {
-    return this.fetchNewApiResource(type, ns, name);
-  }
-
-  /** Fetch resources using the new API endpoints. */
-  private async fetchNewApiResource(
-    type: string | null,
-    ns: string | null,
-    name: string | null,
-  ): Promise<unknown> {
-    const client = await this.requireClient();
-
-    if (!type) {
-      throw new Error('Resource type is required');
-    }
-
-    switch (type) {
-      case 'namespace': {
-        if (!ns) {
-          throw new Error('Namespace name required for namespace');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}',
-          { params: { path: { namespaceName: ns } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch namespace: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'component-type': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for component type');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/componenttypes/{ctName}',
-          { params: { path: { namespaceName: ns, ctName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch component type: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'workflow': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for workflow');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/workflows/{workflowName}',
-          { params: { path: { namespaceName: ns, workflowName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch workflow: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'trait': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for trait');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/traits/{traitName}',
-          { params: { path: { namespaceName: ns, traitName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch trait: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'project': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for project');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/projects/{projectName}',
-          { params: { path: { namespaceName: ns, projectName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch project: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'component': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for component');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/components/{componentName}',
-          { params: { path: { namespaceName: ns, componentName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch component: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'environment': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for environment');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/environments/{envName}',
-          { params: { path: { namespaceName: ns, envName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch environment: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'data-plane': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for data plane');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/dataplanes/{dpName}',
-          { params: { path: { namespaceName: ns, dpName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch data plane: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'workflow-plane': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for workflow plane');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/workflowplanes/{workflowPlaneName}',
-          { params: { path: { namespaceName: ns, workflowPlaneName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch workflow plane: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'observability-plane': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for observability plane');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/observabilityplanes/{observabilityPlaneName}',
-          { params: { path: { namespaceName: ns, observabilityPlaneName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch observability plane: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'deployment-pipeline': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for deployment pipeline');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/deploymentpipelines/{deploymentPipelineName}',
-          { params: { path: { namespaceName: ns, deploymentPipelineName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch deployment pipeline: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'workload': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for workload');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/workloads/{workloadName}',
-          { params: { path: { namespaceName: ns, workloadName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch workload: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'secret-reference': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for secret reference');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/secretreferences/{secretReferenceName}',
-          { params: { path: { namespaceName: ns, secretReferenceName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch secret reference: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'workflow-run': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for workflow run');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/workflowruns/{runName}',
-          { params: { path: { namespaceName: ns, runName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch workflow run: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'component-release': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for component release');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/componentreleases/{componentReleaseName}',
-          { params: { path: { namespaceName: ns, componentReleaseName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch component release: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'release-binding': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for release binding');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/releasebindings/{releaseBindingName}',
-          { params: { path: { namespaceName: ns, releaseBindingName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch release binding: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'namespace-role': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for namespace role');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/authzroles/{name}',
-          { params: { path: { namespaceName: ns, name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch namespace role: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'namespace-role-binding': {
-        if (!ns || !name) {
-          throw new Error('Namespace and name required for namespace role binding');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/authzrolebindings/{name}',
-          { params: { path: { namespaceName: ns, name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch namespace role binding: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'cluster-role': {
-        if (!name) {
-          throw new Error('Name required for cluster role');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/clusterauthzroles/{name}',
-          { params: { path: { name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch cluster role: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'cluster-role-binding': {
-        if (!name) {
-          throw new Error('Name required for cluster role binding');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/clusterauthzrolebindings/{name}',
-          { params: { path: { name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch cluster role binding: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'cluster-component-type': {
-        if (!name) {
-          throw new Error('Name required for cluster component type');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/clustercomponenttypes/{cctName}',
-          { params: { path: { cctName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch cluster component type: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'cluster-workflow': {
-        if (!name) {
-          throw new Error('Name required for cluster workflow');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/clusterworkflows/{clusterWorkflowName}',
-          { params: { path: { clusterWorkflowName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch cluster workflow: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'cluster-trait': {
-        if (!name) {
-          throw new Error('Name required for cluster trait');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/clustertraits/{clusterTraitName}',
-          { params: { path: { clusterTraitName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch cluster trait: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'cluster-data-plane': {
-        if (!name) {
-          throw new Error('Name required for cluster data plane');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/clusterdataplanes/{cdpName}',
-          { params: { path: { cdpName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch cluster data plane: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'cluster-workflow-plane': {
-        if (!name) {
-          throw new Error('Name required for cluster workflow plane');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/clusterworkflowplanes/{clusterWorkflowPlaneName}',
-          { params: { path: { clusterWorkflowPlaneName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch cluster workflow plane: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      case 'cluster-observability-plane': {
-        if (!name) {
-          throw new Error('Name required for cluster observability plane');
-        }
-        const { data, error } = await client.GET(
-          '/api/v1/clusterobservabilityplanes/{clusterObservabilityPlaneName}',
-          { params: { path: { clusterObservabilityPlaneName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to fetch cluster observability plane: ${JSON.stringify(error)}`);
-        }
-        return data;
-      }
-      default:
-        throw new Error(`Unknown resource type: ${type}`);
-    }
-  }
-
-  private async requireClient(): Promise<Client> {
-    const client = await this.apiClientManager.getClient();
-    if (!client) {
-      throw new Error('Not authenticated. Run "occ login" first.');
-    }
-    return client;
-  }
 }
