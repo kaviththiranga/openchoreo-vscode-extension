@@ -9,13 +9,12 @@ export const OPENCHOREO_CRD_KINDS = [
   'Project',
   'Environment',
   'DataPlane',
-  'BuildPlane',
+  'WorkflowPlane',
   'Component',
   'ComponentType',
   'Trait',
   'Workload',
   'Workflow',
-  'ComponentWorkflow',
   'WorkflowRun',
   'ComponentRelease',
   'ReleaseBinding',
@@ -27,6 +26,13 @@ export const OPENCHOREO_CRD_KINDS = [
   'APIClass',
   'SecretReference',
   'ConfigurationGroup',
+  // Cluster-scoped
+  'ClusterComponentType',
+  'ClusterWorkflow',
+  'ClusterTrait',
+  'ClusterDataPlane',
+  'ClusterWorkflowPlane',
+  'ClusterObservabilityPlane',
 ] as const;
 
 export type CrdKind = (typeof OPENCHOREO_CRD_KINDS)[number];

@@ -1,0 +1,94 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "Workflow",
+  "title": "OpenChoreo Workflow",
+  "description": "Defines a reusable workflow template for building or processing components.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "Workflow"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the Workflow"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace (organization)"
+        }
+      },
+      "required": ["name"]
+    },
+    "spec": {
+      "type": "object",
+      "description": "Workflow specification",
+      "required": ["runTemplate"],
+      "properties": {
+        "workflowPlaneRef": {
+          "type": "object",
+          "description": "Reference to a WorkflowPlane or ClusterWorkflowPlane",
+          "required": ["kind", "name"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["WorkflowPlane", "ClusterWorkflowPlane"],
+              "description": "Kind of workflow plane"
+            },
+            "name": {
+              "type": "string",
+              "description": "Name of the workflow plane resource"
+            }
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Schema section for workflow parameters",
+          "properties": {
+            "openAPIV3Schema": {
+              "type": "object",
+              "description": "Schema using standard OpenAPI V3 / JSON Schema format",
+              "additionalProperties": true
+            }
+          }
+        },
+        "runTemplate": {
+          "type": "object",
+          "description": "Kubernetes resource template to render and apply for this workflow run",
+          "additionalProperties": true
+        },
+        "resources": {
+          "type": "array",
+          "description": "Additional resource templates to render and apply alongside the workflow run",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier for this resource"
+              },
+              "template": {
+                "type": "object",
+                "description": "Kubernetes resource template",
+                "additionalProperties": true
+              }
+            },
+            "required": ["id", "template"]
+          }
+        },
+        "ttlAfterCompletion": {
+          "type": "string",
+          "description": "Time-to-live for WorkflowRun instances after completion (e.g. 10d1h30m)"
+        }
+      }
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"]
+}

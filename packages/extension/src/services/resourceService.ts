@@ -8,21 +8,16 @@ type Client = NonNullable<
   Awaited<ReturnType<ApiClientManager['getClient']>>
 >;
 
-type LegacyClient = NonNullable<
-  Awaited<ReturnType<ApiClientManager['getLegacyClient']>>
->;
-
 /** Maps tree-view node types to their PascalCase CRD kind (used by apply command). */
 const NODE_TYPE_TO_CRD_KIND: Partial<Record<ResourceNodeType, string>> = {
   'component-type': 'ComponentType',
   workflow: 'Workflow',
-  'component-workflow': 'ComponentWorkflow',
   trait: 'Trait',
   project: 'Project',
   component: 'Component',
   environment: 'Environment',
   'data-plane': 'DataPlane',
-  'build-plane': 'BuildPlane',
+  'workflow-plane': 'WorkflowPlane',
   'observability-plane': 'ObservabilityPlane',
   'deployment-pipeline': 'DeploymentPipeline',
   'secret-reference': 'SecretReference',
@@ -33,38 +28,44 @@ const NODE_TYPE_TO_CRD_KIND: Partial<Record<ResourceNodeType, string>> = {
   'namespace-role-binding': 'NamespaceRoleBinding',
   'cluster-role': 'ClusterRole',
   'cluster-role-binding': 'ClusterRoleBinding',
+  // Cluster-scoped resources
+  'cluster-component-type': 'ClusterComponentType',
+  'cluster-workflow': 'ClusterWorkflow',
+  'cluster-trait': 'ClusterTrait',
+  'cluster-data-plane': 'ClusterDataPlane',
+  'cluster-workflow-plane': 'ClusterWorkflowPlane',
+  'cluster-observability-plane': 'ClusterObservabilityPlane',
 };
 
-/** Resource types that must use legacy DELETE /delete endpoint. */
-const LEGACY_DELETE_TYPES = new Set([
-  'component-type',
-  'workflow',
-  'component-workflow',
-  'trait',
-]);
-
 /** Kinds that live at the cluster scope (no namespace in the path). */
-const CLUSTER_SCOPED_KINDS = new Set(['ClusterRole', 'ClusterRoleBinding']);
+const CLUSTER_SCOPED_KINDS = new Set([
+  'ClusterRole',
+  'ClusterRoleBinding',
+  'ClusterComponentType',
+  'ClusterWorkflow',
+  'ClusterTrait',
+  'ClusterDataPlane',
+  'ClusterWorkflowPlane',
+  'ClusterObservabilityPlane',
+]);
 
 export class ResourceService {
   getCrdKind(nodeType: ResourceNodeType): string | undefined {
     return NODE_TYPE_TO_CRD_KIND[nodeType];
   }
 
-  /** Deletes a resource using per-resource DELETE endpoints (new API) or legacy DELETE /delete. */
+  isClusterScoped(nodeType: ResourceNodeType): boolean {
+    const kind = NODE_TYPE_TO_CRD_KIND[nodeType];
+    return kind ? CLUSTER_SCOPED_KINDS.has(kind) : false;
+  }
+
+  /** Deletes a resource using per-resource DELETE endpoints. */
   async deleteResource(
     client: Client,
-    legacyClient: LegacyClient,
     nodeType: ResourceNodeType,
     namespace: string | undefined,
     name: string,
   ): Promise<void> {
-    // Legacy-only types use the generic DELETE /delete endpoint
-    if (LEGACY_DELETE_TYPES.has(nodeType)) {
-      return this.deleteLegacy(legacyClient, nodeType, namespace, name);
-    }
-
-    // New API per-resource DELETE endpoints
     const ns = namespace ?? '';
     switch (nodeType) {
       case 'project': {
@@ -84,6 +85,36 @@ export class ResourceService {
         );
         if (error) {
           throw new Error(`Failed to delete component: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'component-type': {
+        const { error } = await client.DELETE(
+          '/api/v1/namespaces/{namespaceName}/componenttypes/{ctName}',
+          { params: { path: { namespaceName: ns, ctName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete component type: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'workflow': {
+        const { error } = await client.DELETE(
+          '/api/v1/namespaces/{namespaceName}/workflows/{workflowName}',
+          { params: { path: { namespaceName: ns, workflowName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete workflow: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'trait': {
+        const { error } = await client.DELETE(
+          '/api/v1/namespaces/{namespaceName}/traits/{traitName}',
+          { params: { path: { namespaceName: ns, traitName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete trait: ${JSON.stringify(error)}`);
         }
         return;
       }
@@ -107,20 +138,20 @@ export class ResourceService {
         }
         return;
       }
-      case 'build-plane': {
+      case 'workflow-plane': {
         const { error } = await client.DELETE(
-          '/api/v1/namespaces/{namespaceName}/buildplanes/{bpName}',
-          { params: { path: { namespaceName: ns, bpName: name } } },
+          '/api/v1/namespaces/{namespaceName}/workflowplanes/{workflowPlaneName}',
+          { params: { path: { namespaceName: ns, workflowPlaneName: name } } },
         );
         if (error) {
-          throw new Error(`Failed to delete build plane: ${JSON.stringify(error)}`);
+          throw new Error(`Failed to delete workflow plane: ${JSON.stringify(error)}`);
         }
         return;
       }
       case 'observability-plane': {
         const { error } = await client.DELETE(
-          '/api/v1/namespaces/{namespaceName}/observabilityplanes/{opName}',
-          { params: { path: { namespaceName: ns, opName: name } } },
+          '/api/v1/namespaces/{namespaceName}/observabilityplanes/{observabilityPlaneName}',
+          { params: { path: { namespaceName: ns, observabilityPlaneName: name } } },
         );
         if (error) {
           throw new Error(`Failed to delete observability plane: ${JSON.stringify(error)}`);
@@ -129,8 +160,8 @@ export class ResourceService {
       }
       case 'deployment-pipeline': {
         const { error } = await client.DELETE(
-          '/api/v1/namespaces/{namespaceName}/deployment-pipelines/{pipelineName}',
-          { params: { path: { namespaceName: ns, pipelineName: name } } },
+          '/api/v1/namespaces/{namespaceName}/deploymentpipelines/{deploymentPipelineName}',
+          { params: { path: { namespaceName: ns, deploymentPipelineName: name } } },
         );
         if (error) {
           throw new Error(`Failed to delete deployment pipeline: ${JSON.stringify(error)}`);
@@ -149,28 +180,18 @@ export class ResourceService {
       }
       case 'secret-reference': {
         const { error } = await client.DELETE(
-          '/api/v1/namespaces/{namespaceName}/secret-references/{secretRefName}',
-          { params: { path: { namespaceName: ns, secretRefName: name } } },
+          '/api/v1/namespaces/{namespaceName}/secretreferences/{secretReferenceName}',
+          { params: { path: { namespaceName: ns, secretReferenceName: name } } },
         );
         if (error) {
           throw new Error(`Failed to delete secret reference: ${JSON.stringify(error)}`);
         }
         return;
       }
-      case 'component-release': {
-        const { error } = await client.DELETE(
-          '/api/v1/namespaces/{namespaceName}/component-releases/{releaseName}',
-          { params: { path: { namespaceName: ns, releaseName: name } } },
-        );
-        if (error) {
-          throw new Error(`Failed to delete component release: ${JSON.stringify(error)}`);
-        }
-        return;
-      }
       case 'release-binding': {
         const { error } = await client.DELETE(
-          '/api/v1/namespaces/{namespaceName}/release-bindings/{bindingName}',
-          { params: { path: { namespaceName: ns, bindingName: name } } },
+          '/api/v1/namespaces/{namespaceName}/releasebindings/{releaseBindingName}',
+          { params: { path: { namespaceName: ns, releaseBindingName: name } } },
         );
         if (error) {
           throw new Error(`Failed to delete release binding: ${JSON.stringify(error)}`);
@@ -179,7 +200,7 @@ export class ResourceService {
       }
       case 'namespace-role': {
         const { error } = await client.DELETE(
-          '/api/v1/namespaces/{namespaceName}/roles/{name}',
+          '/api/v1/namespaces/{namespaceName}/authzroles/{name}',
           { params: { path: { namespaceName: ns, name } } },
         );
         if (error) {
@@ -189,7 +210,7 @@ export class ResourceService {
       }
       case 'namespace-role-binding': {
         const { error } = await client.DELETE(
-          '/api/v1/namespaces/{namespaceName}/rolebindings/{name}',
+          '/api/v1/namespaces/{namespaceName}/authzrolebindings/{name}',
           { params: { path: { namespaceName: ns, name } } },
         );
         if (error) {
@@ -199,7 +220,7 @@ export class ResourceService {
       }
       case 'cluster-role': {
         const { error } = await client.DELETE(
-          '/api/v1/clusterroles/{name}',
+          '/api/v1/clusterauthzroles/{name}',
           { params: { path: { name } } },
         );
         if (error) {
@@ -209,7 +230,7 @@ export class ResourceService {
       }
       case 'cluster-role-binding': {
         const { error } = await client.DELETE(
-          '/api/v1/clusterrolebindings/{name}',
+          '/api/v1/clusterauthzrolebindings/{name}',
           { params: { path: { name } } },
         );
         if (error) {
@@ -217,39 +238,69 @@ export class ResourceService {
         }
         return;
       }
+      // Cluster-scoped infrastructure resources
+      case 'cluster-component-type': {
+        const { error } = await client.DELETE(
+          '/api/v1/clustercomponenttypes/{cctName}',
+          { params: { path: { cctName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete cluster component type: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'cluster-workflow': {
+        const { error } = await client.DELETE(
+          '/api/v1/clusterworkflows/{clusterWorkflowName}',
+          { params: { path: { clusterWorkflowName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete cluster workflow: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'cluster-trait': {
+        const { error } = await client.DELETE(
+          '/api/v1/clustertraits/{clusterTraitName}',
+          { params: { path: { clusterTraitName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete cluster trait: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'cluster-data-plane': {
+        const { error } = await client.DELETE(
+          '/api/v1/clusterdataplanes/{cdpName}',
+          { params: { path: { cdpName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete cluster data plane: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'cluster-workflow-plane': {
+        const { error } = await client.DELETE(
+          '/api/v1/clusterworkflowplanes/{clusterWorkflowPlaneName}',
+          { params: { path: { clusterWorkflowPlaneName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete cluster workflow plane: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'cluster-observability-plane': {
+        const { error } = await client.DELETE(
+          '/api/v1/clusterobservabilityplanes/{clusterObservabilityPlaneName}',
+          { params: { path: { clusterObservabilityPlaneName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete cluster observability plane: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
       default:
         throw new Error(`Delete not supported for resource type: ${nodeType}`);
-    }
-  }
-
-  /** Legacy delete using generic DELETE /delete endpoint. */
-  private async deleteLegacy(
-    legacyClient: LegacyClient,
-    nodeType: ResourceNodeType,
-    namespace: string | undefined,
-    name: string,
-  ): Promise<void> {
-    const kind = NODE_TYPE_TO_CRD_KIND[nodeType];
-    if (!kind) {
-      throw new Error(`No CRD kind mapping for type: ${nodeType}`);
-    }
-
-    const metadata: Record<string, string> = { name };
-    if (namespace && !CLUSTER_SCOPED_KINDS.has(kind)) {
-      metadata.namespace = namespace;
-    }
-
-    const body = {
-      apiVersion: 'openchoreo.dev/v1alpha1',
-      kind,
-      metadata,
-    };
-
-    const { error } = await legacyClient.DELETE('/delete', {
-      body,
-    });
-    if (error) {
-      throw new Error(`Failed to delete ${nodeType}: ${JSON.stringify(error)}`);
     }
   }
 }

@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "DataPlane",
+  "title": "OpenChoreo DataPlane",
+  "description": "Represents runtime infrastructure for deploying workloads within a namespace.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "DataPlane"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the DataPlane"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace (organization)"
+        }
+      },
+      "required": ["name"]
+    },
+    "spec": {
+      "type": "object",
+      "description": "DataPlane specification",
+      "properties": {
+        "planeID": {
+          "type": "string",
+          "description": "Logical plane identifier for the physical cluster. Multiple DataPlane CRs can share the same planeID."
+        },
+        "clusterAgent": {
+          "type": "object",
+          "description": "Cluster agent configuration for connecting to the runtime cluster",
+          "properties": {
+            "kubernetesCluster": {
+              "type": "object",
+              "description": "Direct Kubernetes cluster connection configuration",
+              "properties": {
+                "server": {
+                  "type": "string",
+                  "description": "API server URL"
+                }
+              }
+            }
+          }
+        },
+        "gateway": {
+          "type": "object",
+          "description": "Gateway configuration with ingress and egress network specs",
+          "properties": {
+            "ingress": {
+              "type": "object",
+              "description": "Ingress network configuration",
+              "properties": {
+                "domain": {
+                  "type": "string",
+                  "description": "Domain for ingress traffic"
+                }
+              }
+            },
+            "egress": {
+              "type": "object",
+              "description": "Egress network configuration"
+            }
+          }
+        },
+        "secretStoreRef": {
+          "type": "object",
+          "description": "Reference to a secret store",
+          "properties": {
+            "name": {
+              "type": "string",
+              "description": "Name of the secret store resource"
+            },
+            "kind": {
+              "type": "string",
+              "description": "Kind of secret store"
+            }
+          }
+        },
+        "observabilityPlaneRef": {
+          "type": "object",
+          "description": "Reference to an ObservabilityPlane or ClusterObservabilityPlane",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["ObservabilityPlane", "ClusterObservabilityPlane"],
+              "description": "Kind of observability plane"
+            },
+            "name": {
+              "type": "string",
+              "description": "Name of the observability plane resource"
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata"]
+}

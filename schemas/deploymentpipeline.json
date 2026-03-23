@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "DeploymentPipeline",
+  "title": "OpenChoreo DeploymentPipeline",
+  "description": "Defines promotion paths between environments for deploying component releases.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "DeploymentPipeline"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the DeploymentPipeline"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace (organization)"
+        }
+      },
+      "required": ["name"]
+    },
+    "spec": {
+      "type": "object",
+      "description": "DeploymentPipeline specification",
+      "properties": {
+        "promotionPaths": {
+          "type": "array",
+          "description": "Promotion paths between environments",
+          "items": {
+            "type": "object",
+            "required": ["sourceEnvironmentRef", "targetEnvironmentRefs"],
+            "properties": {
+              "sourceEnvironmentRef": {
+                "type": "object",
+                "description": "Reference to the source environment",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Name of the source environment"
+                  }
+                },
+                "required": ["name"]
+              },
+              "targetEnvironmentRefs": {
+                "type": "array",
+                "description": "References to target environments",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "name": {
+                      "type": "string",
+                      "description": "Name of the target environment"
+                    }
+                  },
+                  "required": ["name"]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata"]
+}

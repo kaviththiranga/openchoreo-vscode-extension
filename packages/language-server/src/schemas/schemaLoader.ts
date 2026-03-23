@@ -15,6 +15,7 @@ export interface JsonSchema {
   required?: string[];
   additionalProperties?: boolean | JsonSchema;
   items?: JsonSchema;
+  const?: string | number | boolean;
   enum?: (string | number | boolean)[];
   default?: unknown;
   pattern?: string;

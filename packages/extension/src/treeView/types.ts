@@ -12,21 +12,27 @@ export type ResourceNodeType =
   | 'release-binding'
   | 'workload'
   | 'deployment-pipeline'
-  // Infrastructure view nodes
+  // Infrastructure view nodes (namespace-scoped)
   | 'infra-category'
   | 'environment'
   | 'data-plane'
-  | 'build-plane'
+  | 'workflow-plane'
   | 'observability-plane'
   | 'component-type'
   | 'workflow'
-  | 'component-workflow'
   | 'trait'
   | 'secret-reference'
   | 'namespace-role'
   | 'namespace-role-binding'
   | 'cluster-role'
   | 'cluster-role-binding'
+  // Infrastructure view nodes (cluster-scoped)
+  | 'cluster-component-type'
+  | 'cluster-workflow'
+  | 'cluster-trait'
+  | 'cluster-data-plane'
+  | 'cluster-workflow-plane'
+  | 'cluster-observability-plane'
   // Status nodes
   | 'no-connection'
   | 'empty';

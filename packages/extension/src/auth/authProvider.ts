@@ -9,7 +9,7 @@ import { parse as parseYaml } from 'yaml';
 
 /**
  * Config types matching the occ CLI config format at ~/.openchoreo/config
- * See: openchoreo/pkg/cli/cmd/config/config.go
+ * See: openchoreo/internal/occ/cmd/config/types.go
  */
 export interface OccConfig {
   currentContext: string;
@@ -29,7 +29,7 @@ export interface Credential {
   token: string;
   refreshToken: string;
   clientSecret: string;
-  authMethod: string; // "authorization_code" | "client_credentials"
+  authMethod: string; // "pkce" | "client_credentials"
 }
 
 export interface OccContext {
@@ -38,9 +38,7 @@ export interface OccContext {
   credentials: string;
   namespace: string;
   project: string;
-  environment: string;
-  dataPlane: string;
-  mode: string;
+  component: string;
 }
 
 export interface AuthSession {
@@ -52,11 +50,21 @@ export interface AuthSession {
   context: OccContext;
 }
 
-interface OidcConfig {
-  authorization_endpoint: string;
+/** RFC 9728 OAuth Protected Resource Metadata */
+interface OAuthProtectedResourceMetadata {
+  authorization_servers: string[];
+  openchoreo_clients: Array<{
+    name: string;
+    client_id: string;
+    scopes: string[];
+  }>;
+  openchoreo_security_enabled: boolean;
+}
+
+/** RFC 8414 OpenID Connect Discovery */
+interface OidcDiscovery {
   token_endpoint: string;
-  client_id: string;
-  security_enabled: boolean;
+  authorization_endpoint: string;
 }
 
 const CONFIG_DIR = path.join(os.homedir(), '.openchoreo');
@@ -230,7 +238,9 @@ export class OccConfigAuthProvider implements vscode.Disposable {
 
   /**
    * Refresh the access token using the OIDC token endpoint.
-   * Mirrors the logic in openchoreo/internal/occ/auth/token.go
+   * Uses RFC 9728 two-step discovery:
+   * 1. GET /.well-known/oauth-protected-resource → authorization server URL
+   * 2. GET {authServer}/.well-known/openid-configuration → token endpoint
    */
   private async refreshToken(session: AuthSession): Promise<string | undefined> {
     if (!session.refreshToken) {
@@ -238,11 +248,26 @@ export class OccConfigAuthProvider implements vscode.Disposable {
     }
 
     try {
-      // Fetch OIDC config to get token endpoint
-      const oidcConfig = await this.fetchOidcConfig(session.controlPlaneUrl);
-      if (!oidcConfig || !oidcConfig.security_enabled) {
+      // Step 1: Fetch OAuth protected resource metadata (RFC 9728)
+      const metadata = await this.fetchAuthMetadata(session.controlPlaneUrl);
+      if (!metadata || !metadata.openchoreo_security_enabled) {
         // If security is disabled, token doesn't matter
         return session.token;
+      }
+
+      if (
+        !metadata.authorization_servers ||
+        metadata.authorization_servers.length === 0
+      ) {
+        return undefined;
+      }
+
+      // Step 2: Fetch OIDC discovery from the authorization server
+      const oidcConfig = await this.fetchOidcDiscovery(
+        metadata.authorization_servers[0],
+      );
+      if (!oidcConfig) {
+        return undefined;
       }
 
       // Exchange refresh token for new access token
@@ -281,19 +306,38 @@ export class OccConfigAuthProvider implements vscode.Disposable {
   }
 
   /**
-   * Fetch OIDC configuration from the control plane.
+   * Fetch OAuth Protected Resource Metadata (RFC 9728).
    */
-  private async fetchOidcConfig(
+  private async fetchAuthMetadata(
     controlPlaneUrl: string,
-  ): Promise<OidcConfig | undefined> {
+  ): Promise<OAuthProtectedResourceMetadata | undefined> {
     try {
       const response = await fetch(
-        `${controlPlaneUrl}/api/v1/.well-known/openid-configuration`,
+        `${controlPlaneUrl}/.well-known/oauth-protected-resource`,
       );
       if (!response.ok) {
         return undefined;
       }
-      return (await response.json()) as OidcConfig;
+      return (await response.json()) as OAuthProtectedResourceMetadata;
+    } catch {
+      return undefined;
+    }
+  }
+
+  /**
+   * Fetch OIDC Discovery document (RFC 8414) from the authorization server.
+   */
+  private async fetchOidcDiscovery(
+    authServerUrl: string,
+  ): Promise<OidcDiscovery | undefined> {
+    try {
+      const response = await fetch(
+        `${authServerUrl}/.well-known/openid-configuration`,
+      );
+      if (!response.ok) {
+        return undefined;
+      }
+      return (await response.json()) as OidcDiscovery;
     } catch {
       return undefined;
     }

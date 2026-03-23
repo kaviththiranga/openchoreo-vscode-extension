@@ -14,7 +14,6 @@ const DELETE_ACTION_MAP: Partial<Record<ResourceNodeType, string>> = {
   component: 'component:delete',
   'component-type': 'componenttype:delete',
   workflow: 'workflow:delete',
-  'component-workflow': 'componentworkflow:delete',
   trait: 'trait:delete',
   'cluster-role': 'role:delete',
   'namespace-role': 'role:delete',
@@ -57,8 +56,12 @@ export class CapabilityService {
 
       // Fetch available actions (may fail if authz is disabled -- that's OK)
       const { data: actionsData } = await client.GET('/api/v1/authz/actions');
-      if (actionsData) {
-        this.availableActions = new Set(actionsData as string[]);
+      if (actionsData && Array.isArray(actionsData)) {
+        // Actions response is an array of { name, lowestScope } objects
+        const actionNames = actionsData.map(
+          (a: { name: string }) => a.name,
+        );
+        this.availableActions = new Set(actionNames);
       } else {
         // Authz disabled or actions unavailable -- skip action-name validation
         this.availableActions = undefined;

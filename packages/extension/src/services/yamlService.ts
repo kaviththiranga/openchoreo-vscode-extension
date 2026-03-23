@@ -5,15 +5,15 @@ import { stringify } from 'yaml';
 
 /** Resource types whose GET endpoints return full resource definitions for editing. */
 export const DEFINITION_RESOURCE_TYPES = new Set([
+  'namespace',
   'component-type',
   'workflow',
-  'component-workflow',
   'trait',
   'project',
   'component',
   'environment',
   'data-plane',
-  'build-plane',
+  'workflow-plane',
   'observability-plane',
   'deployment-pipeline',
   'workload',
@@ -22,6 +22,13 @@ export const DEFINITION_RESOURCE_TYPES = new Set([
   'namespace-role-binding',
   'cluster-role',
   'cluster-role-binding',
+  // Cluster-scoped resources
+  'cluster-component-type',
+  'cluster-workflow',
+  'cluster-trait',
+  'cluster-data-plane',
+  'cluster-workflow-plane',
+  'cluster-observability-plane',
 ]);
 
 /**
@@ -217,6 +224,38 @@ spec:
     organizationVirtualHost: internal.example.com
 `,
 
+  Workflow: `apiVersion: openchoreo.dev/v1alpha1
+kind: Workflow
+metadata:
+  name: my-workflow
+  namespace: "{{namespace}}"
+spec:
+  workflowPlaneRef:
+    kind: WorkflowPlane
+    name: default
+
+  parameters:
+    openAPIV3Schema:
+      type: object
+      properties:
+        dockerfile:
+          type: string
+          default: Dockerfile
+
+  runTemplate:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      generateName: my-workflow-
+    spec:
+      entrypoint: main
+      templates:
+        - name: main
+          container:
+            image: alpine:latest
+            command: ["echo", "hello"]
+`,
+
   Workload: `apiVersion: openchoreo.dev/v1alpha1
 kind: Workload
 metadata:
@@ -251,28 +290,5 @@ spec:
       environmentRef: development
     - name: production
       environmentRef: production
-`,
-
-  ComponentWorkflow: `apiVersion: openchoreo.dev/v1alpha1
-kind: ComponentWorkflow
-metadata:
-  name: docker
-  namespace: "{{namespace}}"
-spec:
-  systemParameters:
-    repository:
-      url: ""
-      revision:
-        branch: "main"
-      appPath: "."
-
-  schema:
-    parameters:
-      dockerfile:
-        type: "string | default=Dockerfile"
-
-  argoWorkflowRef:
-    name: docker-build
-    namespace: argo-workflows
 `,
 };

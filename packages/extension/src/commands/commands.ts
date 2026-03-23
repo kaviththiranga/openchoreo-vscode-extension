@@ -21,28 +21,7 @@ type Client = NonNullable<
   Awaited<ReturnType<ApiClientManager['getClient']>>
 >;
 
-type LegacyClient = NonNullable<
-  Awaited<ReturnType<ApiClientManager['getLegacyClient']>>
->;
-
 const SCHEME = 'openchoreo';
-
-/** Legacy-only types that use legacy API for GET definition. */
-const LEGACY_DEFINITION_TYPES = new Set([
-  'namespace',
-  'component-type',
-  'workflow',
-  'component-workflow',
-  'trait',
-]);
-
-/** Legacy-only types for apply (use POST /apply). */
-const LEGACY_APPLY_KINDS = new Set([
-  'Workflow',
-  'ComponentType',
-  'ComponentWorkflow',
-  'Trait',
-]);
 
 /**
  * Maps CRD kinds to their new API PUT endpoint builder.
@@ -86,22 +65,22 @@ function buildPutRequest(
         params: { path: { namespaceName: ns, dpName: name } },
         body: rest,
       };
-    case 'BuildPlane':
+    case 'WorkflowPlane':
       return {
-        path: '/api/v1/namespaces/{namespaceName}/buildplanes/{bpName}',
-        params: { path: { namespaceName: ns, bpName: name } },
+        path: '/api/v1/namespaces/{namespaceName}/workflowplanes/{workflowPlaneName}',
+        params: { path: { namespaceName: ns, workflowPlaneName: name } },
         body: rest,
       };
     case 'ObservabilityPlane':
       return {
-        path: '/api/v1/namespaces/{namespaceName}/observabilityplanes/{opName}',
-        params: { path: { namespaceName: ns, opName: name } },
+        path: '/api/v1/namespaces/{namespaceName}/observabilityplanes/{observabilityPlaneName}',
+        params: { path: { namespaceName: ns, observabilityPlaneName: name } },
         body: rest,
       };
     case 'DeploymentPipeline':
       return {
-        path: '/api/v1/namespaces/{namespaceName}/deployment-pipelines/{pipelineName}',
-        params: { path: { namespaceName: ns, pipelineName: name } },
+        path: '/api/v1/namespaces/{namespaceName}/deploymentpipelines/{deploymentPipelineName}',
+        params: { path: { namespaceName: ns, deploymentPipelineName: name } },
         body: rest,
       };
     case 'Workload':
@@ -112,38 +91,92 @@ function buildPutRequest(
       };
     case 'SecretReference':
       return {
-        path: '/api/v1/namespaces/{namespaceName}/secret-references/{secretRefName}',
-        params: { path: { namespaceName: ns, secretRefName: name } },
+        path: '/api/v1/namespaces/{namespaceName}/secretreferences/{secretReferenceName}',
+        params: { path: { namespaceName: ns, secretReferenceName: name } },
         body: rest,
       };
     case 'ReleaseBinding':
       return {
-        path: '/api/v1/namespaces/{namespaceName}/release-bindings/{bindingName}',
-        params: { path: { namespaceName: ns, bindingName: name } },
+        path: '/api/v1/namespaces/{namespaceName}/releasebindings/{releaseBindingName}',
+        params: { path: { namespaceName: ns, releaseBindingName: name } },
+        body: rest,
+      };
+    case 'Workflow':
+      return {
+        path: '/api/v1/namespaces/{namespaceName}/workflows/{workflowName}',
+        params: { path: { namespaceName: ns, workflowName: name } },
+        body: rest,
+      };
+    case 'ComponentType':
+      return {
+        path: '/api/v1/namespaces/{namespaceName}/componenttypes/{ctName}',
+        params: { path: { namespaceName: ns, ctName: name } },
+        body: rest,
+      };
+    case 'Trait':
+      return {
+        path: '/api/v1/namespaces/{namespaceName}/traits/{traitName}',
+        params: { path: { namespaceName: ns, traitName: name } },
         body: rest,
       };
     case 'NamespaceRole':
       return {
-        path: '/api/v1/namespaces/{namespaceName}/roles/{name}',
+        path: '/api/v1/namespaces/{namespaceName}/authzroles/{name}',
         params: { path: { namespaceName: ns, name } },
         body: rest,
       };
     case 'NamespaceRoleBinding':
       return {
-        path: '/api/v1/namespaces/{namespaceName}/rolebindings/{name}',
+        path: '/api/v1/namespaces/{namespaceName}/authzrolebindings/{name}',
         params: { path: { namespaceName: ns, name } },
         body: rest,
       };
     case 'ClusterRole':
       return {
-        path: '/api/v1/clusterroles/{name}',
+        path: '/api/v1/clusterauthzroles/{name}',
         params: { path: { name } },
         body: rest,
       };
     case 'ClusterRoleBinding':
       return {
-        path: '/api/v1/clusterrolebindings/{name}',
+        path: '/api/v1/clusterauthzrolebindings/{name}',
         params: { path: { name } },
+        body: rest,
+      };
+    case 'ClusterComponentType':
+      return {
+        path: '/api/v1/clustercomponenttypes/{cctName}',
+        params: { path: { cctName: name } },
+        body: rest,
+      };
+    case 'ClusterWorkflow':
+      return {
+        path: '/api/v1/clusterworkflows/{clusterWorkflowName}',
+        params: { path: { clusterWorkflowName: name } },
+        body: rest,
+      };
+    case 'ClusterTrait':
+      return {
+        path: '/api/v1/clustertraits/{clusterTraitName}',
+        params: { path: { clusterTraitName: name } },
+        body: rest,
+      };
+    case 'ClusterDataPlane':
+      return {
+        path: '/api/v1/clusterdataplanes/{cdpName}',
+        params: { path: { cdpName: name } },
+        body: rest,
+      };
+    case 'ClusterWorkflowPlane':
+      return {
+        path: '/api/v1/clusterworkflowplanes/{clusterWorkflowPlaneName}',
+        params: { path: { clusterWorkflowPlaneName: name } },
+        body: rest,
+      };
+    case 'ClusterObservabilityPlane':
+      return {
+        path: '/api/v1/clusterobservabilityplanes/{clusterObservabilityPlaneName}',
+        params: { path: { clusterObservabilityPlaneName: name } },
         body: rest,
       };
     default:
@@ -390,74 +423,43 @@ export function registerCommands(
         }
 
         try {
-          // Legacy-only kinds use the legacy POST /apply endpoint
-          if (LEGACY_APPLY_KINDS.has(kind)) {
-            const legacyClient = await apiClientManager.getLegacyClient();
-            if (!legacyClient) {
-              vscode.window.showErrorMessage(
-                'Not authenticated. Run "occ login" first.',
-              );
-              return;
-            }
-
-            const { error, response } = await legacyClient.POST('/apply', {
-              body: resource,
-            });
-
-            if (error) {
-              const msg =
-                typeof error === 'object' && error !== null && 'message' in error
-                  ? (error as { message: string }).message
-                  : JSON.stringify(error);
-              vscode.window.showErrorMessage(
-                `Failed to apply resource: ${msg}`,
-              );
-              return;
-            }
-
-            const operation = response.status === 201 ? 'created' : 'updated';
-            vscode.window.showInformationMessage(
-              `${kind} '${name}' ${operation} successfully.`,
+          // All kinds use the new API PUT endpoint
+          const client = await apiClientManager.getClient();
+          if (!client) {
+            vscode.window.showErrorMessage(
+              'Not authenticated. Run "occ login" first.',
             );
-          } else {
-            // New API: route to per-resource PUT endpoint
-            const client = await apiClientManager.getClient();
-            if (!client) {
-              vscode.window.showErrorMessage(
-                'Not authenticated. Run "occ login" first.',
-              );
-              return;
-            }
-
-            const putReq = buildPutRequest(kind, name, ns, resource);
-            if (!putReq) {
-              vscode.window.showErrorMessage(
-                `Unknown resource kind: ${kind}. Cannot determine API endpoint.`,
-              );
-              return;
-            }
-
-            // Use the generic PUT method with computed path
-            const { error } = await client.PUT(putReq.path as never, {
-              params: putReq.params,
-              body: putReq.body,
-            } as never);
-
-            if (error) {
-              const msg =
-                typeof error === 'object' && error !== null && 'message' in error
-                  ? (error as { message: string }).message
-                  : JSON.stringify(error);
-              vscode.window.showErrorMessage(
-                `Failed to apply resource: ${msg}`,
-              );
-              return;
-            }
-
-            vscode.window.showInformationMessage(
-              `${kind} '${name}' updated successfully.`,
-            );
+            return;
           }
+
+          const putReq = buildPutRequest(kind, name, ns, resource);
+          if (!putReq) {
+            vscode.window.showErrorMessage(
+              `Unknown resource kind: ${kind}. Cannot determine API endpoint.`,
+            );
+            return;
+          }
+
+          // Use the generic PUT method with computed path
+          const { error } = await client.PUT(putReq.path as never, {
+            params: putReq.params,
+            body: putReq.body,
+          } as never);
+
+          if (error) {
+            const msg =
+              typeof error === 'object' && error !== null && 'message' in error
+                ? (error as { message: string }).message
+                : JSON.stringify(error);
+            vscode.window.showErrorMessage(
+              `Failed to apply resource: ${msg}`,
+            );
+            return;
+          }
+
+          vscode.window.showInformationMessage(
+            `${kind} '${name}' updated successfully.`,
+          );
 
           resourceExplorer.refresh();
           infrastructureExplorer.refresh();
@@ -576,82 +578,7 @@ class OpenChoreoResourceProvider
     _comp: string | null,
     name: string | null,
   ): Promise<unknown> {
-    // --- Legacy API types ---
-    if (type && LEGACY_DEFINITION_TYPES.has(type)) {
-      return this.fetchLegacyResource(type, ns, name);
-    }
-
-    // --- New API types ---
     return this.fetchNewApiResource(type, ns, name);
-  }
-
-  /** Fetch resources that use legacy API endpoints. */
-  private async fetchLegacyResource(
-    type: string,
-    ns: string | null,
-    name: string | null,
-  ): Promise<unknown> {
-    const legacyClient = await this.requireLegacyClient();
-
-    if (type === 'namespace' && ns) {
-      const { data, error } = await legacyClient.GET(
-        '/namespaces/{namespaceName}',
-        { params: { path: { namespaceName: ns } } },
-      );
-      if (error) {
-        throw new Error(`Failed to fetch namespace: ${JSON.stringify(error)}`);
-      }
-      return data?.data ?? data;
-    }
-
-    // Definition types: component-type, workflow, component-workflow, trait
-    // These use legacy GET /namespaces/{ns}/{type-plural}/{name}/definition
-    if (ns && name) {
-      switch (type) {
-        case 'component-type': {
-          const { data, error } = await legacyClient.GET(
-            '/namespaces/{namespaceName}/component-types/{ctName}/definition',
-            { params: { path: { namespaceName: ns, ctName: name } } },
-          );
-          if (error) {
-            throw new Error(`Failed to fetch component type: ${JSON.stringify(error)}`);
-          }
-          return data?.data ?? data;
-        }
-        case 'workflow': {
-          const { data, error } = await legacyClient.GET(
-            '/namespaces/{namespaceName}/workflows/{workflowName}/definition',
-            { params: { path: { namespaceName: ns, workflowName: name } } },
-          );
-          if (error) {
-            throw new Error(`Failed to fetch workflow: ${JSON.stringify(error)}`);
-          }
-          return data?.data ?? data;
-        }
-        case 'component-workflow': {
-          const { data, error } = await legacyClient.GET(
-            '/namespaces/{namespaceName}/component-workflows/{cwName}/definition',
-            { params: { path: { namespaceName: ns, cwName: name } } },
-          );
-          if (error) {
-            throw new Error(`Failed to fetch component workflow: ${JSON.stringify(error)}`);
-          }
-          return data?.data ?? data;
-        }
-        case 'trait': {
-          const { data, error } = await legacyClient.GET(
-            '/namespaces/{namespaceName}/traits/{traitName}/definition',
-            { params: { path: { namespaceName: ns, traitName: name } } },
-          );
-          if (error) {
-            throw new Error(`Failed to fetch trait: ${JSON.stringify(error)}`);
-          }
-          return data?.data ?? data;
-        }
-      }
-    }
-
-    throw new Error(`Unknown legacy resource type: ${type}`);
   }
 
   /** Fetch resources using the new API endpoints. */
@@ -667,6 +594,58 @@ class OpenChoreoResourceProvider
     }
 
     switch (type) {
+      case 'namespace': {
+        if (!ns) {
+          throw new Error('Namespace name required for namespace');
+        }
+        const { data, error } = await client.GET(
+          '/api/v1/namespaces/{namespaceName}',
+          { params: { path: { namespaceName: ns } } },
+        );
+        if (error) {
+          throw new Error(`Failed to fetch namespace: ${JSON.stringify(error)}`);
+        }
+        return data;
+      }
+      case 'component-type': {
+        if (!ns || !name) {
+          throw new Error('Namespace and name required for component type');
+        }
+        const { data, error } = await client.GET(
+          '/api/v1/namespaces/{namespaceName}/componenttypes/{ctName}',
+          { params: { path: { namespaceName: ns, ctName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to fetch component type: ${JSON.stringify(error)}`);
+        }
+        return data;
+      }
+      case 'workflow': {
+        if (!ns || !name) {
+          throw new Error('Namespace and name required for workflow');
+        }
+        const { data, error } = await client.GET(
+          '/api/v1/namespaces/{namespaceName}/workflows/{workflowName}',
+          { params: { path: { namespaceName: ns, workflowName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to fetch workflow: ${JSON.stringify(error)}`);
+        }
+        return data;
+      }
+      case 'trait': {
+        if (!ns || !name) {
+          throw new Error('Namespace and name required for trait');
+        }
+        const { data, error } = await client.GET(
+          '/api/v1/namespaces/{namespaceName}/traits/{traitName}',
+          { params: { path: { namespaceName: ns, traitName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to fetch trait: ${JSON.stringify(error)}`);
+        }
+        return data;
+      }
       case 'project': {
         if (!ns || !name) {
           throw new Error('Namespace and name required for project');
@@ -719,16 +698,16 @@ class OpenChoreoResourceProvider
         }
         return data;
       }
-      case 'build-plane': {
+      case 'workflow-plane': {
         if (!ns || !name) {
-          throw new Error('Namespace and name required for build plane');
+          throw new Error('Namespace and name required for workflow plane');
         }
         const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/buildplanes/{bpName}',
-          { params: { path: { namespaceName: ns, bpName: name } } },
+          '/api/v1/namespaces/{namespaceName}/workflowplanes/{workflowPlaneName}',
+          { params: { path: { namespaceName: ns, workflowPlaneName: name } } },
         );
         if (error) {
-          throw new Error(`Failed to fetch build plane: ${JSON.stringify(error)}`);
+          throw new Error(`Failed to fetch workflow plane: ${JSON.stringify(error)}`);
         }
         return data;
       }
@@ -737,8 +716,8 @@ class OpenChoreoResourceProvider
           throw new Error('Namespace and name required for observability plane');
         }
         const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/observabilityplanes/{opName}',
-          { params: { path: { namespaceName: ns, opName: name } } },
+          '/api/v1/namespaces/{namespaceName}/observabilityplanes/{observabilityPlaneName}',
+          { params: { path: { namespaceName: ns, observabilityPlaneName: name } } },
         );
         if (error) {
           throw new Error(`Failed to fetch observability plane: ${JSON.stringify(error)}`);
@@ -750,8 +729,8 @@ class OpenChoreoResourceProvider
           throw new Error('Namespace and name required for deployment pipeline');
         }
         const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/deployment-pipelines/{pipelineName}',
-          { params: { path: { namespaceName: ns, pipelineName: name } } },
+          '/api/v1/namespaces/{namespaceName}/deploymentpipelines/{deploymentPipelineName}',
+          { params: { path: { namespaceName: ns, deploymentPipelineName: name } } },
         );
         if (error) {
           throw new Error(`Failed to fetch deployment pipeline: ${JSON.stringify(error)}`);
@@ -776,8 +755,8 @@ class OpenChoreoResourceProvider
           throw new Error('Namespace and name required for secret reference');
         }
         const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/secret-references/{secretRefName}',
-          { params: { path: { namespaceName: ns, secretRefName: name } } },
+          '/api/v1/namespaces/{namespaceName}/secretreferences/{secretReferenceName}',
+          { params: { path: { namespaceName: ns, secretReferenceName: name } } },
         );
         if (error) {
           throw new Error(`Failed to fetch secret reference: ${JSON.stringify(error)}`);
@@ -789,7 +768,7 @@ class OpenChoreoResourceProvider
           throw new Error('Namespace and name required for workflow run');
         }
         const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/component-workflow-runs/{runName}',
+          '/api/v1/namespaces/{namespaceName}/workflowruns/{runName}',
           { params: { path: { namespaceName: ns, runName: name } } },
         );
         if (error) {
@@ -802,8 +781,8 @@ class OpenChoreoResourceProvider
           throw new Error('Namespace and name required for component release');
         }
         const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/component-releases/{releaseName}',
-          { params: { path: { namespaceName: ns, releaseName: name } } },
+          '/api/v1/namespaces/{namespaceName}/componentreleases/{componentReleaseName}',
+          { params: { path: { namespaceName: ns, componentReleaseName: name } } },
         );
         if (error) {
           throw new Error(`Failed to fetch component release: ${JSON.stringify(error)}`);
@@ -815,8 +794,8 @@ class OpenChoreoResourceProvider
           throw new Error('Namespace and name required for release binding');
         }
         const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/release-bindings/{bindingName}',
-          { params: { path: { namespaceName: ns, bindingName: name } } },
+          '/api/v1/namespaces/{namespaceName}/releasebindings/{releaseBindingName}',
+          { params: { path: { namespaceName: ns, releaseBindingName: name } } },
         );
         if (error) {
           throw new Error(`Failed to fetch release binding: ${JSON.stringify(error)}`);
@@ -828,7 +807,7 @@ class OpenChoreoResourceProvider
           throw new Error('Namespace and name required for namespace role');
         }
         const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/roles/{name}',
+          '/api/v1/namespaces/{namespaceName}/authzroles/{name}',
           { params: { path: { namespaceName: ns, name } } },
         );
         if (error) {
@@ -841,7 +820,7 @@ class OpenChoreoResourceProvider
           throw new Error('Namespace and name required for namespace role binding');
         }
         const { data, error } = await client.GET(
-          '/api/v1/namespaces/{namespaceName}/rolebindings/{name}',
+          '/api/v1/namespaces/{namespaceName}/authzrolebindings/{name}',
           { params: { path: { namespaceName: ns, name } } },
         );
         if (error) {
@@ -854,7 +833,7 @@ class OpenChoreoResourceProvider
           throw new Error('Name required for cluster role');
         }
         const { data, error } = await client.GET(
-          '/api/v1/clusterroles/{name}',
+          '/api/v1/clusterauthzroles/{name}',
           { params: { path: { name } } },
         );
         if (error) {
@@ -867,11 +846,89 @@ class OpenChoreoResourceProvider
           throw new Error('Name required for cluster role binding');
         }
         const { data, error } = await client.GET(
-          '/api/v1/clusterrolebindings/{name}',
+          '/api/v1/clusterauthzrolebindings/{name}',
           { params: { path: { name } } },
         );
         if (error) {
           throw new Error(`Failed to fetch cluster role binding: ${JSON.stringify(error)}`);
+        }
+        return data;
+      }
+      case 'cluster-component-type': {
+        if (!name) {
+          throw new Error('Name required for cluster component type');
+        }
+        const { data, error } = await client.GET(
+          '/api/v1/clustercomponenttypes/{cctName}',
+          { params: { path: { cctName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to fetch cluster component type: ${JSON.stringify(error)}`);
+        }
+        return data;
+      }
+      case 'cluster-workflow': {
+        if (!name) {
+          throw new Error('Name required for cluster workflow');
+        }
+        const { data, error } = await client.GET(
+          '/api/v1/clusterworkflows/{clusterWorkflowName}',
+          { params: { path: { clusterWorkflowName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to fetch cluster workflow: ${JSON.stringify(error)}`);
+        }
+        return data;
+      }
+      case 'cluster-trait': {
+        if (!name) {
+          throw new Error('Name required for cluster trait');
+        }
+        const { data, error } = await client.GET(
+          '/api/v1/clustertraits/{clusterTraitName}',
+          { params: { path: { clusterTraitName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to fetch cluster trait: ${JSON.stringify(error)}`);
+        }
+        return data;
+      }
+      case 'cluster-data-plane': {
+        if (!name) {
+          throw new Error('Name required for cluster data plane');
+        }
+        const { data, error } = await client.GET(
+          '/api/v1/clusterdataplanes/{cdpName}',
+          { params: { path: { cdpName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to fetch cluster data plane: ${JSON.stringify(error)}`);
+        }
+        return data;
+      }
+      case 'cluster-workflow-plane': {
+        if (!name) {
+          throw new Error('Name required for cluster workflow plane');
+        }
+        const { data, error } = await client.GET(
+          '/api/v1/clusterworkflowplanes/{clusterWorkflowPlaneName}',
+          { params: { path: { clusterWorkflowPlaneName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to fetch cluster workflow plane: ${JSON.stringify(error)}`);
+        }
+        return data;
+      }
+      case 'cluster-observability-plane': {
+        if (!name) {
+          throw new Error('Name required for cluster observability plane');
+        }
+        const { data, error } = await client.GET(
+          '/api/v1/clusterobservabilityplanes/{clusterObservabilityPlaneName}',
+          { params: { path: { clusterObservabilityPlaneName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to fetch cluster observability plane: ${JSON.stringify(error)}`);
         }
         return data;
       }
@@ -882,14 +939,6 @@ class OpenChoreoResourceProvider
 
   private async requireClient(): Promise<Client> {
     const client = await this.apiClientManager.getClient();
-    if (!client) {
-      throw new Error('Not authenticated. Run "occ login" first.');
-    }
-    return client;
-  }
-
-  private async requireLegacyClient(): Promise<LegacyClient> {
-    const client = await this.apiClientManager.getLegacyClient();
     if (!client) {
       throw new Error('Not authenticated. Run "occ login" first.');
     }

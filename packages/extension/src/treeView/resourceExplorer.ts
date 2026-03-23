@@ -119,7 +119,7 @@ export class ResourceExplorerProvider
                 },
               ]
             : projectItems.map((p) => ({
-                label: p.metadata?.name as string,
+                label: (p.metadata?.name as string),
                 type: 'project' as const,
                 contextValue: this.resolveContextValue('project'),
                 namespace: contextInfo.namespace,
@@ -204,8 +204,8 @@ export class ResourceExplorerProvider
 
     // Fetch deployment pipelines for this project
     const { data: pipelineData } = await client.GET(
-      '/api/v1/namespaces/{namespaceName}/deployment-pipelines',
-      { params: { path: { namespaceName: ns }, query: { project: proj } } },
+      '/api/v1/namespaces/{namespaceName}/deploymentpipelines',
+      { params: { path: { namespaceName: ns }, query: { labelSelector: `openchoreo.dev/project=${proj}` } } },
     );
 
     const pipelines = pipelineData?.items ?? [];
@@ -308,13 +308,12 @@ export class ResourceExplorerProvider
     element: ResourceNodeData,
   ): Promise<ResourceNodeData[]> {
     const { data, error } = await client.GET(
-      '/api/v1/namespaces/{namespaceName}/component-workflow-runs',
+      '/api/v1/namespaces/{namespaceName}/workflowruns',
       {
         params: {
           path: { namespaceName: element.namespace! },
           query: {
-            project: element.project!,
-            component: element.component!,
+            labelSelector: `openchoreo.dev/project=${element.project!},openchoreo.dev/component=${element.component!}`,
           },
         },
       },
@@ -347,7 +346,7 @@ export class ResourceExplorerProvider
     element: ResourceNodeData,
   ): Promise<ResourceNodeData[]> {
     const { data, error } = await client.GET(
-      '/api/v1/namespaces/{namespaceName}/component-releases',
+      '/api/v1/namespaces/{namespaceName}/componentreleases',
       {
         params: {
           path: { namespaceName: element.namespace! },
@@ -384,7 +383,7 @@ export class ResourceExplorerProvider
     element: ResourceNodeData,
   ): Promise<ResourceNodeData[]> {
     const { data, error } = await client.GET(
-      '/api/v1/namespaces/{namespaceName}/release-bindings',
+      '/api/v1/namespaces/{namespaceName}/releasebindings',
       {
         params: {
           path: { namespaceName: element.namespace! },

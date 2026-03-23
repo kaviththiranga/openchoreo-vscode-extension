@@ -54,11 +54,13 @@ metadata:
 
   it('detects all known CRD kinds', () => {
     const kinds = [
-      'Organization', 'Project', 'Environment', 'DataPlane', 'BuildPlane',
+      'Organization', 'Project', 'Environment', 'DataPlane', 'WorkflowPlane',
       'Component', 'ComponentType', 'Trait', 'Workload', 'Workflow',
-      'ComponentWorkflow', 'WorkflowRun', 'ComponentRelease', 'ReleaseBinding',
+      'WorkflowRun', 'ComponentRelease', 'ReleaseBinding',
       'Release', 'DeploymentPipeline', 'Endpoint', 'API', 'APIBinding',
       'APIClass', 'SecretReference', 'ConfigurationGroup',
+      'ClusterComponentType', 'ClusterWorkflow', 'ClusterTrait',
+      'ClusterDataPlane', 'ClusterWorkflowPlane', 'ClusterObservabilityPlane',
     ];
 
     for (const kind of kinds) {
