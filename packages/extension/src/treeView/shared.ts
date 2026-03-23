@@ -4,39 +4,42 @@
 import * as vscode from 'vscode';
 import type { ResourceNodeData, ResourceNodeType } from './types';
 
-/** Maps each node type to a VS Code ThemeIcon name. */
+/**
+ * Maps each node type to a VS Code ThemeIcon name.
+ * Aligned with backstage-plugins Material UI icons where possible.
+ */
 export const NODE_ICON_MAP: Record<ResourceNodeType, string> = {
   // Resource view
-  namespace: 'database',
-  project: 'folder',
-  component: 'package',
+  namespace: 'globe',                     // Backstage: Domain
+  project: 'project',                     // Backstage: System
+  component: 'package',                   // Backstage: Component
   'component-category': 'symbol-folder',
-  'workflow-run': 'play-circle',
+  'workflow-run': 'debug-start',
   'component-release': 'tag',
   'release-binding': 'link',
   workload: 'server-process',
-  'deployment-pipeline': 'git-merge',
+  'deployment-pipeline': 'git-merge',     // Backstage: AccountTree
   // Infrastructure view (namespace-scoped)
   'infra-category': 'symbol-folder',
-  environment: 'server-environment',
-  'data-plane': 'vm',
-  'workflow-plane': 'tools',
-  'observability-plane': 'graph-line',
-  'component-type': 'symbol-class',
-  workflow: 'tasklist',
-  trait: 'extensions',
+  environment: 'cloud',                   // Backstage: Cloud
+  'data-plane': 'server',                 // Backstage: Dns
+  'workflow-plane': 'wrench',             // Backstage: Build
+  'observability-plane': 'eye',           // Backstage: Visibility
+  'component-type': 'symbol-class',       // Backstage: Category
+  workflow: 'play-circle',                // Backstage: PlayCircleOutline
+  trait: 'extensions',                    // Backstage: Extension
   'secret-reference': 'key',
   'namespace-role': 'shield',
   'namespace-role-binding': 'person',
   'cluster-role': 'shield',
   'cluster-role-binding': 'person',
-  // Infrastructure view (cluster-scoped)
+  // Infrastructure view (cluster-scoped) — mirrors namespace-scoped
   'cluster-component-type': 'symbol-class',
-  'cluster-workflow': 'tasklist',
+  'cluster-workflow': 'play-circle',
   'cluster-trait': 'extensions',
-  'cluster-data-plane': 'vm',
-  'cluster-workflow-plane': 'tools',
-  'cluster-observability-plane': 'graph-line',
+  'cluster-data-plane': 'server',
+  'cluster-workflow-plane': 'wrench',
+  'cluster-observability-plane': 'eye',
   // Status
   'no-connection': 'warning',
   empty: 'info',

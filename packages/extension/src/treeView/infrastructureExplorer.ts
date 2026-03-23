@@ -51,23 +51,12 @@ export class InfrastructureExplorerProvider
     return [];
   }
 
-  private getRootNodes(): ResourceNodeData[] {
-    const contextInfo = this.authProvider.getContextInfo();
-    if (!contextInfo) {
-      const session = this.authProvider.getSession();
-      if (!session) {
-        return [
-          {
-            label: 'Not connected. Run "occ login" to authenticate.',
-            type: 'no-connection',
-            contextValue: 'no-connection',
-            childrenMode: 'none',
-          },
-        ];
-      }
+  private async getRootNodes(): Promise<ResourceNodeData[]> {
+    const session = this.authProvider.getSession();
+    if (!session) {
       return [
         {
-          label: 'No context configured',
+          label: 'Not connected. Run "occ login" to authenticate.',
           type: 'no-connection',
           contextValue: 'no-connection',
           childrenMode: 'none',
@@ -75,10 +64,124 @@ export class InfrastructureExplorerProvider
       ];
     }
 
-    const ns = contextInfo.namespace;
+    try {
+      const client = await this.apiClientManager.getClient();
+      if (!client) {
+        return [
+          {
+            label: 'Session expired. Run "occ login" to re-authenticate.',
+            type: 'no-connection',
+            contextValue: 'no-connection',
+            childrenMode: 'none',
+          },
+        ];
+      }
 
+      const { data, error } = await client.GET('/api/v1/namespaces');
+      if (error) {
+        throw new Error('Failed to fetch namespaces');
+      }
+
+      const namespaceItems = data?.items ?? [];
+      const contextInfo = this.authProvider.getContextInfo();
+      const currentNs = contextInfo?.namespace;
+
+      const nodes: ResourceNodeData[] = [];
+
+      // Each namespace gets its own expandable node containing infrastructure categories
+      for (const nsItem of namespaceItems) {
+        const ns = (nsItem.metadata?.name as string) ?? 'unknown';
+        const isCurrent = ns === currentNs;
+
+        nodes.push({
+          label: ns,
+          type: 'namespace',
+          contextValue: 'namespace',
+          description: isCurrent ? '(current)' : undefined,
+          namespace: ns,
+          resourceName: ns,
+          childrenMode: 'preloaded',
+          children: this.buildNamespaceInfraCategories(ns),
+        });
+      }
+
+      if (nodes.length === 0) {
+        nodes.push({
+          label: 'No namespaces available',
+          type: 'empty',
+          contextValue: 'empty',
+          childrenMode: 'none',
+        });
+      }
+
+      // Cluster-scoped resources (not namespace-bound)
+      nodes.push({
+        label: 'Cluster Resources',
+        type: 'infra-category',
+        contextValue: 'infra-category',
+        childrenMode: 'preloaded',
+        children: [
+          {
+            label: 'Cluster Component Types',
+            type: 'infra-category',
+            contextValue: 'infra-category',
+            childrenMode: 'lazy',
+            lazyChildrenKey: 'cluster-component-types',
+          },
+          {
+            label: 'Cluster Workflows',
+            type: 'infra-category',
+            contextValue: 'infra-category',
+            childrenMode: 'lazy',
+            lazyChildrenKey: 'cluster-workflows',
+          },
+          {
+            label: 'Cluster Traits',
+            type: 'infra-category',
+            contextValue: 'infra-category',
+            childrenMode: 'lazy',
+            lazyChildrenKey: 'cluster-traits',
+          },
+          {
+            label: 'Cluster Data Planes',
+            type: 'infra-category',
+            contextValue: 'infra-category',
+            childrenMode: 'lazy',
+            lazyChildrenKey: 'cluster-data-planes',
+          },
+          {
+            label: 'Cluster Workflow Planes',
+            type: 'infra-category',
+            contextValue: 'infra-category',
+            childrenMode: 'lazy',
+            lazyChildrenKey: 'cluster-workflow-planes',
+          },
+          {
+            label: 'Cluster Observability Planes',
+            type: 'infra-category',
+            contextValue: 'infra-category',
+            childrenMode: 'lazy',
+            lazyChildrenKey: 'cluster-observability-planes',
+          },
+        ],
+      });
+
+      return nodes;
+    } catch (error) {
+      return [
+        {
+          label: `Error: ${error instanceof Error ? error.message : 'Failed to fetch infrastructure'}`,
+          type: 'no-connection',
+          contextValue: 'no-connection',
+          childrenMode: 'none',
+        },
+      ];
+    }
+  }
+
+  /** Build the namespace-scoped infrastructure categories for a given namespace. */
+  private buildNamespaceInfraCategories(ns: string): ResourceNodeData[] {
     return [
-      // Namespace-scoped resources
       {
         label: 'Environments',
         type: 'infra-category',
@@ -181,57 +284,6 @@ export class InfrastructureExplorerProvider
             namespace: ns,
             childrenMode: 'lazy',
             lazyChildrenKey: 'cluster-role-bindings',
-          },
-        ],
-      },
-      // Cluster-scoped resources
-      {
-        label: 'Cluster Resources',
-        type: 'infra-category',
-        contextValue: 'infra-category',
-        childrenMode: 'preloaded',
-        children: [
-          {
-            label: 'Cluster Component Types',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-component-types',
-          },
-          {
-            label: 'Cluster Workflows',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-workflows',
-          },
-          {
-            label: 'Cluster Traits',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-traits',
-          },
-          {
-            label: 'Cluster Data Planes',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-data-planes',
-          },
-          {
-            label: 'Cluster Workflow Planes',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-workflow-planes',
-          },
-          {
-            label: 'Cluster Observability Planes',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-observability-planes',
           },
         ],
       },

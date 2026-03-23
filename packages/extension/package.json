@@ -40,11 +40,11 @@
       "openchoreo": [
         {
           "id": "openchoreo.resourceExplorer",
-          "name": "Resources"
+          "name": "Developer Resources"
         },
         {
           "id": "openchoreo.infrastructureExplorer",
-          "name": "Infrastructure",
+          "name": "Platform Resources",
           "visibility": "collapsed"
         }
       ]

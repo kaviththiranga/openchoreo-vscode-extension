@@ -52,22 +52,11 @@ export class ResourceExplorerProvider
   }
 
   private async getRootNodes(): Promise<ResourceNodeData[]> {
-    const contextInfo = this.authProvider.getContextInfo();
-    if (!contextInfo) {
-      const session = this.authProvider.getSession();
-      if (!session) {
-        return [
-          {
-            label: 'Not connected. Run "occ login" to authenticate.',
-            type: 'no-connection',
-            contextValue: 'no-connection',
-            childrenMode: 'none',
-          },
-        ];
-      }
+    const session = this.authProvider.getSession();
+    if (!session) {
       return [
         {
-          label: 'No context configured',
+          label: 'Not connected. Run "occ login" to authenticate.',
           type: 'no-connection',
           contextValue: 'no-connection',
           childrenMode: 'none',
@@ -88,49 +77,42 @@ export class ResourceExplorerProvider
         ];
       }
 
-      // Ensure RBAC capabilities are loaded before building nodes
-      await this.capabilityService.ensureLoaded(contextInfo.namespace);
-
-      const { data, error } = await client.GET(
-        '/api/v1/namespaces/{namespaceName}/projects',
-        { params: { path: { namespaceName: contextInfo.namespace } } },
-      );
+      // Fetch all namespaces accessible to the user
+      const { data, error } = await client.GET('/api/v1/namespaces');
 
       if (error) {
-        throw new Error('Failed to fetch projects');
+        throw new Error('Failed to fetch namespaces');
       }
 
-      const projectItems = data?.items ?? [];
+      const namespaceItems = data?.items ?? [];
+      if (namespaceItems.length === 0) {
+        return [
+          {
+            label: 'No namespaces available',
+            type: 'empty',
+            contextValue: 'empty',
+            childrenMode: 'none',
+          },
+        ];
+      }
 
-      const namespaceNode: ResourceNodeData = {
-        label: contextInfo.namespace,
-        type: 'namespace',
-        contextValue: 'namespace',
-        namespace: contextInfo.namespace,
-        childrenMode: 'preloaded',
-        children:
-          projectItems.length === 0
-            ? [
-                {
-                  label: 'No projects',
-                  type: 'empty',
-                  contextValue: 'empty',
-                  childrenMode: 'none',
-                },
-              ]
-            : projectItems.map((p) => ({
-                label: (p.metadata?.name as string),
-                type: 'project' as const,
-                contextValue: this.resolveContextValue('project'),
-                namespace: contextInfo.namespace,
-                project: p.metadata?.name as string,
-                resourceName: p.metadata?.name as string,
-                childrenMode: 'lazy' as const,
-                lazyChildrenKey: 'project-children',
-              })),
-      };
+      const contextInfo = this.authProvider.getContextInfo();
+      const currentNs = contextInfo?.namespace;
 
-      return [namespaceNode];
+      return namespaceItems.map((ns) => {
+        const nsName = (ns.metadata?.name as string) ?? 'unknown';
+        const isCurrent = nsName === currentNs;
+        return {
+          label: nsName,
+          type: 'namespace' as const,
+          contextValue: 'namespace',
+          description: isCurrent ? '(current)' : undefined,
+          namespace: nsName,
+          resourceName: nsName,
+          childrenMode: 'lazy' as const,
+          lazyChildrenKey: 'namespace-children',
+        };
+      });
     } catch (error) {
       return [
         {
@@ -153,6 +135,8 @@ export class ResourceExplorerProvider
       }
 
       switch (element.lazyChildrenKey) {
+        case 'namespace-children':
+          return this.fetchNamespaceChildren(client, element);
         case 'project-children':
           return this.fetchProjectChildren(client, element);
         case 'component-children':
@@ -192,6 +176,55 @@ export class ResourceExplorerProvider
       value += '_deletable';
     }
     return value;
+  }
+
+  private async fetchNamespaceChildren(
+    client: Client,
+    element: ResourceNodeData,
+  ): Promise<ResourceNodeData[]> {
+    const ns = element.namespace!;
+
+    // Ensure RBAC capabilities are loaded for this namespace
+    await this.capabilityService.ensureLoaded(ns);
+
+    const { data, error } = await client.GET(
+      '/api/v1/namespaces/{namespaceName}/projects',
+      { params: { path: { namespaceName: ns } } },
+    );
+
+    if (error) {
+      return [
+        {
+          label: 'Failed to load projects',
+          type: 'empty',
+          contextValue: 'empty',
+          childrenMode: 'none',
+        },
+      ];
+    }
+
+    const projectItems = data?.items ?? [];
+    if (projectItems.length === 0) {
+      return [
+        {
+          label: 'No projects',
+          type: 'empty',
+          contextValue: 'empty',
+          childrenMode: 'none',
+        },
+      ];
+    }
+
+    return projectItems.map((p) => ({
+      label: (p.metadata?.name as string),
+      type: 'project' as const,
+      contextValue: this.resolveContextValue('project'),
+      namespace: ns,
+      project: p.metadata?.name as string,
+      resourceName: p.metadata?.name as string,
+      childrenMode: 'lazy' as const,
+      lazyChildrenKey: 'project-children',
+    }));
   }
 
   private async fetchProjectChildren(
