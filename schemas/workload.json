@@ -30,6 +30,7 @@
     "spec": {
       "type": "object",
       "description": "Workload specification",
+      "additionalProperties": false,
       "properties": {
         "owner": {
           "type": "object",

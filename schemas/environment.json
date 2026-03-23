@@ -30,6 +30,7 @@
     "spec": {
       "type": "object",
       "description": "Environment specification",
+      "additionalProperties": false,
       "properties": {
         "dataPlaneRef": {
           "type": "string",

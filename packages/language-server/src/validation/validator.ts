@@ -7,8 +7,21 @@ import {
   Range,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { parseDocument, isMap, isScalar, isPair, YAMLMap, Pair, Scalar } from 'yaml';
+import {
+  parseDocument,
+  isMap,
+  isScalar,
+  isSeq,
+  isPair,
+  YAMLMap,
+  YAMLSeq,
+  Scalar,
+  Node,
+} from 'yaml';
 import type { JsonSchema } from '../schemas/schemaLoader';
+
+/** K8s envelope fields that are always allowed at root level. */
+const K8S_ENVELOPE_KEYS = new Set(['apiVersion', 'kind', 'metadata', 'status']);
 
 /**
  * Validate a YAML document against a JSON Schema.
@@ -47,10 +60,10 @@ export function validateDocument(
         textDocument,
         diagnostics,
         [],
+        true,
       );
     }
   } catch (error) {
-    // If YAML parsing completely fails, add a single diagnostic
     diagnostics.push({
       severity: DiagnosticSeverity.Error,
       range: {
@@ -71,6 +84,7 @@ function validateObject(
   textDocument: TextDocument,
   diagnostics: Diagnostic[],
   path: string[],
+  isRoot = false,
 ): void {
   if (!schema.properties) {
     return;
@@ -83,12 +97,9 @@ function validateObject(
         const key = String(item.key.value);
         if (
           !schema.properties[key] &&
-          key !== 'apiVersion' &&
-          key !== 'kind' &&
-          key !== 'metadata' &&
-          key !== 'status'
+          !(isRoot && K8S_ENVELOPE_KEYS.has(key))
         ) {
-          const range = getKeyRange(item.key, textDocument);
+          const range = getNodeRange(item.key, textDocument);
           if (range) {
             diagnostics.push({
               severity: DiagnosticSeverity.Warning,
@@ -112,10 +123,9 @@ function validateObject(
           String(item.key.value) === requiredKey,
       );
       if (!hasKey) {
-        // Report at the first line of the object
         const firstItem = node.items[0];
         if (firstItem && isPair(firstItem) && isScalar(firstItem.key)) {
-          const range = getKeyRange(firstItem.key, textDocument);
+          const range = getNodeRange(firstItem.key, textDocument);
           if (range) {
             diagnostics.push({
               severity: DiagnosticSeverity.Error,
@@ -129,29 +139,298 @@ function validateObject(
     }
   }
 
-  // Recursively validate nested objects
+  // Validate each property's value
   for (const item of node.items) {
-    if (isPair(item) && isScalar(item.key) && isMap(item.value)) {
-      const key = String(item.key.value);
-      const propSchema = schema.properties[key];
-      if (propSchema && propSchema.type === 'object' && propSchema.properties) {
-        validateObject(
-          item.value,
-          propSchema,
-          textDocument,
-          diagnostics,
-          [...path, key],
-        );
+    if (!isPair(item) || !isScalar(item.key)) {
+      continue;
+    }
+
+    const key = String(item.key.value);
+    const propSchema = schema.properties[key];
+    if (!propSchema) {
+      continue;
+    }
+
+    validateValue(
+      item.key as Scalar,
+      item.value as Node | null,
+      propSchema,
+      textDocument,
+      diagnostics,
+      [...path, key],
+    );
+  }
+}
+
+/**
+ * Validate a single YAML value against its schema.
+ */
+function validateValue(
+  keyNode: Scalar,
+  valueNode: Node | null,
+  schema: JsonSchema,
+  textDocument: TextDocument,
+  diagnostics: Diagnostic[],
+  path: string[],
+): void {
+  if (!valueNode) {
+    return;
+  }
+
+  // Recurse into objects
+  if (isMap(valueNode) && schema.type === 'object' && schema.properties) {
+    validateObject(valueNode, schema, textDocument, diagnostics, path);
+    return;
+  }
+
+  // Validate arrays
+  if (isSeq(valueNode) && schema.type === 'array') {
+    validateArray(valueNode, schema, textDocument, diagnostics, path);
+    return;
+  }
+
+  // Scalar value validation
+  if (isScalar(valueNode)) {
+    const value = valueNode.value;
+    const range = getNodeRange(valueNode, textDocument) ?? getNodeRange(keyNode, textDocument);
+    if (!range) {
+      return;
+    }
+
+    // Type check
+    if (schema.type) {
+      const typeError = checkType(value, schema.type);
+      if (typeError) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Error,
+          range,
+          message: typeError,
+          source: 'openchoreo',
+        });
+        return; // Skip further checks if type is wrong
       }
+    }
+
+    // Const check
+    if (schema.const !== undefined && value !== schema.const) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Error,
+        range,
+        message: `Value must be '${schema.const}'`,
+        source: 'openchoreo',
+      });
+      return;
+    }
+
+    // Enum check
+    if (schema.enum && !schema.enum.includes(value as string | number | boolean)) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Error,
+        range,
+        message: `Value must be one of: ${schema.enum.join(', ')}`,
+        source: 'openchoreo',
+      });
+      return;
+    }
+
+    // String constraints
+    if (typeof value === 'string') {
+      if (schema.minLength !== undefined && value.length < schema.minLength) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Warning,
+          range,
+          message: `String must be at least ${schema.minLength} character${schema.minLength === 1 ? '' : 's'}`,
+          source: 'openchoreo',
+        });
+      }
+      if (schema.maxLength !== undefined && value.length > schema.maxLength) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Warning,
+          range,
+          message: `String must be at most ${schema.maxLength} characters`,
+          source: 'openchoreo',
+        });
+      }
+      if (schema.pattern) {
+        try {
+          if (!new RegExp(schema.pattern).test(value)) {
+            diagnostics.push({
+              severity: DiagnosticSeverity.Warning,
+              range,
+              message: `String must match pattern: ${schema.pattern}`,
+              source: 'openchoreo',
+            });
+          }
+        } catch {
+          // Invalid regex in schema — skip
+        }
+      }
+    }
+
+    // Number constraints
+    if (typeof value === 'number') {
+      if (schema.minimum !== undefined && value < schema.minimum) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Warning,
+          range,
+          message: `Value must be >= ${schema.minimum}`,
+          source: 'openchoreo',
+        });
+      }
+      if (schema.maximum !== undefined && value > schema.maximum) {
+        diagnostics.push({
+          severity: DiagnosticSeverity.Warning,
+          range,
+          message: `Value must be <= ${schema.maximum}`,
+          source: 'openchoreo',
+        });
+      }
+    }
+  }
+
+  // Type mismatch for non-scalar values
+  if (schema.type === 'object' && !isMap(valueNode) && isScalar(valueNode)) {
+    const range = getNodeRange(valueNode, textDocument);
+    if (range) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Error,
+        range,
+        message: `Expected an object but got a scalar value`,
+        source: 'openchoreo',
+      });
+    }
+  }
+
+  if (schema.type === 'array' && !isSeq(valueNode) && isScalar(valueNode)) {
+    const range = getNodeRange(valueNode, textDocument);
+    if (range) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Error,
+        range,
+        message: `Expected an array but got a scalar value`,
+        source: 'openchoreo',
+      });
     }
   }
 }
 
-function getKeyRange(
-  scalar: Scalar,
+/**
+ * Validate array items against the items schema.
+ */
+function validateArray(
+  node: YAMLSeq,
+  schema: JsonSchema,
+  textDocument: TextDocument,
+  diagnostics: Diagnostic[],
+  path: string[],
+): void {
+  // Array length constraints
+  if (schema.minItems !== undefined && node.items.length < schema.minItems) {
+    const range = getSeqRange(node, textDocument);
+    if (range) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Warning,
+        range,
+        message: `Array must have at least ${schema.minItems} item${schema.minItems === 1 ? '' : 's'}`,
+        source: 'openchoreo',
+      });
+    }
+  }
+
+  if (schema.maxItems !== undefined && node.items.length > schema.maxItems) {
+    const range = getSeqRange(node, textDocument);
+    if (range) {
+      diagnostics.push({
+        severity: DiagnosticSeverity.Warning,
+        range,
+        message: `Array must have at most ${schema.maxItems} items`,
+        source: 'openchoreo',
+      });
+    }
+  }
+
+  // Validate each item against the items schema
+  if (schema.items) {
+    node.items.forEach((item, index) => {
+      const itemPath = [...path, `[${index}]`];
+
+      if (isMap(item) && schema.items!.type === 'object') {
+        validateObject(
+          item,
+          schema.items!,
+          textDocument,
+          diagnostics,
+          itemPath,
+        );
+      } else if (isScalar(item) && schema.items!.type) {
+        // Create a synthetic key node for error reporting on the item value
+        const range = getNodeRange(item, textDocument);
+        if (range && schema.items!.type) {
+          const typeError = checkType(item.value, schema.items!.type);
+          if (typeError) {
+            diagnostics.push({
+              severity: DiagnosticSeverity.Error,
+              range,
+              message: typeError,
+              source: 'openchoreo',
+            });
+          }
+        }
+      }
+    });
+  }
+}
+
+/**
+ * Check if a value matches the expected JSON Schema type.
+ * Returns an error message if mismatched, or undefined if OK.
+ */
+function checkType(value: unknown, expectedType: string): string | undefined {
+  switch (expectedType) {
+    case 'string':
+      if (typeof value !== 'string') {
+        return `Expected type 'string' but got '${typeof value}'`;
+      }
+      break;
+    case 'number':
+    case 'integer':
+      if (typeof value !== 'number') {
+        return `Expected type '${expectedType}' but got '${typeof value}'`;
+      }
+      if (expectedType === 'integer' && !Number.isInteger(value)) {
+        return `Expected an integer but got a decimal number`;
+      }
+      break;
+    case 'boolean':
+      if (typeof value !== 'boolean') {
+        return `Expected type 'boolean' but got '${typeof value}'`;
+      }
+      break;
+    default:
+      break;
+  }
+  return undefined;
+}
+
+function getNodeRange(
+  node: Scalar | Node,
   textDocument: TextDocument,
 ): Range | undefined {
-  const range = scalar.range;
+  const range = (node as Scalar).range;
+  if (!range || range.length < 2) {
+    return undefined;
+  }
+  return {
+    start: textDocument.positionAt(range[0]),
+    end: textDocument.positionAt(range[1]),
+  };
+}
+
+function getSeqRange(
+  node: YAMLSeq,
+  textDocument: TextDocument,
+): Range | undefined {
+  const range = node.range;
   if (!range || range.length < 2) {
     return undefined;
   }

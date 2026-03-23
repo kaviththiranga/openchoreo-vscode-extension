@@ -30,6 +30,7 @@
     "spec": {
       "type": "object",
       "description": "Workflow specification",
+      "additionalProperties": false,
       "required": ["runTemplate"],
       "properties": {
         "workflowPlaneRef": {

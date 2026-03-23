@@ -23,6 +23,8 @@ export interface JsonSchema {
   maxLength?: number;
   minimum?: number;
   maximum?: number;
+  minItems?: number;
+  maxItems?: number;
   format?: string;
   $ref?: string;
   oneOf?: JsonSchema[];
