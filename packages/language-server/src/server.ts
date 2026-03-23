@@ -9,10 +9,7 @@ import {
   InitializeResult,
   TextDocumentSyncKind,
   CompletionItem,
-  CompletionItemKind,
   Hover,
-  Diagnostic,
-  DiagnosticSeverity,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { detectCrdKind } from './validation/crdDetector';
@@ -26,8 +23,12 @@ const documents = new TextDocuments(TextDocument);
 
 let schemas: CrdSchemaMap;
 
-connection.onInitialize((_params: InitializeParams): InitializeResult => {
-  schemas = loadSchemas();
+/** Cache of resource names by kind, pushed from the extension via notification. */
+let resourceNames: Record<string, string[]> = {};
+
+connection.onInitialize((params: InitializeParams): InitializeResult => {
+  const schemasPath = (params.initializationOptions as { schemasPath?: string } | undefined)?.schemasPath;
+  schemas = loadSchemas(schemasPath);
 
   return {
     capabilities: {
@@ -40,6 +41,14 @@ connection.onInitialize((_params: InitializeParams): InitializeResult => {
     },
   };
 });
+
+// Handle resource name updates from the extension
+connection.onNotification(
+  'openchoreo/updateResources',
+  (params: Record<string, string[]>) => {
+    resourceNames = params;
+  },
+);
 
 // Validate documents on open and change
 documents.onDidChangeContent((change) => {
@@ -93,7 +102,7 @@ connection.onCompletion((params): CompletionItem[] => {
     return [];
   }
 
-  return getCompletionItems(document, params.position, schema);
+  return getCompletionItems(document, params.position, schema, resourceNames);
 });
 
 // Provide hover info

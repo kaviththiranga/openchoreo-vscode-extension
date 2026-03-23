@@ -39,11 +39,13 @@
             "projectName": {
               "type": "string",
               "description": "Name of the owning project",
+              "x-openchoreo-ref": "Project",
               "minLength": 1
             },
             "componentName": {
               "type": "string",
               "description": "Name of the owning component",
+              "x-openchoreo-ref": "Component",
               "minLength": 1
             }
           },

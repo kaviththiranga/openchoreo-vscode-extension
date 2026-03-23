@@ -18,7 +18,7 @@ import { CapabilityService } from './services/capabilityService';
 import { DeleteService } from './services/deleteService';
 import { registerCommands } from './commands/commands';
 import { registerNamespaceSelector } from './commands/namespaceSelector';
-import { initLogger } from './logging/logger';
+import { initLogger, log } from './logging/logger';
 import {
   OpenChoreoFileSystemProvider,
   FS_SCHEME,
@@ -108,8 +108,14 @@ export async function activate(
   // Register namespace selector
   registerNamespaceSelector(context, authProvider, apiClientManager);
 
-  // Start language server
+  // Start language server and push resource names for dynamic completions
   client = startLanguageServer(context);
+  const pushNames = () => pushResourceNames(client, apiClientManager, authProvider);
+  // Push resource names once the server is initialized
+  setTimeout(pushNames, 2000);
+  context.subscriptions.push(
+    authProvider.onDidChangeSession(pushNames),
+  );
 
   // Watch for occ config changes
   authProvider.startWatching();
@@ -118,6 +124,52 @@ export async function activate(
 export async function deactivate(): Promise<void> {
   if (client) {
     await client.stop();
+  }
+}
+
+/**
+ * Fetch resource names from the API and push them to the language server
+ * for dynamic value completions (e.g., componentType → list of ComponentType names).
+ */
+async function pushResourceNames(
+  langClient: LanguageClient,
+  apiClientManager: ApiClientManager,
+  authProvider: OccConfigAuthProvider,
+): Promise<void> {
+  try {
+    const api = await apiClientManager.getClient();
+    if (!api) {
+      return;
+    }
+
+    const ns = authProvider.getContextInfo()?.namespace;
+    if (!ns) {
+      return;
+    }
+
+    const params = { params: { path: { namespaceName: ns } } };
+    const names = (items: Array<{ metadata?: { name?: string } }>) =>
+      items.map((i) => i.metadata?.name).filter((n): n is string => !!n);
+
+    const resources: Record<string, string[]> = {};
+
+    // Fetch all resource types in parallel, skip individual failures
+    const results = await Promise.allSettled([
+      api.GET('/api/v1/namespaces/{namespaceName}/projects', params).then(r => { resources['Project'] = names(r.data?.items ?? []); }),
+      api.GET('/api/v1/namespaces/{namespaceName}/components', params).then(r => { resources['Component'] = names(r.data?.items ?? []); }),
+      api.GET('/api/v1/namespaces/{namespaceName}/componenttypes', params).then(r => { resources['ComponentType'] = names(r.data?.items ?? []); }),
+      api.GET('/api/v1/namespaces/{namespaceName}/workflows', params).then(r => { resources['Workflow'] = names(r.data?.items ?? []); }),
+      api.GET('/api/v1/namespaces/{namespaceName}/traits', params).then(r => { resources['Trait'] = names(r.data?.items ?? []); }),
+      api.GET('/api/v1/namespaces/{namespaceName}/environments', params).then(r => { resources['Environment'] = names(r.data?.items ?? []); }),
+      api.GET('/api/v1/namespaces/{namespaceName}/dataplanes', params).then(r => { resources['DataPlane'] = names(r.data?.items ?? []); }),
+      api.GET('/api/v1/namespaces/{namespaceName}/workflowplanes', params).then(r => { resources['WorkflowPlane'] = names(r.data?.items ?? []); }),
+      api.GET('/api/v1/namespaces/{namespaceName}/deploymentpipelines', params).then(r => { resources['DeploymentPipeline'] = names(r.data?.items ?? []); }),
+    ]);
+
+    log.debug(`Pushing resource names to language server: ${Object.entries(resources).map(([k, v]) => `${k}(${v.length})`).join(', ')}`);
+    langClient.sendNotification('openchoreo/updateResources', resources);
+  } catch {
+    // Non-fatal — completions just won't have dynamic values
   }
 }
 
@@ -137,12 +189,21 @@ function startLanguageServer(
     },
   };
 
+  // Resolve schemas path — check local copy first (VSIX), then monorepo root (F5 dev)
+  const localSchemas = path.join(context.extensionPath, 'schemas');
+  const repoSchemas = path.join(context.extensionPath, '..', '..', 'schemas');
+  const fs = require('fs');
+  const schemasPath = fs.existsSync(localSchemas) ? localSchemas : repoSchemas;
+
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
       { scheme: 'file', language: 'yaml' },
       { scheme: 'untitled', language: 'yaml' },
-      { scheme: FS_SCHEME, language: 'yaml' },
+      { scheme: FS_SCHEME },
     ],
+    initializationOptions: {
+      schemasPath,
+    },
     synchronize: {
       fileEvents: vscode.workspace.createFileSystemWatcher('**/*.yaml'),
     },

@@ -19,6 +19,7 @@ export function getCompletionItems(
   document: TextDocument,
   position: Position,
   schema: JsonSchema,
+  resourceNames: Record<string, string[]> = {},
 ): CompletionItem[] {
   const text = document.getText();
   const lines = text.split('\n');
@@ -45,7 +46,7 @@ export function getCompletionItems(
     if (keyMatch && contextSchema.properties) {
       const fieldSchema = contextSchema.properties[keyMatch[1]];
       if (fieldSchema) {
-        return getValueCompletions(fieldSchema);
+        return getValueCompletions(fieldSchema, resourceNames);
       }
     }
     return [];
@@ -100,8 +101,24 @@ function getPropertyCompletions(
   return items;
 }
 
-function getValueCompletions(schema: JsonSchema): CompletionItem[] {
+function getValueCompletions(
+  schema: JsonSchema,
+  resourceNames: Record<string, string[]> = {},
+): CompletionItem[] {
   const items: CompletionItem[] = [];
+
+  // Dynamic resource name completions from cluster
+  const refKind = schema['x-openchoreo-ref'];
+  if (refKind) {
+    const names = resourceNames[refKind] ?? [];
+    for (const name of names) {
+      items.push({
+        label: name,
+        kind: CompletionItemKind.Reference,
+        detail: refKind,
+      });
+    }
+  }
 
   if (schema.enum) {
     for (const value of schema.enum) {

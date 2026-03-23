@@ -34,7 +34,8 @@
       "properties": {
         "dataPlaneRef": {
           "type": "string",
-          "description": "Reference to a DataPlane resource"
+          "description": "Reference to a DataPlane resource",
+          "x-openchoreo-ref": "DataPlane"
         },
         "isProduction": {
           "type": "boolean",

@@ -45,7 +45,8 @@
                 "properties": {
                   "name": {
                     "type": "string",
-                    "description": "Name of the source environment"
+                    "description": "Name of the source environment",
+                    "x-openchoreo-ref": "Environment"
                   }
                 },
                 "required": ["name"]
@@ -58,7 +59,8 @@
                   "properties": {
                     "name": {
                       "type": "string",
-                      "description": "Name of the target environment"
+                      "description": "Name of the target environment",
+                      "x-openchoreo-ref": "Environment"
                     }
                   },
                   "required": ["name"]

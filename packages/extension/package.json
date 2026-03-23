@@ -22,6 +22,7 @@
   ],
   "activationEvents": [
     "onLanguage:yaml",
+    "onFileSystem:openchoreo",
     "onView:openchoreo.resourceExplorer",
     "onView:openchoreo.infrastructureExplorer"
   ],
@@ -214,7 +215,9 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "clean": "rm -rf dist out",
-    "package": "pnpm build && vsce package --no-dependencies"
+    "prepackage": "cp -r ../../schemas ./schemas",
+    "package": "pnpm build && vsce package --no-dependencies",
+    "postpackage": "rm -rf ./schemas"
   },
   "dependencies": {
     "@openchoreo/openchoreo-client-node": "link:/Users/kavithlokuhewage/git/backstage-plugins/packages/openchoreo-client-node",

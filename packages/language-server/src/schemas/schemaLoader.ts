@@ -26,6 +26,8 @@ export interface JsonSchema {
   minItems?: number;
   maxItems?: number;
   format?: string;
+  /** Custom annotation: references another resource kind for dynamic completions. */
+  'x-openchoreo-ref'?: string;
   $ref?: string;
   oneOf?: JsonSchema[];
   anyOf?: JsonSchema[];
@@ -38,8 +40,8 @@ export type CrdSchemaMap = Partial<Record<CrdKind, JsonSchema>>;
  * Load all CRD JSON Schemas from the schemas/ directory.
  * Schemas are named by CRD kind in lowercase: component.json, componenttype.json, etc.
  */
-export function loadSchemas(): CrdSchemaMap {
-  const schemasDir = path.resolve(__dirname, '..', '..', '..', '..', 'schemas');
+export function loadSchemas(explicitSchemasDir?: string): CrdSchemaMap {
+  const schemasDir = explicitSchemasDir ?? path.resolve(__dirname, '..', '..', '..', 'schemas');
   const schemas: CrdSchemaMap = {};
 
   if (!fs.existsSync(schemasDir)) {

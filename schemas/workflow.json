@@ -45,7 +45,8 @@
             },
             "name": {
               "type": "string",
-              "description": "Name of the workflow plane resource"
+              "description": "Name of the workflow plane resource",
+              "x-openchoreo-ref": "WorkflowPlane"
             }
           }
         },

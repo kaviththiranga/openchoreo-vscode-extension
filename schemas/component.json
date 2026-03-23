@@ -40,6 +40,7 @@
             "projectName": {
               "type": "string",
               "description": "Name of the project that owns this component",
+              "x-openchoreo-ref": "Project",
               "minLength": 1
             }
           },
@@ -47,7 +48,8 @@
         },
         "componentType": {
           "type": "string",
-          "description": "Reference to a ComponentType resource that defines how this component deploys"
+          "description": "Reference to a ComponentType resource that defines how this component deploys",
+          "x-openchoreo-ref": "ComponentType"
         },
         "workflow": {
           "type": "object",
@@ -55,7 +57,8 @@
           "properties": {
             "name": {
               "type": "string",
-              "description": "Name of the Workflow resource to use for builds"
+              "description": "Name of the Workflow resource to use for builds",
+              "x-openchoreo-ref": "Workflow"
             },
             "parameters": {
               "type": "object",
@@ -105,7 +108,8 @@
             "properties": {
               "name": {
                 "type": "string",
-                "description": "Name of the Trait resource"
+                "description": "Name of the Trait resource",
+                "x-openchoreo-ref": "Trait"
               },
               "instanceName": {
                 "type": "string",

@@ -93,6 +93,10 @@ export function registerCommands(
         try {
           const uri = buildResourceUri(node);
           const doc = await vscode.workspace.openTextDocument(uri);
+          // Force YAML language for custom scheme documents
+          if (doc.languageId !== 'yaml') {
+            await vscode.languages.setTextDocumentLanguage(doc, 'yaml');
+          }
           await vscode.window.showTextDocument(doc);
         } catch (error) {
           vscode.window.showErrorMessage(

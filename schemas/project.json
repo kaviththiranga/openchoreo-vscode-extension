@@ -34,7 +34,8 @@
       "properties": {
         "deploymentPipelineRef": {
           "type": "string",
-          "description": "Reference to a DeploymentPipeline resource in the same namespace"
+          "description": "Reference to a DeploymentPipeline resource in the same namespace",
+          "x-openchoreo-ref": "DeploymentPipeline"
         }
       },
       "required": ["deploymentPipelineRef"]
