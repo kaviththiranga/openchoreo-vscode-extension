@@ -120,7 +120,7 @@ export class InfrastructureExplorerProvider
         label: 'Observability Planes',
         type: 'infra-category',
         icon: 'observability-plane',
-        contextValue: 'infra-category',
+        contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
         lazyChildrenKey: 'observability-planes',

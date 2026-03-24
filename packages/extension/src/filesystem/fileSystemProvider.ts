@@ -311,8 +311,8 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
             await vscode.languages.setTextDocumentLanguage(doc, 'yaml');
           }
           await vscode.window.showTextDocument(doc);
-        } catch {
-          // Non-fatal — the resource was created, just the tab didn't refresh
+        } catch (err) {
+          log.error('Failed to reopen resource after create', err);
         }
       }, 100);
     } else {

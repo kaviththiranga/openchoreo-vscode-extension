@@ -298,6 +298,7 @@ export function registerCommands(
             'workflows': 'Workflow',
             'traits': 'Trait',
             'secret-references': 'SecretReference',
+            'observability-planes': 'ObservabilityPlane',
             // Cluster-scoped
             'cluster-component-types': 'ComponentType',
             'cluster-workflows': 'Workflow',
@@ -378,6 +379,7 @@ function kindToNodeType(kind: string): string {
     Workload: 'workload',
     DeploymentPipeline: 'deployment-pipeline',
     SecretReference: 'secret-reference',
+    ObservabilityPlane: 'observability-plane',
   };
   return map[kind] ?? kind.toLowerCase();
 }

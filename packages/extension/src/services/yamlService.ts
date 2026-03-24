@@ -293,4 +293,14 @@ spec:
         key: external-secret-key
   refreshInterval: 1h
 `,
+
+  ObservabilityPlane: `apiVersion: openchoreo.dev/v1alpha1
+kind: ObservabilityPlane
+metadata:
+  name: default
+  namespace: "{{namespace}}"
+spec:
+  planeID: shared-obs
+  observerURL: http://observer.observability-plane.svc:8080
+`,
 };
