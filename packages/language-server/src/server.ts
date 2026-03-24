@@ -103,7 +103,30 @@ connection.onCompletion((params): CompletionItem[] => {
   // offer apiVersion/kind bootstrap and empty-doc scaffolds
   const schema = crdKind ? (schemas[crdKind] ?? null) : null;
 
-  return getCompletionItems(document, params.position, schema, resourceNames, crdKind ?? undefined);
+  const lines = text.split('\n');
+  const currentLine = lines[params.position.line] ?? '';
+
+  const { isInsideCelExpression, getCelCompletionItems: getCel } = require('./completion/celCompletions');
+  const isCel = isInsideCelExpression(currentLine, params.position.character);
+  if (isCel) {
+    // Debug: manually trace the prefix
+    const before = currentLine.substring(0, params.position.character);
+    let celStart = before.length;
+    for (let i = before.length - 1; i >= 0; i--) {
+      if (before[i] === '{' && i > 0 && before[i - 1] === '$') { celStart = i + 1; break; }
+    }
+    const celPrefix = before.substring(celStart);
+    const dotIdx = celPrefix.lastIndexOf('.');
+    const varPath = dotIdx >= 0 ? celPrefix.substring(0, dotIdx) : '(no dot)';
+    connection.console.log(`[CEL] celPrefix="${celPrefix}" dotIdx=${dotIdx} varPath="${varPath}"`);
+
+    const celItems = getCel(currentLine, params.position.character, crdKind ?? '', params.position.line);
+    connection.console.log(`[CEL] items=${celItems.length}, first=${celItems[0]?.label ?? 'none'}`);
+  }
+
+  const result = getCompletionItems(document, params.position, schema, resourceNames, crdKind ?? undefined);
+  connection.console.log(`[Completion] isCel=${isCel} returned ${result.length} items`);
+  return result;
 });
 
 // Provide hover info

@@ -55,8 +55,12 @@ function mapToSymbols(
     const keyRange = getRange(item.key as Scalar, textDocument);
     if (!keyRange) continue;
 
-    // Determine the full range (key + value)
-    const fullRange = getNodeFullRange(item.value as Node, textDocument) ?? keyRange;
+    // Full range must contain selectionRange — use key start to value end
+    const valueRange = getNodeFullRange(item.value as Node, textDocument);
+    const fullRange: Range = {
+      start: keyRange.start,
+      end: valueRange ? valueRange.end : keyRange.end,
+    };
 
     if (isMap(item.value)) {
       // Object → recurse

@@ -49,8 +49,9 @@ export function getCompletionItems(
   const currentLine = lines[position.line] ?? '';
 
   // CEL expression completions — detect if cursor is inside ${...}
-  if (isInsideCelExpression(currentLine, position.character)) {
-    return getCelCompletionItems(currentLine, position.character, crdKind ?? '');
+  const celDetected = isInsideCelExpression(currentLine, position.character);
+  if (celDetected) {
+    return getCelCompletionItems(currentLine, position.character, crdKind ?? '', position.line);
   }
 
   // Empty document → offer CRD scaffold completions

@@ -6,6 +6,9 @@ import {
   CompletionItemKind,
   InsertTextFormat,
   MarkupKind,
+  TextEdit,
+  Range,
+  Position,
 } from 'vscode-languageserver/node';
 
 /**
@@ -263,6 +266,7 @@ export function getCelCompletionItems(
   line: string,
   character: number,
   crdKind: string,
+  lineNumber: number,
 ): CompletionItem[] {
   const prefix = getCelPrefix(line, character);
   const items: CompletionItem[] = [];
@@ -270,7 +274,20 @@ export function getCelCompletionItems(
   // Check if we're after a dot (member completion)
   const dotIndex = prefix.lastIndexOf('.');
   if (dotIndex >= 0) {
-    const varPath = prefix.substring(0, dotIndex).trim();
+    let varPath = prefix.substring(0, dotIndex).trim();
+    // Extract just the identifier chain — strip function calls, parens, operators
+    // e.g., "has(workload" → "workload", "a ? metadata" → "metadata"
+    const idMatch = varPath.match(/([a-zA-Z_][\w.]*)$/);
+    if (idMatch) {
+      varPath = idMatch[1];
+    }
+    const afterDot = prefix.substring(dotIndex + 1); // text typed after the dot
+    // Range to replace: from right after the dot to the cursor
+    const replaceStart = character - afterDot.length;
+    const replaceRange: Range = {
+      start: Position.create(lineNumber, replaceStart),
+      end: Position.create(lineNumber, character),
+    };
 
     // Try to resolve the variable path to offer member completions
     const parts = varPath.split('.');
@@ -292,7 +309,7 @@ export function getCelCompletionItems(
           label: name,
           kind: CompletionItemKind.Field,
           detail: info.description,
-          insertText: name,
+          textEdit: TextEdit.replace(replaceRange, name),
         });
       }
     }
@@ -304,7 +321,7 @@ export function getCelCompletionItems(
         kind: CompletionItemKind.Method,
         detail: method.detail,
         insertTextFormat: InsertTextFormat.Snippet,
-        insertText: method.insertText,
+        textEdit: TextEdit.replace(replaceRange, method.insertText),
       });
     }
 
