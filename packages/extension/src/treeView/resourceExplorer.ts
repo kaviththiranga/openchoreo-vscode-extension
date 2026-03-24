@@ -429,7 +429,7 @@ export class ResourceExplorerProvider
       return {
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'release-binding' as const,
-        contextValue: 'release-binding',
+        contextValue: isDeleting ? 'release-binding' : this.resolveContextValue('release-binding'),
         description: isDeleting ? '(deleting)' : undefined,
         namespace: element.namespace,
         project: element.project,

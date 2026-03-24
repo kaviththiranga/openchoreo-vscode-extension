@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ReleaseBinding",
+  "title": "OpenChoreo ReleaseBinding",
+  "description": "Binds a component release to an environment, with optional environment-specific overrides.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ReleaseBinding"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the ReleaseBinding"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace (organization)",
+          "x-openchoreo-ref": "Namespace"
+        }
+      },
+      "required": ["name"]
+    },
+    "spec": {
+      "type": "object",
+      "description": "ReleaseBinding specification",
+      "required": ["owner", "environment"],
+      "properties": {
+        "owner": {
+          "type": "object",
+          "description": "Owner identifies the component and project this ReleaseBinding belongs to",
+          "required": ["projectName", "componentName"],
+          "properties": {
+            "projectName": {
+              "type": "string",
+              "description": "Name of the project",
+              "x-openchoreo-ref": "Project"
+            },
+            "componentName": {
+              "type": "string",
+              "description": "Name of the component",
+              "x-openchoreo-ref": "Component"
+            }
+          }
+        },
+        "environment": {
+          "type": "string",
+          "description": "Target environment name",
+          "x-openchoreo-ref": "Environment"
+        },
+        "releaseName": {
+          "type": "string",
+          "description": "Reference to component release"
+        },
+        "componentTypeEnvironmentConfigs": {
+          "type": "object",
+          "description": "Environment-specific ComponentType parameter overrides. Keys match the parameters defined in the ComponentType schema.",
+          "additionalProperties": true
+        },
+        "traitEnvironmentConfigs": {
+          "type": "object",
+          "description": "Environment-specific trait environment configs. Keys are trait instance names, values are the trait's environment config overrides.",
+          "additionalProperties": true
+        },
+        "workloadOverrides": {
+          "type": "object",
+          "description": "Environment-specific workload overrides",
+          "properties": {
+            "container": {
+              "type": "object",
+              "description": "Container-level overrides",
+              "properties": {
+                "env": {
+                  "type": "array",
+                  "description": "Environment variable overrides",
+                  "items": {
+                    "type": "object",
+                    "required": ["key"],
+                    "properties": {
+                      "key": {
+                        "type": "string",
+                        "description": "Variable key/name"
+                      },
+                      "value": {
+                        "type": "string",
+                        "description": "Variable value"
+                      },
+                      "valueFrom": {
+                        "type": "object",
+                        "description": "Value source reference",
+                        "properties": {
+                          "secretKeyRef": {
+                            "type": "object",
+                            "properties": {
+                              "name": { "type": "string" },
+                              "key": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "files": {
+                  "type": "array",
+                  "description": "File mount overrides",
+                  "items": {
+                    "type": "object",
+                    "required": ["key", "mountPath"],
+                    "properties": {
+                      "key": { "type": "string" },
+                      "mountPath": { "type": "string" },
+                      "value": { "type": "string" },
+                      "valueFrom": {
+                        "type": "object",
+                        "properties": {
+                          "secretKeyRef": {
+                            "type": "object",
+                            "properties": {
+                              "name": { "type": "string" },
+                              "key": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "state": {
+          "type": "string",
+          "description": "Controls the state of the Release created by this binding",
+          "enum": ["Active", "Undeploy"],
+          "default": "Active"
+        }
+      }
+    }
+  },
+  "required": ["apiVersion", "kind", "metadata", "spec"]
+}

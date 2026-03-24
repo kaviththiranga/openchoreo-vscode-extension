@@ -18,6 +18,7 @@ export const DEFINITION_RESOURCE_TYPES = new Set([
   'deployment-pipeline',
   'workload',
   'secret-reference',
+  'release-binding',
   'namespace-role',
   'namespace-role-binding',
   'cluster-role',
