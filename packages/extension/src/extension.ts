@@ -83,8 +83,9 @@ export async function activate(
   // Show current namespace in view descriptions
   const updateViewDescriptions = () => {
     const ns = authProvider.getContextInfo()?.namespace;
-    resourceTreeView.description = ns || undefined;
-    infrastructureTreeView.description = ns || undefined;
+    const desc = ns ? `ns: ${ns}` : undefined;
+    resourceTreeView.description = desc;
+    infrastructureTreeView.description = desc;
   };
   updateViewDescriptions();
   context.subscriptions.push(

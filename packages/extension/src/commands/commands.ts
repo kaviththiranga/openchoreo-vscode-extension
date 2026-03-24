@@ -285,13 +285,20 @@ export function registerCommands(
         if (node.type === 'infra-category' && node.lazyChildrenKey) {
           // Infrastructure category → create the matching kind
           const kindMap: Record<string, string> = {
+            // Namespace-scoped
             'environments': 'Environment',
             'data-planes': 'DataPlane',
-            'workflow-planes': 'Workflow',
+            'workflow-planes': 'WorkflowPlane',
             'component-types': 'ComponentType',
             'workflows': 'Workflow',
             'traits': 'Trait',
             'secret-references': 'SecretReference',
+            // Cluster-scoped
+            'cluster-component-types': 'ComponentType',
+            'cluster-workflows': 'Workflow',
+            'cluster-traits': 'Trait',
+            'cluster-data-planes': 'DataPlane',
+            'cluster-workflow-planes': 'WorkflowPlane',
           };
           const kind = kindMap[node.lazyChildrenKey];
           if (kind) {

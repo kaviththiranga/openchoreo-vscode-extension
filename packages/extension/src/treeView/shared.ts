@@ -10,7 +10,7 @@ import type { ResourceNodeData, ResourceNodeType } from './types';
  */
 export const NODE_ICON_MAP: Record<ResourceNodeType, string> = {
   // Resource view
-  namespace: 'globe',                     // Backstage: Domain
+  namespace: 'organization',               // Backstage: Domain
   project: 'project',                     // Backstage: System
   component: 'package',                   // Backstage: Component
   'component-category': 'symbol-folder',
@@ -90,7 +90,7 @@ export function toTreeItem(element: ResourceNodeData): vscode.TreeItem {
     treeItem.id = buildNodeId(element);
   }
   treeItem.iconPath = new vscode.ThemeIcon(
-    NODE_ICON_MAP[element.type] ?? 'circle-outline',
+    element.icon ?? NODE_ICON_MAP[element.type] ?? 'circle-outline',
   );
 
   if (element.description) {

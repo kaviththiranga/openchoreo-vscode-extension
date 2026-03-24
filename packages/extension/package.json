@@ -105,7 +105,7 @@
         "command": "openchoreo.selectNamespace",
         "title": "Select Namespace",
         "category": "OpenChoreo",
-        "icon": "$(globe)"
+        "icon": "$(organization)"
       },
       {
         "command": "openchoreo.createChildResource",
@@ -172,28 +172,13 @@
           "group": "inline"
         },
         {
-          "command": "openchoreo.openResource",
-          "when": "view == openchoreo.resourceExplorer && viewItem =~ /^(project|component|deployment-pipeline|workflow-run|component-release|release-binding|workload)(_editable)?(_deletable)?(_creatable)?$/",
-          "group": "inline"
-        },
-        {
-          "command": "openchoreo.openResource",
-          "when": "view == openchoreo.infrastructureExplorer && viewItem =~ /^(environment|data-plane|workflow-plane|observability-plane|component-type|workflow|trait|secret-reference|namespace-role|namespace-role-binding)(_editable)?(_deletable)?$/",
-          "group": "inline"
-        },
-        {
-          "command": "openchoreo.openResource",
-          "when": "view == openchoreo.clusterExplorer && viewItem =~ /^(cluster-component-type|cluster-workflow|cluster-trait|cluster-data-plane|cluster-workflow-plane|cluster-observability-plane|cluster-role|cluster-role-binding)(_editable)?(_deletable)?$/",
-          "group": "inline"
-        },
-        {
           "command": "openchoreo.createChildResource",
           "when": "viewItem =~ /_creatable/",
           "group": "1_create"
         },
         {
           "command": "openchoreo.openResource",
-          "when": "viewItem =~ /^(project|component|environment|workflow|trait|workload)(_editable)?(_deletable)?(_creatable)?$/",
+          "when": "viewItem =~ /^(project|component|environment|workflow|trait|workload|release-binding|deployment-pipeline|secret-reference)(_editable)?(_deletable)?(_creatable)?$/",
           "group": "2_open"
         },
         {

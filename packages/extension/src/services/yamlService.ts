@@ -291,4 +291,28 @@ spec:
     - name: production
       environmentRef: production
 `,
+
+  WorkflowPlane: `apiVersion: openchoreo.dev/v1alpha1
+kind: WorkflowPlane
+metadata:
+  name: default
+  namespace: "{{namespace}}"
+spec:
+  planeID: ci-cluster
+`,
+
+  SecretReference: `apiVersion: openchoreo.dev/v1alpha1
+kind: SecretReference
+metadata:
+  name: my-secret
+  namespace: "{{namespace}}"
+spec:
+  template:
+    type: Opaque
+  data:
+    - secretKey: my-key
+      remoteRef:
+        key: external-secret-key
+  refreshInterval: 1h
+`,
 };

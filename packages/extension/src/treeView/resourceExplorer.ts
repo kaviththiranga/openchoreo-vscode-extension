@@ -175,7 +175,7 @@ export class ResourceExplorerProvider
   }
 
   private static readonly EDITABLE_TYPES: ReadonlySet<ResourceNodeType> =
-    new Set(['project', 'component', 'deployment-pipeline', 'workload']);
+    new Set(['project', 'component', 'deployment-pipeline', 'workload', 'release-binding']);
 
   /** Types that support creating child resources via inline "+" button. */
   private static readonly CREATABLE_TYPES: ReadonlySet<ResourceNodeType> =
@@ -272,6 +272,7 @@ export class ResourceExplorerProvider
       {
         label: 'Workflow Runs',
         type: 'component-category',
+        icon: 'debug-start',
         contextValue: 'component-category',
         ...base,
         childrenMode: 'lazy',
@@ -280,6 +281,7 @@ export class ResourceExplorerProvider
       {
         label: 'Releases',
         type: 'component-category',
+        icon: 'tag',
         contextValue: 'component-category',
         ...base,
         childrenMode: 'lazy',
@@ -287,6 +289,7 @@ export class ResourceExplorerProvider
       },
       {
         label: 'Release Bindings',
+        icon: 'link',
         type: 'component-category',
         contextValue: 'component-category',
         ...base,
@@ -296,6 +299,7 @@ export class ResourceExplorerProvider
       {
         label: 'Workloads',
         type: 'component-category',
+        icon: 'server-process',
         contextValue: 'component-category',
         ...base,
         childrenMode: 'lazy',

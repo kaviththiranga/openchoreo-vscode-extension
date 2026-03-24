@@ -44,6 +44,8 @@ export interface ResourceNodeData {
   type: ResourceNodeType;
   contextValue: string;
   description?: string;
+  /** Override the default icon from NODE_ICON_MAP. */
+  icon?: string;
 
   // Hierarchical context (propagated from parent)
   namespace?: string;
