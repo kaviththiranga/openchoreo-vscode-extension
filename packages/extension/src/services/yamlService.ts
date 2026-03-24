@@ -266,12 +266,11 @@ spec:
     projectName: "{{project}}"
     componentName: my-component
 
-  containers:
-    main:
-      image: "registry/app:latest"
-      env:
-        - key: PORT
-          value: "8080"
+  container:
+    image: "registry/app:latest"
+    env:
+      - key: PORT
+        value: "8080"
 
   endpoints:
     http:

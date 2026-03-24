@@ -52,62 +52,60 @@
           },
           "required": ["projectName", "componentName"]
         },
-        "containers": {
+        "container": {
           "type": "object",
-          "description": "Container specifications keyed by container name",
-          "additionalProperties": {
-            "type": "object",
-            "properties": {
-              "image": {
-                "type": "string",
-                "description": "OCI container image (digest or tag)"
-              },
-              "command": {
-                "type": "array",
-                "items": { "type": "string" },
-                "description": "Container command override"
-              },
-              "args": {
-                "type": "array",
-                "items": { "type": "string" },
-                "description": "Container arguments"
-              },
-              "env": {
-                "type": "array",
-                "description": "Environment variables",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "key": { "type": "string" },
-                    "value": { "type": "string" },
-                    "valueFrom": {
-                      "type": "object",
-                      "properties": {
-                        "configurationGroupRef": {
-                          "type": "object",
-                          "properties": {
-                            "name": { "type": "string" },
-                            "key": { "type": "string" }
-                          }
+          "description": "Container specification",
+          "required": ["image"],
+          "properties": {
+            "image": {
+              "type": "string",
+              "description": "OCI container image (digest or tag)"
+            },
+            "command": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Container entrypoint override"
+            },
+            "args": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Container arguments"
+            },
+            "env": {
+              "type": "array",
+              "description": "Environment variables",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": { "type": "string" },
+                  "value": { "type": "string" },
+                  "valueFrom": {
+                    "type": "object",
+                    "properties": {
+                      "configurationGroupRef": {
+                        "type": "object",
+                        "properties": {
+                          "name": { "type": "string" },
+                          "key": { "type": "string" }
                         }
                       }
                     }
-                  },
-                  "required": ["key"]
-                }
-              },
-              "files": {
-                "type": "array",
-                "description": "File mount configurations",
-                "items": {
-                  "type": "object",
-                  "properties": {
-                    "key": { "type": "string" },
-                    "mountPath": { "type": "string" },
-                    "value": { "type": "string" }
-                  },
-                  "required": ["key", "mountPath"]
-                }
+                  }
+                },
+                "required": ["key"]
+              }
+            },
+            "files": {
+              "type": "array",
+              "description": "File mount configurations",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "key": { "type": "string" },
+                  "mountPath": { "type": "string" },
+                  "value": { "type": "string" }
+                },
+                "required": ["key", "mountPath"]
               }
             }
           }
@@ -140,24 +138,40 @@
                     "description": "Inline API schema content"
                   }
                 }
+              },
+              "visibility": {
+                "type": "array",
+                "description": "Additional endpoint visibilities beyond implicit project visibility",
+                "items": {
+                  "type": "string",
+                  "enum": ["organization", "public"]
+                }
               }
             },
             "required": ["type", "port"]
           }
         },
-        "connections": {
-          "type": "array",
-          "description": "Connections to other components' endpoints",
-          "items": {
-            "type": "object",
-            "properties": {
-              "componentRef": {
-                "type": "string",
-                "description": "Reference to the target component"
-              },
-              "endpointRef": {
-                "type": "string",
-                "description": "Reference to the target endpoint"
+        "dependencies": {
+          "type": "object",
+          "description": "Dependencies on other components' endpoints",
+          "properties": {
+            "endpoints": {
+              "type": "array",
+              "description": "List of endpoint dependencies",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "componentRef": {
+                    "type": "string",
+                    "description": "Reference to the target component",
+                    "x-openchoreo-ref": "Component"
+                  },
+                  "endpointRef": {
+                    "type": "string",
+                    "description": "Reference to the target endpoint"
+                  }
+                },
+                "required": ["componentRef", "endpointRef"]
               }
             }
           }
