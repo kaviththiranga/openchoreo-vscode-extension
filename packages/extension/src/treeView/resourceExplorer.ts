@@ -272,7 +272,7 @@ export class ResourceExplorerProvider
       {
         label: 'Workflow Runs',
         type: 'component-category',
-        icon: 'debug-start',
+        icon: 'workflow-run',
         contextValue: 'component-category',
         ...base,
         childrenMode: 'lazy',
@@ -281,7 +281,7 @@ export class ResourceExplorerProvider
       {
         label: 'Releases',
         type: 'component-category',
-        icon: 'tag',
+        icon: 'component-release',
         contextValue: 'component-category',
         ...base,
         childrenMode: 'lazy',
@@ -289,7 +289,7 @@ export class ResourceExplorerProvider
       },
       {
         label: 'Release Bindings',
-        icon: 'link',
+        icon: 'release-binding',
         type: 'component-category',
         contextValue: 'component-category',
         ...base,
@@ -299,7 +299,7 @@ export class ResourceExplorerProvider
       {
         label: 'Workloads',
         type: 'component-category',
-        icon: 'server-process',
+        icon: 'workload',
         contextValue: 'component-category',
         ...base,
         childrenMode: 'lazy',

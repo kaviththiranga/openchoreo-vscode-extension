@@ -28,7 +28,7 @@ export class StatusBarManager implements vscode.Disposable {
     const contextInfo = this.authProvider.getContextInfo();
 
     if (!contextInfo) {
-      this.statusBarItem.text = '$(cloud-offline) OpenChoreo: Not connected';
+      this.statusBarItem.text = '$(warning) OC: Not connected';
       this.statusBarItem.tooltip =
         'Not connected to OpenChoreo. Run "occ login" to authenticate.';
       this.statusBarItem.backgroundColor = new vscode.ThemeColor(
@@ -38,7 +38,7 @@ export class StatusBarManager implements vscode.Disposable {
     }
 
     const ns = contextInfo.namespace || 'none';
-    this.statusBarItem.text = `$(cloud) OpenChoreo: ${contextInfo.contextName} $(organization) ${ns}`;
+    this.statusBarItem.text = `$(rocket) OC: ${contextInfo.contextName} $(organization) ${ns}`;
     this.statusBarItem.tooltip = [
       `Context: ${contextInfo.contextName}`,
       `Namespace: ${ns}`,

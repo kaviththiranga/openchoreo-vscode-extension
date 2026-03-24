@@ -72,7 +72,7 @@ export class ClusterExplorerProvider
       {
         label: 'Component Types',
         type: 'infra-category',
-        icon: 'symbol-class',
+        icon: 'cluster-component-type',
         contextValue: 'infra-category_creatable',
         childrenMode: 'lazy',
         lazyChildrenKey: 'cluster-component-types',
@@ -80,7 +80,7 @@ export class ClusterExplorerProvider
       {
         label: 'Workflows',
         type: 'infra-category',
-        icon: 'play-circle',
+        icon: 'cluster-workflow',
         contextValue: 'infra-category_creatable',
         childrenMode: 'lazy',
         lazyChildrenKey: 'cluster-workflows',
@@ -88,7 +88,7 @@ export class ClusterExplorerProvider
       {
         label: 'Traits',
         type: 'infra-category',
-        icon: 'extensions',
+        icon: 'cluster-trait',
         contextValue: 'infra-category_creatable',
         childrenMode: 'lazy',
         lazyChildrenKey: 'cluster-traits',
@@ -96,7 +96,7 @@ export class ClusterExplorerProvider
       {
         label: 'Data Planes',
         type: 'infra-category',
-        icon: 'server',
+        icon: 'cluster-data-plane',
         contextValue: 'infra-category_creatable',
         childrenMode: 'lazy',
         lazyChildrenKey: 'cluster-data-planes',
@@ -104,7 +104,7 @@ export class ClusterExplorerProvider
       {
         label: 'Workflow Planes',
         type: 'infra-category',
-        icon: 'wrench',
+        icon: 'cluster-workflow-plane',
         contextValue: 'infra-category_creatable',
         childrenMode: 'lazy',
         lazyChildrenKey: 'cluster-workflow-planes',
@@ -112,7 +112,7 @@ export class ClusterExplorerProvider
       {
         label: 'Observability Planes',
         type: 'infra-category',
-        icon: 'eye',
+        icon: 'cluster-observability-plane',
         contextValue: 'infra-category',
         childrenMode: 'lazy',
         lazyChildrenKey: 'cluster-observability-planes',
@@ -120,14 +120,14 @@ export class ClusterExplorerProvider
       {
         label: 'RBAC',
         type: 'infra-category',
-        icon: 'shield',
+        icon: 'cluster-role',
         contextValue: 'infra-category',
         childrenMode: 'preloaded',
         children: [
           {
             label: 'Roles',
             type: 'infra-category',
-            icon: 'shield',
+            icon: 'cluster-role',
             contextValue: 'infra-category',
             childrenMode: 'lazy',
             lazyChildrenKey: 'cluster-roles',
@@ -135,7 +135,7 @@ export class ClusterExplorerProvider
           {
             label: 'Role Bindings',
             type: 'infra-category',
-            icon: 'person',
+            icon: 'cluster-role-binding',
             contextValue: 'infra-category',
             childrenMode: 'lazy',
             lazyChildrenKey: 'cluster-role-bindings',

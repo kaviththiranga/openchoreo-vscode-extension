@@ -20,6 +20,7 @@ import { registerCommands } from './commands/commands';
 import { registerNamespaceSelector } from './commands/namespaceSelector';
 import { initLogger, log } from './logging/logger';
 import { ClusterExplorerProvider } from './treeView/clusterExplorer';
+import { setExtensionUri } from './treeView/shared';
 import {
   OpenChoreoFileSystemProvider,
   FS_SCHEME,
@@ -32,6 +33,9 @@ export async function activate(
 ): Promise<void> {
   // Initialize output channel logger
   initLogger();
+
+  // Set extension URI for custom icon resolution
+  setExtensionUri(context.extensionUri);
 
   // Initialize authentication provider (reads occ CLI session)
   const authProvider = new OccConfigAuthProvider(context);

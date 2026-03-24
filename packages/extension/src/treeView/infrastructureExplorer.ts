@@ -92,7 +92,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Environments',
         type: 'infra-category',
-        icon: 'cloud',
+        icon: 'environment',
         contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
@@ -101,7 +101,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Data Planes',
         type: 'infra-category',
-        icon: 'server',
+        icon: 'data-plane',
         contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
@@ -110,7 +110,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Workflow Planes',
         type: 'infra-category',
-        icon: 'wrench',
+        icon: 'workflow-plane',
         contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
@@ -119,7 +119,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Observability Planes',
         type: 'infra-category',
-        icon: 'eye',
+        icon: 'observability-plane',
         contextValue: 'infra-category',
         namespace: ns,
         childrenMode: 'lazy',
@@ -128,7 +128,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Component Types',
         type: 'infra-category',
-        icon: 'symbol-class',
+        icon: 'component-type',
         contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
@@ -137,7 +137,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Workflows',
         type: 'infra-category',
-        icon: 'play-circle',
+        icon: 'workflow',
         contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
@@ -146,7 +146,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Traits',
         type: 'infra-category',
-        icon: 'extensions',
+        icon: 'trait',
         contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
@@ -155,7 +155,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'Secret References',
         type: 'infra-category',
-        icon: 'key',
+        icon: 'secret-reference',
         contextValue: 'infra-category_creatable',
         namespace: ns,
         childrenMode: 'lazy',
@@ -164,7 +164,7 @@ export class InfrastructureExplorerProvider
       {
         label: 'RBAC',
         type: 'infra-category',
-        icon: 'shield',
+        icon: 'namespace-role',
         contextValue: 'infra-category',
         namespace: ns,
         childrenMode: 'preloaded',
@@ -172,7 +172,7 @@ export class InfrastructureExplorerProvider
           {
             label: 'Roles',
             type: 'infra-category',
-            icon: 'shield',
+            icon: 'namespace-role',
             contextValue: 'infra-category',
             namespace: ns,
             childrenMode: 'lazy',
@@ -181,7 +181,7 @@ export class InfrastructureExplorerProvider
           {
             label: 'Role Bindings',
             type: 'infra-category',
-            icon: 'person',
+            icon: 'namespace-role-binding',
             contextValue: 'infra-category',
             namespace: ns,
             childrenMode: 'lazy',

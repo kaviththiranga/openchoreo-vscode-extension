@@ -4,36 +4,70 @@
 import * as vscode from 'vscode';
 import type { ResourceNodeData, ResourceNodeType } from './types';
 
+/** Set during extension activation — needed for resolving custom SVG icon paths. */
+let extensionUri: vscode.Uri | undefined;
+
+/** Call once during activation to enable custom icon resolution. */
+export function setExtensionUri(uri: vscode.Uri): void {
+  extensionUri = uri;
+}
+
 /**
- * Maps each node type to a VS Code ThemeIcon name.
- * Aligned with backstage-plugins Material UI icons where possible.
+ * Maps resource types to custom Material UI SVG icon filenames.
+ * These match the icons used in the backstage-plugins UI.
  */
-export const NODE_ICON_MAP: Record<ResourceNodeType, string> = {
+const MUI_ICON_MAP: Partial<Record<ResourceNodeType, string>> = {
+  // Developer resources
+  namespace: 'apartment.svg',
+  project: 'dashboard.svg',
+  component: 'memory.svg',
+  workload: 'storage.svg',
+  // Infrastructure resources
+  environment: 'cloud.svg',
+  'data-plane': 'dns.svg',
+  'cluster-data-plane': 'dns.svg',
+  'workflow-plane': 'build.svg',
+  'cluster-workflow-plane': 'build.svg',
+  'observability-plane': 'visibility.svg',
+  'cluster-observability-plane': 'visibility.svg',
+  'component-type': 'category.svg',
+  'cluster-component-type': 'category.svg',
+  trait: 'extension.svg',
+  'cluster-trait': 'extension.svg',
+  workflow: 'play-circle-outline.svg',
+  'cluster-workflow': 'play-circle-outline.svg',
+  'deployment-pipeline': 'account-tree.svg',
+};
+
+/**
+ * Fallback ThemeIcon map for types without custom SVG icons.
+ */
+const THEME_ICON_MAP: Record<ResourceNodeType, string> = {
   // Resource view
-  namespace: 'organization',               // Backstage: Domain
-  project: 'project',                     // Backstage: System
-  component: 'package',                   // Backstage: Component
+  namespace: 'organization',
+  project: 'project',
+  component: 'package',
   'component-category': 'symbol-folder',
   'workflow-run': 'debug-start',
   'component-release': 'tag',
   'release-binding': 'link',
   workload: 'server-process',
-  'deployment-pipeline': 'git-merge',     // Backstage: AccountTree
+  'deployment-pipeline': 'git-merge',
   // Infrastructure view (namespace-scoped)
   'infra-category': 'symbol-folder',
-  environment: 'cloud',                   // Backstage: Cloud
-  'data-plane': 'server',                 // Backstage: Dns
-  'workflow-plane': 'wrench',             // Backstage: Build
-  'observability-plane': 'eye',           // Backstage: Visibility
-  'component-type': 'symbol-class',       // Backstage: Category
-  workflow: 'play-circle',                // Backstage: PlayCircleOutline
-  trait: 'extensions',                    // Backstage: Extension
+  environment: 'cloud',
+  'data-plane': 'server',
+  'workflow-plane': 'wrench',
+  'observability-plane': 'eye',
+  'component-type': 'symbol-class',
+  workflow: 'play-circle',
+  trait: 'extensions',
   'secret-reference': 'key',
   'namespace-role': 'shield',
   'namespace-role-binding': 'person',
   'cluster-role': 'shield',
   'cluster-role-binding': 'person',
-  // Infrastructure view (cluster-scoped) — mirrors namespace-scoped
+  // Infrastructure view (cluster-scoped)
   'cluster-component-type': 'symbol-class',
   'cluster-workflow': 'play-circle',
   'cluster-trait': 'extensions',
@@ -44,6 +78,28 @@ export const NODE_ICON_MAP: Record<ResourceNodeType, string> = {
   'no-connection': 'warning',
   empty: 'info',
 };
+
+/** Resolve icon for a resource type — custom SVG if available, ThemeIcon otherwise. */
+function resolveIcon(
+  type: ResourceNodeType,
+  iconOverride?: string,
+): vscode.ThemeIcon | { light: vscode.Uri; dark: vscode.Uri } {
+  // Check for custom SVG icon (from MUI_ICON_MAP or icon override on node)
+  const muiFile = iconOverride
+    ? MUI_ICON_MAP[iconOverride as ResourceNodeType]
+    : MUI_ICON_MAP[type];
+
+  if (muiFile && extensionUri) {
+    const iconUri = vscode.Uri.joinPath(extensionUri, 'resources', 'icons', muiFile);
+    return { light: iconUri, dark: iconUri };
+  }
+
+  // Fallback to ThemeIcon — look up override as resource type first
+  const themeIconName = iconOverride
+    ? (THEME_ICON_MAP[iconOverride as ResourceNodeType] ?? 'circle-outline')
+    : (THEME_ICON_MAP[type] ?? 'circle-outline');
+  return new vscode.ThemeIcon(themeIconName);
+}
 
 /** Builds a unique tree node ID from node context. */
 export function buildNodeId(node: ResourceNodeData): string {
@@ -82,16 +138,10 @@ export function toTreeItem(element: ResourceNodeData): vscode.TreeItem {
 
   const treeItem = new vscode.TreeItem(element.label, collapsible);
   treeItem.contextValue = element.contextValue;
-  // Only set explicit IDs on container nodes (namespace, project, component,
-  // categories) to preserve expand/collapse state across refreshes.
-  // Leaf nodes skip explicit IDs to avoid collisions when the API returns
-  // duplicate names (e.g. multiple traits with the same name on a component).
   if (element.childrenMode !== 'none') {
     treeItem.id = buildNodeId(element);
   }
-  treeItem.iconPath = new vscode.ThemeIcon(
-    element.icon ?? NODE_ICON_MAP[element.type] ?? 'circle-outline',
-  );
+  treeItem.iconPath = resolveIcon(element.type, element.icon);
 
   if (element.description) {
     treeItem.description = element.description;
