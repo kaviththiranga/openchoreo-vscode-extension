@@ -28,6 +28,12 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "mcpServerDefinitionProviders": [
+      {
+        "id": "openchoreo",
+        "label": "OpenChoreo"
+      }
+    ],
     "viewsContainers": {
       "activitybar": [
         {

@@ -20,6 +20,7 @@ import { registerCommands } from './commands/commands';
 import { registerNamespaceSelector } from './commands/namespaceSelector';
 import { initLogger, log } from './logging/logger';
 import { ClusterExplorerProvider } from './treeView/clusterExplorer';
+import { registerMcpServers } from './mcp/mcpProvider';
 import { setExtensionUri } from './treeView/shared';
 import {
   OpenChoreoFileSystemProvider,
@@ -157,6 +158,9 @@ export async function activate(
   context.subscriptions.push(
     authProvider.onDidChangeSession(pushNames),
   );
+
+  // Register OpenChoreo MCP servers for Copilot Chat
+  registerMcpServers(context, authProvider);
 
   // Watch for occ config changes
   authProvider.startWatching();
