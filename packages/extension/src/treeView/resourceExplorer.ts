@@ -115,16 +115,20 @@ export class ResourceExplorerProvider
         ];
       }
 
-      return projectItems.map((p) => ({
-        label: (p.metadata?.name as string),
-        type: 'project' as const,
-        contextValue: this.resolveContextValue('project'),
-        namespace: ns,
-        project: p.metadata?.name as string,
-        resourceName: p.metadata?.name as string,
-        childrenMode: 'lazy' as const,
-        lazyChildrenKey: 'project-children',
-      }));
+      return projectItems.map((p) => {
+        const isDeleting = !!(p as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+        return {
+          label: (p.metadata?.name as string),
+          type: 'project' as const,
+          contextValue: isDeleting ? 'project' : this.resolveContextValue('project'),
+          description: isDeleting ? '(deleting)' : undefined,
+          namespace: ns,
+          project: p.metadata?.name as string,
+          resourceName: p.metadata?.name as string,
+          childrenMode: 'lazy' as const,
+          lazyChildrenKey: 'project-children',
+        };
+      });
     } catch (error) {
       return [
         {
@@ -212,10 +216,12 @@ export class ResourceExplorerProvider
     const pipelines = pipelineData?.items ?? [];
     for (const pipeline of pipelines) {
       const pipelineName = pipeline.metadata?.name as string;
+      const isDeleting = !!(pipeline as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
       children.push({
         label: pipelineName ?? 'deployment-pipeline',
         type: 'deployment-pipeline',
-        contextValue: this.resolveContextValue('deployment-pipeline'),
+        contextValue: isDeleting ? 'deployment-pipeline' : this.resolveContextValue('deployment-pipeline'),
+        description: isDeleting ? '(deleting)' : undefined,
         namespace: ns,
         project: proj,
         resourceName: pipelineName ?? 'deployment-pipeline',
@@ -232,10 +238,12 @@ export class ResourceExplorerProvider
     const componentItems = componentsData?.items ?? [];
     for (const comp of componentItems) {
       const compName = comp.metadata?.name as string;
+      const isDeleting = !!(comp as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
       children.push({
         label: compName,
         type: 'component',
-        contextValue: this.resolveContextValue('component'),
+        contextValue: isDeleting ? 'component' : this.resolveContextValue('component'),
+        description: isDeleting ? '(deleting)' : undefined,
         namespace: ns,
         project: proj,
         component: compName,
@@ -333,17 +341,21 @@ export class ResourceExplorerProvider
       return [{ label: 'No workflow runs', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'workflow-run' as const,
-      contextValue: 'workflow-run',
-      description: (item as { status?: { phase?: string } }).status?.phase,
-      namespace: element.namespace,
-      project: element.project,
-      component: element.component,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      const phase = (item as { status?: { phase?: string } }).status?.phase;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'workflow-run' as const,
+        contextValue: 'workflow-run',
+        description: isDeleting ? (phase ? `(deleting) ${phase}` : '(deleting)') : phase,
+        namespace: element.namespace,
+        project: element.project,
+        component: element.component,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchComponentReleases(
@@ -371,16 +383,20 @@ export class ResourceExplorerProvider
       return [{ label: 'No releases', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'component-release' as const,
-      contextValue: 'component-release',
-      namespace: element.namespace,
-      project: element.project,
-      component: element.component,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'component-release' as const,
+        contextValue: 'component-release',
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: element.namespace,
+        project: element.project,
+        component: element.component,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchReleaseBindings(
@@ -408,16 +424,20 @@ export class ResourceExplorerProvider
       return [{ label: 'No release bindings', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'release-binding' as const,
-      contextValue: 'release-binding',
-      namespace: element.namespace,
-      project: element.project,
-      component: element.component,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'release-binding' as const,
+        contextValue: 'release-binding',
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: element.namespace,
+        project: element.project,
+        component: element.component,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchWorkloads(
@@ -445,15 +465,19 @@ export class ResourceExplorerProvider
       return [{ label: 'No workloads', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'workload' as const,
-      contextValue: this.resolveContextValue('workload'),
-      namespace: element.namespace,
-      project: element.project,
-      component: element.component,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'workload' as const,
+        contextValue: isDeleting ? 'workload' : this.resolveContextValue('workload'),
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: element.namespace,
+        project: element.project,
+        component: element.component,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 }

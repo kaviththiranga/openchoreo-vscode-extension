@@ -217,7 +217,7 @@ export class ClusterExplorerProvider
     }
 
     const items =
-      (data as { items?: Array<{ metadata?: { name?: string } }> })?.items ?? [];
+      (data as { items?: Array<{ metadata?: { name?: string; deletionTimestamp?: string } }> })?.items ?? [];
     if (items.length === 0) {
       return [
         {
@@ -229,13 +229,17 @@ export class ClusterExplorerProvider
       ];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: nodeType,
-      contextValue: this.resolveContextValue(nodeType),
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!item.metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: nodeType,
+        contextValue: isDeleting ? nodeType : this.resolveContextValue(nodeType),
+        description: isDeleting ? '(deleting)' : undefined,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async requireClient(): Promise<Client> {

@@ -37,7 +37,8 @@ interface ResourceUri {
 export function buildResourceUri(node: ResourceNodeData): vscode.Uri {
   const resourceService = new ResourceService();
   const isCluster = resourceService.isClusterScoped(node.type);
-  const isEditable = DEFINITION_RESOURCE_TYPES.has(node.type);
+  const isDeleting = node.description?.includes('(deleting)') ?? false;
+  const isEditable = !isDeleting && DEFINITION_RESOURCE_TYPES.has(node.type);
 
   const nsSegment = isCluster ? '_cluster' : (node.namespace ?? 'default');
   const name = node.resourceName ?? node.label;

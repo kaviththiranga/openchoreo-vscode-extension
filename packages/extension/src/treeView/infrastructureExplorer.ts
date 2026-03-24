@@ -282,17 +282,18 @@ export class InfrastructureExplorerProvider
       ];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'environment' as const,
-      contextValue: this.resolveContextValue('environment'),
-      description: (item.spec as { dataPlaneRef?: string } | undefined)?.dataPlaneRef
-        ? `dp: ${(item.spec as { dataPlaneRef?: string }).dataPlaneRef}`
-        : undefined,
-      namespace: ns,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'environment' as const,
+        contextValue: isDeleting ? 'environment' : this.resolveContextValue('environment'),
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: ns,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchDataPlanes(ns: string): Promise<ResourceNodeData[]> {
@@ -313,14 +314,18 @@ export class InfrastructureExplorerProvider
       ];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'data-plane' as const,
-      contextValue: this.resolveContextValue('data-plane'),
-      namespace: ns,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'data-plane' as const,
+        contextValue: isDeleting ? 'data-plane' : this.resolveContextValue('data-plane'),
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: ns,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchWorkflowPlanes(ns: string): Promise<ResourceNodeData[]> {
@@ -341,14 +346,18 @@ export class InfrastructureExplorerProvider
       ];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'workflow-plane' as const,
-      contextValue: this.resolveContextValue('workflow-plane'),
-      namespace: ns,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'workflow-plane' as const,
+        contextValue: isDeleting ? 'workflow-plane' : this.resolveContextValue('workflow-plane'),
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: ns,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchObservabilityPlanes(
@@ -376,14 +385,18 @@ export class InfrastructureExplorerProvider
       ];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'observability-plane' as const,
-      contextValue: this.resolveContextValue('observability-plane'),
-      namespace: ns,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'observability-plane' as const,
+        contextValue: isDeleting ? 'observability-plane' : this.resolveContextValue('observability-plane'),
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: ns,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchComponentTypes(ns: string): Promise<ResourceNodeData[]> {
@@ -409,14 +422,18 @@ export class InfrastructureExplorerProvider
       ];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'component-type' as const,
-      contextValue: this.resolveContextValue('component-type'),
-      namespace: ns,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'component-type' as const,
+        contextValue: isDeleting ? 'component-type' : this.resolveContextValue('component-type'),
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: ns,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchWorkflows(ns: string): Promise<ResourceNodeData[]> {
@@ -437,14 +454,18 @@ export class InfrastructureExplorerProvider
       ];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'workflow' as const,
-      contextValue: this.resolveContextValue('workflow'),
-      namespace: ns,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'workflow' as const,
+        contextValue: isDeleting ? 'workflow' : this.resolveContextValue('workflow'),
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: ns,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchTraits(ns: string): Promise<ResourceNodeData[]> {
@@ -465,14 +486,18 @@ export class InfrastructureExplorerProvider
       ];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'trait' as const,
-      contextValue: this.resolveContextValue('trait'),
-      namespace: ns,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'trait' as const,
+        contextValue: isDeleting ? 'trait' : this.resolveContextValue('trait'),
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: ns,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchSecretReferences(
@@ -500,14 +525,18 @@ export class InfrastructureExplorerProvider
       ];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'secret-reference' as const,
-      contextValue: this.resolveContextValue('secret-reference'),
-      namespace: ns,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'secret-reference' as const,
+        contextValue: isDeleting ? 'secret-reference' : this.resolveContextValue('secret-reference'),
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: ns,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchNamespaceRoles(ns: string): Promise<ResourceNodeData[]> {
@@ -533,14 +562,18 @@ export class InfrastructureExplorerProvider
       ];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'namespace-role' as const,
-      contextValue: this.resolveContextValue('namespace-role'),
-      namespace: ns,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'namespace-role' as const,
+        contextValue: isDeleting ? 'namespace-role' : this.resolveContextValue('namespace-role'),
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: ns,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchNamespaceRoleBindings(
@@ -568,14 +601,18 @@ export class InfrastructureExplorerProvider
       ];
     }
 
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'namespace-role-binding' as const,
-      contextValue: this.resolveContextValue('namespace-role-binding'),
-      namespace: ns,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'namespace-role-binding' as const,
+        contextValue: isDeleting ? 'namespace-role-binding' : this.resolveContextValue('namespace-role-binding'),
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: ns,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   // --- Helpers ---
