@@ -47,6 +47,11 @@
           "id": "openchoreo.infrastructureExplorer",
           "name": "Platform Resources",
           "visibility": "collapsed"
+        },
+        {
+          "id": "openchoreo.clusterExplorer",
+          "name": "Cluster Resources",
+          "visibility": "collapsed"
         }
       ]
     },
@@ -107,6 +112,12 @@
         "title": "Create",
         "category": "OpenChoreo",
         "icon": "$(add)"
+      },
+      {
+        "command": "openchoreo.refreshCluster",
+        "title": "Refresh Cluster Resources",
+        "category": "OpenChoreo",
+        "icon": "$(refresh)"
       }
     ],
     "menus": {
@@ -147,6 +158,11 @@
           "command": "openchoreo.createResource",
           "when": "view == openchoreo.infrastructureExplorer",
           "group": "navigation"
+        },
+        {
+          "command": "openchoreo.refreshCluster",
+          "when": "view == openchoreo.clusterExplorer",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
@@ -162,7 +178,12 @@
         },
         {
           "command": "openchoreo.openResource",
-          "when": "view == openchoreo.infrastructureExplorer && viewItem =~ /^(environment|data-plane|workflow-plane|observability-plane|component-type|workflow|trait|secret-reference|namespace-role|namespace-role-binding|cluster-role|cluster-role-binding|cluster-component-type|cluster-workflow|cluster-trait|cluster-data-plane|cluster-workflow-plane|cluster-observability-plane)(_editable)?(_deletable)?$/",
+          "when": "view == openchoreo.infrastructureExplorer && viewItem =~ /^(environment|data-plane|workflow-plane|observability-plane|component-type|workflow|trait|secret-reference|namespace-role|namespace-role-binding)(_editable)?(_deletable)?$/",
+          "group": "inline"
+        },
+        {
+          "command": "openchoreo.openResource",
+          "when": "view == openchoreo.clusterExplorer && viewItem =~ /^(cluster-component-type|cluster-workflow|cluster-trait|cluster-data-plane|cluster-workflow-plane|cluster-observability-plane|cluster-role|cluster-role-binding)(_editable)?(_deletable)?$/",
           "group": "inline"
         },
         {

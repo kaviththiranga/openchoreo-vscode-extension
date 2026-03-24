@@ -83,58 +83,6 @@ export class InfrastructureExplorerProvider
       });
     }
 
-    // Cluster-scoped resources (always visible, not namespace-bound)
-    nodes.push({
-        label: 'Cluster Resources',
-        type: 'infra-category',
-        contextValue: 'infra-category',
-        childrenMode: 'preloaded',
-        children: [
-          {
-            label: 'Cluster Component Types',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-component-types',
-          },
-          {
-            label: 'Cluster Workflows',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-workflows',
-          },
-          {
-            label: 'Cluster Traits',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-traits',
-          },
-          {
-            label: 'Cluster Data Planes',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-data-planes',
-          },
-          {
-            label: 'Cluster Workflow Planes',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-workflow-planes',
-          },
-          {
-            label: 'Cluster Observability Planes',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-observability-planes',
-          },
-        ],
-      });
-
     return nodes;
   }
 
@@ -213,7 +161,7 @@ export class InfrastructureExplorerProvider
         childrenMode: 'preloaded',
         children: [
           {
-            label: 'Namespace Roles',
+            label: 'Roles',
             type: 'infra-category',
             contextValue: 'infra-category',
             namespace: ns,
@@ -221,28 +169,12 @@ export class InfrastructureExplorerProvider
             lazyChildrenKey: 'namespace-roles',
           },
           {
-            label: 'Namespace Role Bindings',
+            label: 'Role Bindings',
             type: 'infra-category',
             contextValue: 'infra-category',
             namespace: ns,
             childrenMode: 'lazy',
             lazyChildrenKey: 'namespace-role-bindings',
-          },
-          {
-            label: 'Cluster Roles',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            namespace: ns,
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-roles',
-          },
-          {
-            label: 'Cluster Role Bindings',
-            type: 'infra-category',
-            contextValue: 'infra-category',
-            namespace: ns,
-            childrenMode: 'lazy',
-            lazyChildrenKey: 'cluster-role-bindings',
           },
         ],
       },
@@ -262,15 +194,6 @@ export class InfrastructureExplorerProvider
       'secret-reference',
       'namespace-role',
       'namespace-role-binding',
-      'cluster-role',
-      'cluster-role-binding',
-      // Cluster-scoped
-      'cluster-component-type',
-      'cluster-workflow',
-      'cluster-trait',
-      'cluster-data-plane',
-      'cluster-workflow-plane',
-      'cluster-observability-plane',
     ]);
 
   private resolveContextValue(type: ResourceNodeType): string {
@@ -313,23 +236,6 @@ export class InfrastructureExplorerProvider
           return this.fetchNamespaceRoles(element.namespace!);
         case 'namespace-role-bindings':
           return this.fetchNamespaceRoleBindings(element.namespace!);
-        case 'cluster-roles':
-          return this.fetchClusterRoles();
-        case 'cluster-role-bindings':
-          return this.fetchClusterRoleBindings();
-        // Cluster-scoped
-        case 'cluster-component-types':
-          return this.fetchClusterComponentTypes();
-        case 'cluster-workflows':
-          return this.fetchClusterWorkflows();
-        case 'cluster-traits':
-          return this.fetchClusterTraits();
-        case 'cluster-data-planes':
-          return this.fetchClusterDataPlanes();
-        case 'cluster-workflow-planes':
-          return this.fetchClusterWorkflowPlanes();
-        case 'cluster-observability-planes':
-          return this.fetchClusterObservabilityPlanes();
         default:
           return [];
       }
@@ -656,198 +562,6 @@ export class InfrastructureExplorerProvider
       type: 'namespace-role-binding' as const,
       contextValue: this.resolveContextValue('namespace-role-binding'),
       namespace: ns,
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
-  }
-
-  private async fetchClusterRoles(): Promise<ResourceNodeData[]> {
-    const client = await this.requireClient();
-    const { data, error } = await client.GET('/api/v1/clusterauthzroles');
-
-    if (error) {
-      return [];
-    }
-
-    const items = data?.items ?? [];
-    if (items.length === 0) {
-      return [
-        {
-          label: 'No cluster roles',
-          type: 'empty',
-          contextValue: 'empty',
-          childrenMode: 'none',
-        },
-      ];
-    }
-
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'cluster-role' as const,
-      contextValue: this.resolveContextValue('cluster-role'),
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
-  }
-
-  private async fetchClusterRoleBindings(): Promise<ResourceNodeData[]> {
-    const client = await this.requireClient();
-    const { data, error } = await client.GET('/api/v1/clusterauthzrolebindings');
-
-    if (error) {
-      return [];
-    }
-
-    const items = data?.items ?? [];
-    if (items.length === 0) {
-      return [
-        {
-          label: 'No cluster role bindings',
-          type: 'empty',
-          contextValue: 'empty',
-          childrenMode: 'none',
-        },
-      ];
-    }
-
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'cluster-role-binding' as const,
-      contextValue: this.resolveContextValue('cluster-role-binding'),
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
-  }
-
-  // --- Cluster-scoped infrastructure endpoints ---
-
-  private async fetchClusterComponentTypes(): Promise<ResourceNodeData[]> {
-    const client = await this.requireClient();
-    const { data, error } = await client.GET('/api/v1/clustercomponenttypes');
-
-    if (error) {
-      return [];
-    }
-
-    const items = data?.items ?? [];
-    if (items.length === 0) {
-      return [{ label: 'No cluster component types', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
-    }
-
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'cluster-component-type' as const,
-      contextValue: this.resolveContextValue('cluster-component-type'),
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
-  }
-
-  private async fetchClusterWorkflows(): Promise<ResourceNodeData[]> {
-    const client = await this.requireClient();
-    const { data, error } = await client.GET('/api/v1/clusterworkflows');
-
-    if (error) {
-      return [];
-    }
-
-    const items = data?.items ?? [];
-    if (items.length === 0) {
-      return [{ label: 'No cluster workflows', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
-    }
-
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'cluster-workflow' as const,
-      contextValue: this.resolveContextValue('cluster-workflow'),
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
-  }
-
-  private async fetchClusterTraits(): Promise<ResourceNodeData[]> {
-    const client = await this.requireClient();
-    const { data, error } = await client.GET('/api/v1/clustertraits');
-
-    if (error) {
-      return [];
-    }
-
-    const items = data?.items ?? [];
-    if (items.length === 0) {
-      return [{ label: 'No cluster traits', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
-    }
-
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'cluster-trait' as const,
-      contextValue: this.resolveContextValue('cluster-trait'),
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
-  }
-
-  private async fetchClusterDataPlanes(): Promise<ResourceNodeData[]> {
-    const client = await this.requireClient();
-    const { data, error } = await client.GET('/api/v1/clusterdataplanes');
-
-    if (error) {
-      return [];
-    }
-
-    const items = data?.items ?? [];
-    if (items.length === 0) {
-      return [{ label: 'No cluster data planes', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
-    }
-
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'cluster-data-plane' as const,
-      contextValue: this.resolveContextValue('cluster-data-plane'),
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
-  }
-
-  private async fetchClusterWorkflowPlanes(): Promise<ResourceNodeData[]> {
-    const client = await this.requireClient();
-    const { data, error } = await client.GET('/api/v1/clusterworkflowplanes');
-
-    if (error) {
-      return [];
-    }
-
-    const items = data?.items ?? [];
-    if (items.length === 0) {
-      return [{ label: 'No cluster workflow planes', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
-    }
-
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'cluster-workflow-plane' as const,
-      contextValue: this.resolveContextValue('cluster-workflow-plane'),
-      resourceName: item.metadata?.name as string,
-      childrenMode: 'none' as const,
-    }));
-  }
-
-  private async fetchClusterObservabilityPlanes(): Promise<ResourceNodeData[]> {
-    const client = await this.requireClient();
-    const { data, error } = await client.GET('/api/v1/clusterobservabilityplanes');
-
-    if (error) {
-      return [];
-    }
-
-    const items = data?.items ?? [];
-    if (items.length === 0) {
-      return [{ label: 'No cluster observability planes', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
-    }
-
-    return items.map((item) => ({
-      label: (item.metadata?.name as string) ?? 'unknown',
-      type: 'cluster-observability-plane' as const,
-      contextValue: this.resolveContextValue('cluster-observability-plane'),
       resourceName: item.metadata?.name as string,
       childrenMode: 'none' as const,
     }));

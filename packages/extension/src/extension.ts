@@ -19,6 +19,7 @@ import { DeleteService } from './services/deleteService';
 import { registerCommands } from './commands/commands';
 import { registerNamespaceSelector } from './commands/namespaceSelector';
 import { initLogger, log } from './logging/logger';
+import { ClusterExplorerProvider } from './treeView/clusterExplorer';
 import {
   OpenChoreoFileSystemProvider,
   FS_SCHEME,
@@ -79,12 +80,46 @@ export async function activate(
   );
   context.subscriptions.push(infrastructureTreeView);
 
+  // Show current namespace in view descriptions
+  const updateViewDescriptions = () => {
+    const ns = authProvider.getContextInfo()?.namespace;
+    resourceTreeView.description = ns || undefined;
+    infrastructureTreeView.description = ns || undefined;
+  };
+  updateViewDescriptions();
+  context.subscriptions.push(
+    authProvider.onDidChangeSession(updateViewDescriptions),
+  );
+
+  // Initialize cluster resources explorer tree view
+  const clusterExplorer = new ClusterExplorerProvider(
+    authProvider,
+    apiClientManager,
+    capabilityService,
+  );
+  const clusterTreeView = vscode.window.createTreeView(
+    'openchoreo.clusterExplorer',
+    {
+      treeDataProvider: clusterExplorer,
+      showCollapseAll: true,
+    },
+  );
+  context.subscriptions.push(clusterTreeView);
+
+  // Register cluster refresh command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('openchoreo.refreshCluster', () => {
+      clusterExplorer.refresh();
+    }),
+  );
+
   // Register virtual filesystem provider for resource editing
   const fsProvider = new OpenChoreoFileSystemProvider(
     apiClientManager,
     () => {
       resourceExplorer.refresh();
       infrastructureExplorer.refresh();
+      clusterExplorer.refresh();
     },
   );
   context.subscriptions.push(
