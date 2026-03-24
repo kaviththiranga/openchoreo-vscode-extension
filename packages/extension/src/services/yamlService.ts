@@ -92,7 +92,8 @@ metadata:
   name: my-project
   namespace: "{{namespace}}"
 spec:
-  deploymentPipelineRef: standard-pipeline
+  deploymentPipelineRef:
+    name: standard-pipeline
 `,
 
   Component: `apiVersion: openchoreo.dev/v1alpha1
@@ -104,23 +105,13 @@ spec:
   owner:
     projectName: "{{project}}"
 
-  componentType: service
+  componentType:
+    name: service
 
   workflow:
     name: docker
     parameters:
       dockerfile: Dockerfile
-    systemParameters:
-      repository:
-        url: https://github.com/org/repo
-        revision:
-          branch: main
-        appPath: "."
-
-  parameters:
-    replicas: 1
-
-  traits: []
 
   autoDeploy: true
 `,
@@ -134,14 +125,16 @@ spec:
   workloadType: deployment
 
   allowedWorkflows:
-    - name: docker
+    - kind: Workflow
+      name: docker
 
-  schema:
-    types: {}
-    parameters:
-      replicas:
-        type: "integer | default=1"
-    envOverrides: {}
+  parameters:
+    openAPIV3Schema:
+      type: object
+      properties:
+        replicas:
+          type: integer
+          default: 1
 
   resources:
     - id: deployment
@@ -162,7 +155,7 @@ spec:
             spec:
               containers:
                 - name: main
-                  image: "\${workload.containers.main.image}"
+                  image: "\${workload.container.image}"
 `,
 
   Trait: `apiVersion: openchoreo.dev/v1alpha1
@@ -171,16 +164,16 @@ metadata:
   name: my-trait
   namespace: "{{namespace}}"
 spec:
-  schema:
-    parameters:
-      enabled:
-        type: "boolean | default=true"
-    envOverrides: {}
+  parameters:
+    openAPIV3Schema:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          default: true
 
-  resources:
-    - id: trait-resource
-      includeWhen: "\${parameters.enabled}"
-      template:
+  creates:
+    - template:
         apiVersion: v1
         kind: ConfigMap
         metadata:
@@ -195,10 +188,10 @@ metadata:
   name: development
   namespace: "{{namespace}}"
 spec:
-  dataPlaneRef: default
+  dataPlaneRef:
+    kind: DataPlane
+    name: default
   isProduction: false
-  gateway:
-    dnsPrefix: api
 `,
 
   DataPlane: `apiVersion: openchoreo.dev/v1alpha1
@@ -207,21 +200,7 @@ metadata:
   name: default
   namespace: "{{namespace}}"
 spec:
-  kubernetesCluster:
-    server: https://kubernetes.default.svc
-    tls:
-      ca:
-        secretRef:
-          name: cluster-ca
-          key: ca.crt
-    auth:
-      bearerToken:
-        secretRef:
-          name: cluster-token
-          key: token
-  gateway:
-    publicVirtualHost: api.example.com
-    organizationVirtualHost: internal.example.com
+  planeID: prod-cluster
 `,
 
   Workflow: `apiVersion: openchoreo.dev/v1alpha1
@@ -284,11 +263,11 @@ metadata:
   name: standard-pipeline
   namespace: "{{namespace}}"
 spec:
-  stages:
-    - name: development
-      environmentRef: development
-    - name: production
-      environmentRef: production
+  promotionPaths:
+    - sourceEnvironmentRef:
+        name: development
+      targetEnvironmentRefs:
+        - name: production
 `,
 
   WorkflowPlane: `apiVersion: openchoreo.dev/v1alpha1

@@ -32,92 +32,169 @@
     "spec": {
       "type": "object",
       "description": "ComponentType specification",
+      "additionalProperties": false,
       "properties": {
         "workloadType": {
           "type": "string",
           "enum": ["deployment", "statefulset", "cronjob", "job", "proxy"],
-          "description": "Type of Kubernetes workload to create. Determines the base resource template."
+          "description": "Primary workload resource type for this component type"
         },
         "allowedWorkflows": {
           "type": "array",
-          "description": "Optional list of allowed build workflows for this component type",
+          "description": "List of allowed Workflow or ClusterWorkflow references for this component type",
           "items": {
             "type": "object",
+            "required": ["name"],
             "properties": {
+              "kind": {
+                "type": "string",
+                "description": "Kind of the workflow reference (Workflow or ClusterWorkflow)",
+                "enum": ["Workflow", "ClusterWorkflow"],
+                "default": "ClusterWorkflow"
+              },
               "name": {
                 "type": "string",
-                "description": "Name of an allowed Workflow resource",
+                "description": "Name of the workflow resource",
+                "minLength": 1,
                 "x-openchoreo-ref": "Workflow+ClusterWorkflow"
               }
-            },
-            "required": ["name"]
+            }
+          }
+        },
+        "parameters": {
+          "type": "object",
+          "description": "Schema section for component parameters",
+          "properties": {
+            "openAPIV3Schema": {
+              "type": "object",
+              "description": "Schema using standard OpenAPI V3 / JSON Schema format",
+              "additionalProperties": true
+            }
+          }
+        },
+        "environmentConfigs": {
+          "type": "object",
+          "description": "Schema section for environment-specific configuration overrides",
+          "properties": {
+            "openAPIV3Schema": {
+              "type": "object",
+              "description": "Schema using standard OpenAPI V3 / JSON Schema format",
+              "additionalProperties": true
+            }
+          }
+        },
+        "traits": {
+          "type": "array",
+          "description": "Pre-configured trait instances embedded in this component type",
+          "items": {
+            "type": "object",
+            "required": ["name", "instanceName"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "description": "Kind of trait (Trait or ClusterTrait)",
+                "enum": ["Trait", "ClusterTrait"],
+                "default": "Trait"
+              },
+              "name": {
+                "type": "string",
+                "description": "Name of the Trait resource",
+                "x-openchoreo-ref": "Trait+ClusterTrait"
+              },
+              "instanceName": {
+                "type": "string",
+                "description": "Unique instance name for this trait"
+              },
+              "parameters": {
+                "type": "object",
+                "description": "Trait parameter bindings (concrete values or CEL expressions)",
+                "additionalProperties": true
+              },
+              "environmentConfigs": {
+                "type": "object",
+                "description": "Trait environment override bindings",
+                "additionalProperties": true
+              }
+            }
           }
         },
         "allowedTraits": {
           "type": "array",
-          "description": "Optional list of allowed traits for this component type",
+          "description": "Restricts which Trait or ClusterTrait CRs developers can attach to Components of this type. If empty or omitted, no additional component-level traits are permitted.",
           "items": {
             "type": "object",
+            "required": ["name"],
             "properties": {
+              "kind": {
+                "type": "string",
+                "description": "Kind of trait reference",
+                "enum": ["Trait", "ClusterTrait"],
+                "default": "Trait"
+              },
               "name": {
                 "type": "string",
-                "description": "Name of an allowed Trait resource",
+                "description": "Name of the Trait or ClusterTrait resource",
                 "x-openchoreo-ref": "Trait+ClusterTrait"
               }
-            },
-            "required": ["name"]
+            }
           }
         },
-        "schema": {
-          "type": "object",
-          "description": "Schema definitions for developer-facing parameters and PE-controlled overrides",
-          "properties": {
-            "types": {
-              "type": "object",
-              "description": "Reusable type definitions referenced by parameters and envOverrides",
-              "additionalProperties": true
-            },
-            "parameters": {
-              "type": "object",
-              "description": "Developer-facing configuration parameters. Values use schema DSL format: \"type | constraint=value\"",
-              "additionalProperties": true
-            },
-            "envOverrides": {
-              "type": "object",
-              "description": "Platform Engineer-controlled per-environment overrides",
-              "additionalProperties": true
+        "validations": {
+          "type": "array",
+          "description": "CEL-based validation rules evaluated during rendering",
+          "items": {
+            "type": "object",
+            "required": ["rule", "message"],
+            "properties": {
+              "rule": {
+                "type": "string",
+                "description": "CEL expression wrapped in ${...} that must evaluate to true",
+                "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$"
+              },
+              "message": {
+                "type": "string",
+                "description": "Error message shown when the rule evaluates to false",
+                "minLength": 1
+              }
             }
           }
         },
         "resources": {
           "type": "array",
-          "description": "Kubernetes resource templates to generate. Uses CEL expressions for dynamic values.",
+          "description": "Templates that generate Kubernetes resources dynamically",
+          "minItems": 1,
           "items": {
             "type": "object",
+            "required": ["id", "template"],
             "properties": {
               "id": {
                 "type": "string",
-                "description": "Unique identifier for this resource template. For the primary resource, must match workloadType."
+                "description": "Unique identifier for this resource within the component type"
+              },
+              "targetPlane": {
+                "type": "string",
+                "description": "Target plane for deployment",
+                "enum": ["dataplane", "observabilityplane"],
+                "default": "dataplane"
               },
               "includeWhen": {
                 "type": "string",
-                "description": "CEL expression that determines whether to include this resource. Empty = always include."
+                "description": "CEL expression determining if this resource should be created"
               },
               "forEach": {
                 "type": "string",
-                "description": "CEL expression that returns a list to iterate over, generating one resource per item."
+                "description": "CEL expression for generating multiple resources from a list"
               },
               "var": {
                 "type": "string",
-                "description": "Variable name for the current item when using forEach."
+                "description": "Loop variable name when using forEach"
               },
               "template": {
                 "type": "object",
-                "description": "Kubernetes resource template with CEL expressions in ${...} blocks",
+                "description": "Kubernetes resource template with CEL expressions",
                 "additionalProperties": true
               }
-            },
-            "required": ["id", "template"]
+            }
           }
         }
       },

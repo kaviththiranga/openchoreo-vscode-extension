@@ -121,13 +121,7 @@
       }
     ],
     "menus": {
-      "editor/title": [
-        {
-          "command": "openchoreo.applyResource",
-          "when": "resourceScheme == untitled && editorLangId == yaml",
-          "group": "navigation"
-        }
-      ],
+      "editor/title": [],
       "view/title": [
         {
           "command": "openchoreo.selectNamespace",

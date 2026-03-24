@@ -39,31 +39,32 @@
         },
         "clusterAgent": {
           "type": "object",
-          "description": "Cluster agent configuration for connecting to the workflow execution cluster",
-          "properties": {
-            "kubernetesCluster": {
-              "type": "object",
-              "description": "Direct Kubernetes cluster connection configuration",
-              "properties": {
-                "server": {
-                  "type": "string",
-                  "description": "API server URL"
-                }
-              }
-            }
-          }
+          "description": "Configuration for cluster agent-based communication",
+          "additionalProperties": true
         },
         "secretStoreRef": {
           "type": "object",
-          "description": "Reference to a secret store for managing secrets",
+          "description": "Reference to an External Secrets Operator ClusterSecretStore",
           "properties": {
             "name": {
               "type": "string",
-              "description": "Name of the secret store resource"
-            },
+              "description": "Name of the ClusterSecretStore resource"
+            }
+          }
+        },
+        "observabilityPlaneRef": {
+          "type": "object",
+          "description": "Reference to an ObservabilityPlane or ClusterObservabilityPlane",
+          "required": ["kind", "name"],
+          "properties": {
             "kind": {
               "type": "string",
-              "description": "Kind of secret store"
+              "description": "Kind of observability plane (ObservabilityPlane or ClusterObservabilityPlane)",
+              "enum": ["ObservabilityPlane", "ClusterObservabilityPlane"]
+            },
+            "name": {
+              "type": "string",
+              "description": "Name of the observability plane resource"
             }
           }
         }

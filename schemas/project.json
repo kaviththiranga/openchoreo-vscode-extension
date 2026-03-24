@@ -34,9 +34,24 @@
       "additionalProperties": false,
       "properties": {
         "deploymentPipelineRef": {
-          "type": "string",
-          "description": "Reference to a DeploymentPipeline resource in the same namespace",
-          "x-openchoreo-ref": "DeploymentPipeline"
+          "type": "object",
+          "description": "Reference to the DeploymentPipeline that defines the environments and deployment progression for components in this project.",
+          "required": ["name"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "description": "Kind of deployment pipeline resource",
+              "enum": ["DeploymentPipeline"],
+              "default": "DeploymentPipeline"
+            },
+            "name": {
+              "type": "string",
+              "description": "Name of the deployment pipeline resource",
+              "minLength": 1,
+              "maxLength": 63,
+              "x-openchoreo-ref": "DeploymentPipeline"
+            }
+          }
         }
       },
       "required": ["deploymentPipelineRef"]

@@ -36,7 +36,7 @@
       "properties": {
         "workflowPlaneRef": {
           "type": "object",
-          "description": "Reference to a WorkflowPlane or ClusterWorkflowPlane",
+          "description": "Reference to the WorkflowPlane or ClusterWorkflowPlane for this workflow's operations. Defaults to ClusterWorkflowPlane named \"default\" when omitted.",
           "required": ["kind", "name"],
           "properties": {
             "kind": {
@@ -72,23 +72,57 @@
           "description": "Additional resource templates to render and apply alongside the workflow run",
           "items": {
             "type": "object",
+            "required": ["id", "template"],
             "properties": {
               "id": {
                 "type": "string",
-                "description": "Unique identifier for this resource"
+                "description": "Unique identifier for this resource within the workflow"
+              },
+              "includeWhen": {
+                "type": "string",
+                "description": "CEL expression that determines whether this resource is rendered"
               },
               "template": {
                 "type": "object",
-                "description": "Kubernetes resource template",
+                "description": "Kubernetes resource template with CEL expressions",
                 "additionalProperties": true
               }
-            },
-            "required": ["id", "template"]
+            }
+          }
+        },
+        "externalRefs": {
+          "type": "array",
+          "description": "External CR references resolved and injected into the CEL context under their id",
+          "items": {
+            "type": "object",
+            "required": ["id", "apiVersion", "kind", "name"],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Unique identifier; becomes the CEL context variable name",
+                "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+                "minLength": 2,
+                "maxLength": 63
+              },
+              "apiVersion": {
+                "type": "string",
+                "description": "API version of the referenced resource"
+              },
+              "kind": {
+                "type": "string",
+                "description": "Kind of the referenced resource",
+                "enum": ["SecretReference"]
+              },
+              "name": {
+                "type": "string",
+                "description": "Name of the referenced resource (supports CEL expressions)"
+              }
+            }
           }
         },
         "ttlAfterCompletion": {
           "type": "string",
-          "description": "Time-to-live for WorkflowRun instances after completion (e.g. 10d1h30m)"
+          "description": "Time-to-live for WorkflowRun instances after completion (duration string like 10d1h30m)"
         }
       }
     }

@@ -36,11 +36,11 @@
       "properties": {
         "owner": {
           "type": "object",
-          "description": "Ownership information linking this component to a project",
+          "description": "Ownership information for the component",
           "properties": {
             "projectName": {
               "type": "string",
-              "description": "Name of the project that owns this component",
+              "description": "Name of the project this component belongs to",
               "x-openchoreo-ref": "Project",
               "minLength": 1
             }
@@ -48,87 +48,89 @@
           "required": ["projectName"]
         },
         "componentType": {
-          "type": "string",
-          "description": "Reference to a ComponentType resource that defines how this component deploys",
-          "x-openchoreo-ref": "ComponentType+ClusterComponentType"
-        },
-        "workflow": {
           "type": "object",
-          "description": "Build workflow configuration. Optional for from-image components.",
+          "description": "Reference to the ComponentType or ClusterComponentType",
+          "required": ["name"],
           "properties": {
+            "kind": {
+              "type": "string",
+              "description": "Kind of component type (ComponentType or ClusterComponentType)",
+              "enum": ["ComponentType", "ClusterComponentType"],
+              "default": "ComponentType"
+            },
             "name": {
               "type": "string",
-              "description": "Name of the Workflow resource to use for builds",
-              "x-openchoreo-ref": "Workflow+ClusterWorkflow"
-            },
-            "parameters": {
-              "type": "object",
-              "description": "Workflow-specific parameters (e.g., dockerfile path)",
-              "additionalProperties": true
-            },
-            "systemParameters": {
-              "type": "object",
-              "description": "System-managed parameters like repository configuration",
-              "properties": {
-                "repository": {
-                  "type": "object",
-                  "properties": {
-                    "url": {
-                      "type": "string",
-                      "description": "Git repository URL"
-                    },
-                    "revision": {
-                      "type": "object",
-                      "properties": {
-                        "branch": {
-                          "type": "string",
-                          "description": "Git branch to build from"
-                        }
-                      }
-                    },
-                    "appPath": {
-                      "type": "string",
-                      "description": "Path within the repository to the application source"
-                    }
-                  }
-                }
-              }
+              "description": "Component type reference in format: {workloadType}/{componentTypeName}",
+              "x-openchoreo-ref": "ComponentType"
             }
-          }
-        },
-        "parameters": {
-          "type": "object",
-          "description": "Component parameters defined by the ComponentType schema",
-          "additionalProperties": true
-        },
-        "traits": {
-          "type": "array",
-          "description": "Traits attached to this component",
-          "items": {
-            "type": "object",
-            "properties": {
-              "name": {
-                "type": "string",
-                "description": "Name of the Trait resource",
-                "x-openchoreo-ref": "Trait+ClusterTrait"
-              },
-              "instanceName": {
-                "type": "string",
-                "description": "Unique instance name for this trait attachment"
-              },
-              "parameters": {
-                "type": "object",
-                "description": "Trait-specific parameters",
-                "additionalProperties": true
-              }
-            },
-            "required": ["name"]
           }
         },
         "autoDeploy": {
           "type": "boolean",
-          "description": "If true, automatically deploy new releases to the first environment in the pipeline",
+          "description": "Whether to automatically deploy to default environment when created",
           "default": false
+        },
+        "autoBuild": {
+          "type": "boolean",
+          "description": "Whether to automatically trigger builds on code push"
+        },
+        "parameters": {
+          "type": "object",
+          "description": "ComponentType parameter values (schema defined by the referenced ComponentType)",
+          "additionalProperties": true
+        },
+        "traits": {
+          "type": "array",
+          "description": "Trait instances attached to the component",
+          "items": {
+            "type": "object",
+            "required": ["name", "instanceName"],
+            "properties": {
+              "kind": {
+                "type": "string",
+                "description": "Kind of trait resource (Trait for namespace-scoped, ClusterTrait for cluster-scoped)",
+                "enum": ["Trait", "ClusterTrait"],
+                "default": "Trait"
+              },
+              "name": {
+                "type": "string",
+                "description": "Trait template name",
+                "x-openchoreo-ref": "Trait+ClusterTrait"
+              },
+              "instanceName": {
+                "type": "string",
+                "description": "Instance name for this trait attachment"
+              },
+              "parameters": {
+                "type": "object",
+                "description": "Trait parameters",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "workflow": {
+          "type": "object",
+          "description": "Workflow configuration for a component",
+          "required": ["name"],
+          "properties": {
+            "kind": {
+              "type": "string",
+              "description": "Kind of referenced workflow resource (Workflow or ClusterWorkflow)",
+              "enum": ["Workflow", "ClusterWorkflow"],
+              "default": "ClusterWorkflow"
+            },
+            "name": {
+              "type": "string",
+              "description": "Referenced workflow resource name",
+              "x-openchoreo-ref": "Workflow+ClusterWorkflow"
+            },
+            "parameters": {
+              "type": "object",
+              "description": "Developer-provided parameters for the referenced workflow",
+              "additionalProperties": true
+            }
+          }
         }
       },
       "required": ["owner", "componentType"]

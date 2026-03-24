@@ -42,29 +42,43 @@
             "properties": {
               "sourceEnvironmentRef": {
                 "type": "object",
-                "description": "Reference to the source environment",
+                "description": "Reference to the source environment for this promotion path",
+                "required": ["name"],
                 "properties": {
+                  "kind": {
+                    "type": "string",
+                    "description": "Kind of environment resource",
+                    "enum": ["Environment"],
+                    "default": "Environment"
+                  },
                   "name": {
                     "type": "string",
                     "description": "Name of the source environment",
+                    "minLength": 1,
+                    "maxLength": 63,
                     "x-openchoreo-ref": "Environment"
                   }
-                },
-                "required": ["name"]
+                }
               },
               "targetEnvironmentRefs": {
                 "type": "array",
-                "description": "References to target environments",
+                "description": "Target environments for promotion",
                 "items": {
                   "type": "object",
+                  "required": ["name"],
                   "properties": {
+                    "kind": {
+                      "type": "string",
+                      "description": "Kind of environment resource",
+                      "enum": ["Environment"],
+                      "default": "Environment"
+                    },
                     "name": {
                       "type": "string",
-                      "description": "Name of the target environment",
+                      "description": "Target environment name",
                       "x-openchoreo-ref": "Environment"
                     }
-                  },
-                  "required": ["name"]
+                  }
                 }
               }
             }

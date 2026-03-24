@@ -87,10 +87,18 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
 
   private readonly resourceService = new ResourceService();
 
+  /** Scaffold content for new resources — keyed by URI string. */
+  private readonly pendingContent = new Map<string, Uint8Array>();
+
   constructor(
     private readonly apiClientManager: ApiClientManager,
     private readonly onResourceSaved?: () => void,
   ) {}
+
+  /** Store scaffold content for a URI so readFile returns it instead of fetching from API. */
+  setPendingContent(uri: vscode.Uri, content: string): void {
+    this.pendingContent.set(uri.toString(), new TextEncoder().encode(content));
+  }
 
   watch(): vscode.Disposable {
     // No-op: we don't poll for remote changes.
@@ -115,6 +123,13 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
   }
 
   async readFile(uri: vscode.Uri): Promise<Uint8Array> {
+    // Return pending scaffold content for new resources
+    const pending = this.pendingContent.get(uri.toString());
+    if (pending) {
+      this.pendingContent.delete(uri.toString());
+      return pending;
+    }
+
     const parsed = parseResourceUri(uri);
 
     try {

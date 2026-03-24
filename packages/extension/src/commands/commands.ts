@@ -12,7 +12,11 @@ import type { DeleteService } from '../services/deleteService';
 import type { ResourceNodeData } from '../treeView/types';
 import { CRD_KIND_TO_SCAFFOLD } from '../services/yamlService';
 import { buildPutRequest } from '../services/apiRoutes';
-import { buildResourceUri } from '../filesystem/fileSystemProvider';
+import {
+  buildResourceUri,
+  FS_SCHEME,
+  type OpenChoreoFileSystemProvider,
+} from '../filesystem/fileSystemProvider';
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -22,6 +26,7 @@ export function registerCommands(
   apiClientManager: ApiClientManager,
   deleteService: DeleteService,
   capabilityService: CapabilityService,
+  fsProvider: OpenChoreoFileSystemProvider,
 ): void {
   // Refresh resources
   context.subscriptions.push(
@@ -252,7 +257,7 @@ export function registerCommands(
         }
 
         const ctxInfo = authProvider.getContextInfo();
-        openScaffold(selected, ctxInfo?.namespace, ctxInfo?.project);
+        openScaffold(selected, fsProvider, ctxInfo?.namespace, ctxInfo?.project);
       },
     ),
   );
@@ -278,7 +283,7 @@ export function registerCommands(
           if (!choice) {
             return;
           }
-          openScaffold(choice, ns, node.project);
+          openScaffold(choice, fsProvider, ns, node.project);
           return;
         }
 
@@ -302,7 +307,7 @@ export function registerCommands(
           };
           const kind = kindMap[node.lazyChildrenKey];
           if (kind) {
-            openScaffold(kind, ns);
+            openScaffold(kind, fsProvider, ns);
           }
           return;
         }
@@ -313,16 +318,17 @@ export function registerCommands(
           placeHolder: 'Select resource kind to create',
         });
         if (selected) {
-          openScaffold(selected, ns, node.project);
+          openScaffold(selected, fsProvider, ns, node.project);
         }
       },
     ),
   );
 }
 
-/** Open a scaffold YAML as an untitled document, pre-filling namespace and project. */
+/** Open a scaffold YAML on the openchoreo:// filesystem so Cmd+S creates on cluster. */
 async function openScaffold(
   kind: string,
+  provider: OpenChoreoFileSystemProvider,
   namespace?: string,
   project?: string,
 ): Promise<void> {
@@ -331,12 +337,42 @@ async function openScaffold(
     return;
   }
 
-  scaffold = scaffold.replace(/\{\{namespace\}\}/g, namespace ?? 'default');
+  const ns = namespace ?? 'default';
+  scaffold = scaffold.replace(/\{\{namespace\}\}/g, ns);
   scaffold = scaffold.replace(/\{\{project\}\}/g, project ?? 'default');
 
-  const doc = await vscode.workspace.openTextDocument({
-    language: 'yaml',
-    content: scaffold,
+  // Build a URI for the new resource on the virtual filesystem
+  const placeholderName = `my-${kind.toLowerCase()}`;
+  const nodeType = kindToNodeType(kind);
+  const uri = vscode.Uri.from({
+    scheme: FS_SCHEME,
+    path: `/${ns}/${nodeType}/${placeholderName}.yaml`,
   });
+
+  // Store scaffold content so readFile returns it instead of fetching from API
+  provider.setPendingContent(uri, scaffold);
+
+  const doc = await vscode.workspace.openTextDocument(uri);
+  if (doc.languageId !== 'yaml') {
+    await vscode.languages.setTextDocumentLanguage(doc, 'yaml');
+  }
   await vscode.window.showTextDocument(doc);
+}
+
+/** Map CRD kind name to ResourceNodeType for URI construction. */
+function kindToNodeType(kind: string): string {
+  const map: Record<string, string> = {
+    Project: 'project',
+    Component: 'component',
+    ComponentType: 'component-type',
+    Trait: 'trait',
+    Environment: 'environment',
+    DataPlane: 'data-plane',
+    WorkflowPlane: 'workflow-plane',
+    Workflow: 'workflow',
+    Workload: 'workload',
+    DeploymentPipeline: 'deployment-pipeline',
+    SecretReference: 'secret-reference',
+  };
+  return map[kind] ?? kind.toLowerCase();
 }

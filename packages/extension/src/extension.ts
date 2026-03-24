@@ -143,6 +143,7 @@ export async function activate(
     apiClientManager,
     deleteService,
     capabilityService,
+    fsProvider,
   );
 
   // Register namespace selector
