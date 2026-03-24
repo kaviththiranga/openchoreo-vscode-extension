@@ -7,7 +7,7 @@ import type { ApiClientManager } from '../api/apiClient';
 import type { ResourceNodeData, ResourceNodeType } from '../treeView/types';
 import { ResourceService } from '../services/resourceService';
 import { DEFINITION_RESOURCE_TYPES, crdToYaml } from '../services/yamlService';
-import { buildPutRequest, fetchResource } from '../services/apiRoutes';
+import { buildPutRequest, buildPostRequest, fetchResource } from '../services/apiRoutes';
 import { log } from '../logging/logger';
 
 export const FS_SCHEME = 'openchoreo';
@@ -90,6 +90,9 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
   /** Scaffold content for new resources — keyed by URI string. */
   private readonly pendingContent = new Map<string, Uint8Array>();
 
+  /** URIs that represent new (not-yet-created) resources — use POST instead of PUT. */
+  private readonly newResources = new Set<string>();
+
   constructor(
     private readonly apiClientManager: ApiClientManager,
     private readonly onResourceSaved?: () => void,
@@ -98,6 +101,7 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
   /** Store scaffold content for a URI so readFile returns it instead of fetching from API. */
   setPendingContent(uri: vscode.Uri, content: string): void {
     this.pendingContent.set(uri.toString(), new TextEncoder().encode(content));
+    this.newResources.add(uri.toString());
   }
 
   watch(): vscode.Disposable {
@@ -214,37 +218,64 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
       throw vscode.FileSystemError.Unavailable('Not authenticated. Run "occ login" first.');
     }
 
-    const putReq = buildPutRequest(kind, name, ns, resource);
-    if (!putReq) {
-      throw vscode.FileSystemError.Unavailable(
-        `Unknown resource kind: ${kind}. Cannot determine API endpoint.`,
-      );
-    }
+    const isNew = this.newResources.has(uri.toString());
 
-    const { error, response } = await client.PUT(putReq.path as never, {
-      params: putReq.params,
-      body: putReq.body,
-    } as never);
+    let error: unknown;
+    let response: { status?: number } | undefined;
 
-    if (error) {
-      const status = (response as { status?: number } | undefined)?.status;
-
-      if (status === 409) {
-        // Conflict — resource was modified on the cluster
-        const action = await vscode.window.showErrorMessage(
-          'Resource was modified on the cluster since you opened it. Reopen to get the latest version.',
-          'Reopen',
+    if (isNew) {
+      // New resource — use POST to create
+      const postReq = buildPostRequest(kind, ns, resource);
+      if (!postReq) {
+        throw vscode.FileSystemError.Unavailable(
+          `Unknown resource kind: ${kind}. Cannot determine API endpoint.`,
         );
-        if (action === 'Reopen') {
-          // Fire change event so VSCode re-reads the file
-          this._onDidChangeFile.fire([
-            { type: vscode.FileChangeType.Changed, uri },
-          ]);
-        }
-        throw vscode.FileSystemError.Unavailable('Conflict: resource was modified on the cluster.');
       }
 
-      if (status === 404) {
+      const result = await client.POST(postReq.path as never, {
+        params: postReq.params,
+        body: postReq.body,
+      } as never);
+      error = result.error;
+      response = result.response as { status?: number } | undefined;
+    } else {
+      // Existing resource — use PUT to update
+      const putReq = buildPutRequest(kind, name, ns, resource);
+      if (!putReq) {
+        throw vscode.FileSystemError.Unavailable(
+          `Unknown resource kind: ${kind}. Cannot determine API endpoint.`,
+        );
+      }
+
+      const result = await client.PUT(putReq.path as never, {
+        params: putReq.params,
+        body: putReq.body,
+      } as never);
+      error = result.error;
+      response = result.response as { status?: number } | undefined;
+    }
+
+    if (error) {
+      const status = response?.status;
+
+      if (status === 409) {
+        const msg = isNew
+          ? `Resource '${name}' already exists on the cluster.`
+          : 'Resource was modified on the cluster since you opened it. Reopen to get the latest version.';
+        if (!isNew) {
+          const action = await vscode.window.showErrorMessage(msg, 'Reopen');
+          if (action === 'Reopen') {
+            this._onDidChangeFile.fire([
+              { type: vscode.FileChangeType.Changed, uri },
+            ]);
+          }
+        } else {
+          vscode.window.showErrorMessage(msg);
+        }
+        throw vscode.FileSystemError.Unavailable(msg);
+      }
+
+      if (status === 404 && !isNew) {
         throw vscode.FileSystemError.FileNotFound('Resource no longer exists on the cluster.');
       }
 
@@ -255,12 +286,42 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
       throw vscode.FileSystemError.Unavailable(`Failed to save resource: ${msg}`);
     }
 
-    // Success — notify VSCode that the file changed (updates mtime)
+    // Success
+    if (isNew) {
+      this.newResources.delete(uri.toString());
+      vscode.window.showInformationMessage(`${kind} '${name}' created on cluster.`);
+
+      // Reopen with the correct URI based on the actual resource name
+      const parsed = parseResourceUri(uri);
+      const correctUri = vscode.Uri.from({
+        scheme: FS_SCHEME,
+        path: `/${parsed.namespace ?? '_cluster'}/${parsed.type}/${name}.yaml`,
+        query: uri.query,
+      });
+
+      // Close old tab and open the correct one (async, non-blocking)
+      setTimeout(async () => {
+        try {
+          // Close the current editor with the placeholder name
+          await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
+          // Open the created resource from the cluster
+          const doc = await vscode.workspace.openTextDocument(correctUri);
+          if (doc.languageId !== 'yaml') {
+            await vscode.languages.setTextDocumentLanguage(doc, 'yaml');
+          }
+          await vscode.window.showTextDocument(doc);
+        } catch {
+          // Non-fatal — the resource was created, just the tab didn't refresh
+        }
+      }, 100);
+    } else {
+      vscode.window.showInformationMessage(`${kind} '${name}' updated on cluster.`);
+    }
+
+    // Notify VSCode that the file changed (updates mtime)
     this._onDidChangeFile.fire([
       { type: vscode.FileChangeType.Changed, uri },
     ]);
-
-    vscode.window.showInformationMessage(`${kind} '${name}' saved to cluster.`);
 
     // Refresh tree views
     this.onResourceSaved?.();

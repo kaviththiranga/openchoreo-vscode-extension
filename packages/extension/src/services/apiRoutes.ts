@@ -169,6 +169,66 @@ export function buildPutRequest(
 }
 
 /**
+ * Maps CRD kinds to their API POST (create) endpoint.
+ * Targets the collection endpoint (no resource name in path).
+ */
+export function buildPostRequest(
+  kind: string,
+  ns: string,
+  body: Record<string, unknown>,
+): {
+  path: string;
+  params: { path: Record<string, string> };
+  body: unknown;
+} | null {
+  const { apiVersion: _a, kind: _k, ...rest } = body;
+
+  switch (kind) {
+    case 'Project':
+      return { path: '/api/v1/namespaces/{namespaceName}/projects', params: { path: { namespaceName: ns } }, body: rest };
+    case 'Component':
+      return { path: '/api/v1/namespaces/{namespaceName}/components', params: { path: { namespaceName: ns } }, body: rest };
+    case 'Environment':
+      return { path: '/api/v1/namespaces/{namespaceName}/environments', params: { path: { namespaceName: ns } }, body: rest };
+    case 'DataPlane':
+      return { path: '/api/v1/namespaces/{namespaceName}/dataplanes', params: { path: { namespaceName: ns } }, body: rest };
+    case 'WorkflowPlane':
+      return { path: '/api/v1/namespaces/{namespaceName}/workflowplanes', params: { path: { namespaceName: ns } }, body: rest };
+    case 'ObservabilityPlane':
+      return { path: '/api/v1/namespaces/{namespaceName}/observabilityplanes', params: { path: { namespaceName: ns } }, body: rest };
+    case 'DeploymentPipeline':
+      return { path: '/api/v1/namespaces/{namespaceName}/deploymentpipelines', params: { path: { namespaceName: ns } }, body: rest };
+    case 'Workload':
+      return { path: '/api/v1/namespaces/{namespaceName}/workloads', params: { path: { namespaceName: ns } }, body: rest };
+    case 'SecretReference':
+      return { path: '/api/v1/namespaces/{namespaceName}/secretreferences', params: { path: { namespaceName: ns } }, body: rest };
+    case 'Workflow':
+      return { path: '/api/v1/namespaces/{namespaceName}/workflows', params: { path: { namespaceName: ns } }, body: rest };
+    case 'ComponentType':
+      return { path: '/api/v1/namespaces/{namespaceName}/componenttypes', params: { path: { namespaceName: ns } }, body: rest };
+    case 'Trait':
+      return { path: '/api/v1/namespaces/{namespaceName}/traits', params: { path: { namespaceName: ns } }, body: rest };
+    case 'ReleaseBinding':
+      return { path: '/api/v1/namespaces/{namespaceName}/releasebindings', params: { path: { namespaceName: ns } }, body: rest };
+    // Cluster-scoped
+    case 'ClusterComponentType':
+      return { path: '/api/v1/clustercomponenttypes', params: { path: {} }, body: rest };
+    case 'ClusterWorkflow':
+      return { path: '/api/v1/clusterworkflows', params: { path: {} }, body: rest };
+    case 'ClusterTrait':
+      return { path: '/api/v1/clustertraits', params: { path: {} }, body: rest };
+    case 'ClusterDataPlane':
+      return { path: '/api/v1/clusterdataplanes', params: { path: {} }, body: rest };
+    case 'ClusterWorkflowPlane':
+      return { path: '/api/v1/clusterworkflowplanes', params: { path: {} }, body: rest };
+    case 'ClusterObservabilityPlane':
+      return { path: '/api/v1/clusterobservabilityplanes', params: { path: {} }, body: rest };
+    default:
+      return null;
+  }
+}
+
+/**
  * Fetches a single resource from the API by type, namespace, and name.
  * Returns the raw API response object.
  */
