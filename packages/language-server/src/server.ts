@@ -16,6 +16,7 @@ import { detectCrdKind } from './validation/crdDetector';
 import { validateDocument } from './validation/validator';
 import { getCompletionItems } from './completion/completionProvider';
 import { getHoverInfo } from './hover/hoverProvider';
+import { getDocumentSymbols } from './symbols/documentSymbolProvider';
 import { loadSchemas, CrdSchemaMap } from './schemas/schemaLoader';
 
 const connection = createConnection(ProposedFeatures.all);
@@ -38,6 +39,7 @@ connection.onInitialize((params: InitializeParams): InitializeResult => {
         triggerCharacters: ['.', ':', ' ', '$', '{'],
       },
       hoverProvider: true,
+      documentSymbolProvider: true,
     },
   };
 });
@@ -81,7 +83,7 @@ async function validateTextDocument(
     return;
   }
 
-  const diagnostics = validateDocument(text, schema, textDocument);
+  const diagnostics = validateDocument(text, schema, textDocument, resourceNames);
   connection.sendDiagnostics({
     uri: textDocument.uri,
     diagnostics,
@@ -101,7 +103,7 @@ connection.onCompletion((params): CompletionItem[] => {
   // offer apiVersion/kind bootstrap and empty-doc scaffolds
   const schema = crdKind ? (schemas[crdKind] ?? null) : null;
 
-  return getCompletionItems(document, params.position, schema, resourceNames);
+  return getCompletionItems(document, params.position, schema, resourceNames, crdKind ?? undefined);
 });
 
 // Provide hover info
@@ -123,6 +125,15 @@ connection.onHover((params): Hover | null => {
   }
 
   return getHoverInfo(document, params.position, schema);
+});
+
+// Provide document symbols (outline view, breadcrumbs)
+connection.onDocumentSymbol((params) => {
+  const document = documents.get(params.textDocument.uri);
+  if (!document) {
+    return [];
+  }
+  return getDocumentSymbols(document);
 });
 
 documents.listen(connection);

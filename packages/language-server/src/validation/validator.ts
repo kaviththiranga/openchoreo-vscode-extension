@@ -19,6 +19,7 @@ import {
   Node,
 } from 'yaml';
 import type { JsonSchema } from '../schemas/schemaLoader';
+import { validateReferences } from './referenceValidator';
 
 /** K8s envelope fields that are always allowed at root level. */
 const K8S_ENVELOPE_KEYS = new Set(['apiVersion', 'kind', 'metadata', 'status']);
@@ -31,6 +32,7 @@ export function validateDocument(
   text: string,
   schema: JsonSchema,
   textDocument: TextDocument,
+  resourceNames: Record<string, string[]> = {},
 ): Diagnostic[] {
   const diagnostics: Diagnostic[] = [];
 
@@ -62,6 +64,18 @@ export function validateDocument(
         [],
         true,
       );
+
+      // Cross-resource reference validation
+      if (Object.keys(resourceNames).length > 0) {
+        validateReferences(
+          doc.contents,
+          schema,
+          textDocument,
+          resourceNames,
+          diagnostics,
+          [],
+        );
+      }
     }
   } catch (error) {
     diagnostics.push({

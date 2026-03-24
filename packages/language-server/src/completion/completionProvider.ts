@@ -9,7 +9,8 @@ import {
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import type { JsonSchema } from '../schemas/schemaLoader';
-import { OPENCHOREO_CRD_KINDS } from '../validation/crdDetector';
+import { OPENCHOREO_CRD_KINDS, type CrdKind } from '../validation/crdDetector';
+import { isInsideCelExpression, getCelCompletionItems } from './celCompletions';
 
 /** Common OpenChoreo labels offered as key completions inside metadata.labels. */
 const COMMON_LABELS = [
@@ -41,10 +42,16 @@ export function getCompletionItems(
   position: Position,
   schema: JsonSchema | null,
   resourceNames: Record<string, string[]> = {},
+  crdKind?: string,
 ): CompletionItem[] {
   const text = document.getText();
   const lines = text.split('\n');
   const currentLine = lines[position.line] ?? '';
+
+  // CEL expression completions — detect if cursor is inside ${...}
+  if (isInsideCelExpression(currentLine, position.character)) {
+    return getCelCompletionItems(currentLine, position.character, crdKind ?? '');
+  }
 
   // Empty document → offer CRD scaffold completions
   if (text.trim() === '' || (lines.length <= 2 && text.trim().length < 5)) {
