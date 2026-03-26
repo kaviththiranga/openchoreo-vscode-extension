@@ -72,7 +72,7 @@ export function getCompletionItems(
   const firstNonSpace = currentLine.search(/\S/);
   const indent = firstNonSpace < 0 ? position.character : firstNonSpace;
 
-  const yamlPath = resolveYamlPath(lines, position.line);
+  const yamlPath = resolveYamlPath(lines, position.line, indent);
 
   // Special: inside metadata.labels or metadata.annotations → offer common keys
   if (yamlPath.length >= 2) {
@@ -358,7 +358,7 @@ function getValueCompletions(
 /**
  * Resolve the YAML key path at a given line by tracking indentation.
  */
-function resolveYamlPath(lines: string[], targetLine: number): string[] {
+function resolveYamlPath(lines: string[], targetLine: number, cursorIndent?: number): string[] {
   const path: string[] = [];
   const indentStack: number[] = [];
 
@@ -387,6 +387,15 @@ function resolveYamlPath(lines: string[], targetLine: number): string[] {
     if (i < targetLine) {
       path.push(key);
       indentStack.push(indent);
+    }
+  }
+
+  // On empty/whitespace lines, the cursor indent determines the context level.
+  // Pop path entries whose indent >= cursor indent (cursor is at same level or shallower).
+  if (cursorIndent !== undefined) {
+    while (indentStack.length > 0 && cursorIndent <= indentStack[indentStack.length - 1]) {
+      indentStack.pop();
+      path.pop();
     }
   }
 
