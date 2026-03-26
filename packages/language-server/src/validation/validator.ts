@@ -20,6 +20,7 @@ import {
 } from 'yaml';
 import type { JsonSchema } from '../schemas/schemaLoader';
 import { validateReferences } from './referenceValidator';
+import { containsCelExpression, validateCelExpressions } from './celValidator';
 
 /** K8s envelope fields that are always allowed at root level. */
 const K8S_ENVELOPE_KEYS = new Set(['apiVersion', 'kind', 'metadata', 'status']);
@@ -208,6 +209,12 @@ function validateValue(
     const value = valueNode.value;
     const range = getNodeRange(valueNode, textDocument) ?? getNodeRange(keyNode, textDocument);
     if (!range) {
+      return;
+    }
+
+    // CEL expressions — skip type checks, validate CEL syntax instead
+    if (typeof value === 'string' && containsCelExpression(value)) {
+      validateCelExpressions(value, range, diagnostics);
       return;
     }
 
