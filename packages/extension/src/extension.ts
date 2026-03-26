@@ -152,11 +152,18 @@ export async function activate(
 
   // Start language server and push resource names for dynamic completions
   client = startLanguageServer(context);
-  const pushNames = () => pushResourceNames(client, apiClientManager, authProvider);
-  // Push resource names once the server is initialized
-  setTimeout(pushNames, 2000);
+  const pushAll = async () => {
+    try {
+      await pushResourceNames(client, apiClientManager, authProvider);
+      await pushResourceSchemas(client, apiClientManager, authProvider);
+    } catch (err) {
+      log.error('Failed to push resource data to language server', err);
+    }
+  };
+  // Push resource data once the server is initialized
+  setTimeout(pushAll, 2000);
   context.subscriptions.push(
-    authProvider.onDidChangeSession(pushNames),
+    authProvider.onDidChangeSession(pushAll),
   );
 
   // Register OpenChoreo MCP servers for Copilot Chat
@@ -221,6 +228,112 @@ async function pushResourceNames(
     langClient.sendNotification('openchoreo/updateResources', resources);
   } catch {
     // Non-fatal — completions just won't have dynamic values
+  }
+}
+
+/**
+ * Fetch openAPIV3Schema content for ComponentTypes and Traits,
+ * and push to the language server for cross-document completions.
+ */
+async function pushResourceSchemas(
+  langClient: LanguageClient,
+  apiClientManager: ApiClientManager,
+  authProvider: OccConfigAuthProvider,
+): Promise<void> {
+  try {
+    const api = await apiClientManager.getClient();
+    if (!api) {
+      log.debug('pushResourceSchemas: no API client');
+      return;
+    }
+
+    const ns = authProvider.getContextInfo()?.namespace;
+    log.debug(`pushResourceSchemas: namespace=${ns ?? 'none'}`);
+
+    // Schema data: { kind: { resourceName: { parameters?: object, environmentConfigs?: object } } }
+    const schemas: Record<string, Record<string, { parameters?: unknown; environmentConfigs?: unknown }>> = {};
+
+    const extractSchema = (item: unknown): { parameters?: unknown; environmentConfigs?: unknown } | undefined => {
+      const spec = (item as { spec?: { parameters?: { openAPIV3Schema?: unknown }; environmentConfigs?: { openAPIV3Schema?: unknown } } })?.spec;
+      if (!spec) return undefined;
+      return {
+        parameters: spec.parameters?.openAPIV3Schema,
+        environmentConfigs: spec.environmentConfigs?.openAPIV3Schema,
+      };
+    };
+
+    const fetchers: Array<Promise<void>> = [];
+
+    // Fetch cluster-scoped ComponentTypes (always available)
+    fetchers.push(
+      api.GET('/api/v1/clustercomponenttypes').then(r => {
+        schemas['ClusterComponentType'] = {};
+        for (const item of r.data?.items ?? []) {
+          const name = (item.metadata?.name as string);
+          if (name) {
+            const s = extractSchema(item);
+            if (s) schemas['ClusterComponentType'][name] = s;
+          }
+        }
+      }).catch(() => {}),
+    );
+
+    // Fetch cluster-scoped Traits
+    fetchers.push(
+      api.GET('/api/v1/clustertraits').then(r => {
+        schemas['ClusterTrait'] = {};
+        for (const item of r.data?.items ?? []) {
+          const name = (item.metadata?.name as string);
+          if (name) {
+            const s = extractSchema(item);
+            if (s) schemas['ClusterTrait'][name] = s;
+          }
+        }
+      }).catch(() => {}),
+    );
+
+    // Namespace-scoped (if namespace selected)
+    if (ns) {
+      const params = { params: { path: { namespaceName: ns } } };
+
+      fetchers.push(
+        api.GET('/api/v1/namespaces/{namespaceName}/componenttypes', params).then(r => {
+          schemas['ComponentType'] = {};
+          for (const item of r.data?.items ?? []) {
+            const name = (item.metadata?.name as string);
+            if (name) {
+              const s = extractSchema(item);
+              if (s) schemas['ComponentType'][name] = s;
+            }
+          }
+        }).catch(() => {}),
+      );
+
+      fetchers.push(
+        api.GET('/api/v1/namespaces/{namespaceName}/traits', params).then(r => {
+          schemas['Trait'] = {};
+          for (const item of r.data?.items ?? []) {
+            const name = (item.metadata?.name as string);
+            if (name) {
+              const s = extractSchema(item);
+              if (s) schemas['Trait'][name] = s;
+            }
+          }
+        }).catch(() => {}),
+      );
+    }
+
+    await Promise.allSettled(fetchers);
+
+    const total = Object.values(schemas).reduce((sum, m) => sum + Object.keys(m).length, 0);
+    const detail = Object.entries(schemas).map(([kind, m]) => {
+      const names = Object.entries(m).map(([n, s]) => `${n}(p:${!!s.parameters},e:${!!s.environmentConfigs})`);
+      return `${kind}:[${names.join(',')}]`;
+    }).join(' ');
+    log.debug(`Pushing resource schemas: ${total} total — ${detail}`);
+    langClient.sendNotification('openchoreo/updateResourceSchemas', schemas);
+  } catch {
+    // Non-fatal
   }
 }
 

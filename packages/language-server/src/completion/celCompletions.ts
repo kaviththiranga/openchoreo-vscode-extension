@@ -10,6 +10,7 @@ import {
   Range,
   Position,
 } from 'vscode-languageserver/node';
+import { parse as parseYaml } from 'yaml';
 
 /**
  * CEL context variables available in ComponentType and Trait templates.
@@ -267,6 +268,7 @@ export function getCelCompletionItems(
   character: number,
   crdKind: string,
   lineNumber: number,
+  documentText?: string,
 ): CompletionItem[] {
   const prefix = getCelPrefix(line, character);
   const items: CompletionItem[] = [];
@@ -289,7 +291,25 @@ export function getCelCompletionItems(
       end: Position.create(lineNumber, character),
     };
 
-    // Try to resolve the variable path to offer member completions
+    // Dynamic completions from in-document openAPIV3Schema
+    const rootVar = varPath.split('.')[0];
+    if ((rootVar === 'parameters' || rootVar === 'environmentConfigs') && documentText) {
+      const schemaPath = varPath.substring(rootVar.length); // e.g., "" or ".resources"
+      const schemaProps = extractSchemaProperties(documentText, rootVar, schemaPath);
+      if (schemaProps) {
+        for (const [name, info] of Object.entries(schemaProps)) {
+          items.push({
+            label: name,
+            kind: CompletionItemKind.Field,
+            detail: info.type ? `${info.type}${info.default !== undefined ? ` (default: ${info.default})` : ''}` : undefined,
+            documentation: info.enum ? `Enum: ${info.enum.join(', ')}` : undefined,
+            textEdit: TextEdit.replace(replaceRange, name),
+          });
+        }
+      }
+    }
+
+    // Static context variable members
     const parts = varPath.split('.');
     let current = CEL_CONTEXT[parts[0]];
     for (let i = 1; i < parts.length && current?.members; i++) {
@@ -302,8 +322,8 @@ export function getCelCompletionItems(
       }
     }
 
-    // Offer members of the resolved variable
-    if (current?.members) {
+    // Offer members of the resolved variable (skip if dynamic completions already provided)
+    if (current?.members && items.length === 0) {
       for (const [name, info] of Object.entries(current.members)) {
         items.push({
           label: name,
@@ -379,4 +399,96 @@ export function getCelCompletionItems(
   }
 
   return items;
+}
+
+interface SchemaPropertyInfo {
+  type?: string;
+  default?: unknown;
+  enum?: string[];
+  description?: string;
+}
+
+/**
+ * Extract property names from an in-document openAPIV3Schema.
+ * Parses the YAML, navigates to spec.{section}.openAPIV3Schema, then resolves
+ * the sub-path to find properties at that level.
+ *
+ * Handles $ref resolution within $defs for nested types.
+ */
+function extractSchemaProperties(
+  documentText: string,
+  section: string,
+  subPath: string,
+): Record<string, SchemaPropertyInfo> | undefined {
+  try {
+    const doc = parseYaml(documentText) as Record<string, unknown>;
+    const spec = doc?.spec as Record<string, unknown> | undefined;
+    if (!spec) return undefined;
+
+    const sectionObj = spec[section] as Record<string, unknown> | undefined;
+    if (!sectionObj) return undefined;
+
+    const schema = sectionObj.openAPIV3Schema as Record<string, unknown> | undefined;
+    if (!schema) return undefined;
+
+    // Store $defs for $ref resolution
+    const defs = (schema.$defs ?? schema.definitions ?? {}) as Record<string, Record<string, unknown>>;
+
+    // Navigate sub-path (e.g., ".resources.limits")
+    let current = schema;
+    if (subPath) {
+      const parts = subPath.split('.').filter(Boolean);
+      for (const part of parts) {
+        // Resolve $ref first
+        current = resolveRef(current, defs);
+        const props = current.properties as Record<string, Record<string, unknown>> | undefined;
+        if (!props || !props[part]) return undefined;
+        current = props[part];
+      }
+    }
+
+    // Resolve final $ref
+    current = resolveRef(current, defs);
+
+    const properties = current.properties as Record<string, Record<string, unknown>> | undefined;
+    if (!properties) return undefined;
+
+    const result: Record<string, SchemaPropertyInfo> = {};
+    for (const [name, propSchema] of Object.entries(properties)) {
+      const resolved = resolveRef(propSchema, defs);
+      result[name] = {
+        type: resolved.type as string | undefined,
+        default: resolved.default,
+        enum: resolved.enum as string[] | undefined,
+        description: resolved.description as string | undefined,
+      };
+    }
+
+    return result;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Resolve a $ref in a JSON Schema object against $defs. */
+function resolveRef(
+  schema: Record<string, unknown>,
+  defs: Record<string, Record<string, unknown>>,
+): Record<string, unknown> {
+  const ref = schema.$ref as string | undefined;
+  if (!ref) return schema;
+
+  // Handle "#/$defs/Name" format
+  const match = ref.match(/^#\/\$defs\/(\w+)$/);
+  if (match && defs[match[1]]) {
+    return defs[match[1]];
+  }
+
+  // Handle "#/definitions/Name" format
+  const defMatch = ref.match(/^#\/definitions\/(\w+)$/);
+  if (defMatch && defs[defMatch[1]]) {
+    return defs[defMatch[1]];
+  }
+
+  return schema;
 }

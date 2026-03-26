@@ -8,6 +8,7 @@ import {
   InsertTextFormat,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { parseDocument, isMap, isScalar, isPair, YAMLMap, Scalar, Node } from 'yaml';
 import type { JsonSchema } from '../schemas/schemaLoader';
 import { OPENCHOREO_CRD_KINDS, type CrdKind } from '../validation/crdDetector';
 import { isInsideCelExpression, getCelCompletionItems } from './celCompletions';
@@ -37,12 +38,16 @@ const SCAFFOLD_KINDS = [
  * Provide completion items based on the current cursor position
  * and the CRD's JSON Schema.
  */
+/** Cached resource schemas from the extension (ComponentType/Trait openAPIV3Schema). */
+export type ResourceSchemaCache = Record<string, Record<string, { parameters?: unknown; environmentConfigs?: unknown }>>;
+
 export function getCompletionItems(
   document: TextDocument,
   position: Position,
   schema: JsonSchema | null,
   resourceNames: Record<string, string[]> = {},
   crdKind?: string,
+  resourceSchemas: ResourceSchemaCache = {},
 ): CompletionItem[] {
   const text = document.getText();
   const lines = text.split('\n');
@@ -51,7 +56,7 @@ export function getCompletionItems(
   // CEL expression completions — detect if cursor is inside ${...}
   const celDetected = isInsideCelExpression(currentLine, position.character);
   if (celDetected) {
-    return getCelCompletionItems(currentLine, position.character, crdKind ?? '', position.line);
+    return getCelCompletionItems(currentLine, position.character, crdKind ?? '', position.line, text);
   }
 
   // Empty document → offer CRD scaffold completions
@@ -121,6 +126,18 @@ export function getCompletionItems(
       }
     }
     return [];
+  }
+
+  // Cross-document completions: Component spec.parameters, spec.traits[].parameters,
+  // ReleaseBinding componentTypeEnvironmentConfigs, etc.
+  if (crdKind && Object.keys(resourceSchemas).length > 0) {
+    const crossDocItems = getCrossDocumentCompletions(
+      text, yamlPath, crdKind, resourceSchemas, indent,
+    );
+    // Note: crossDocItems may be empty if path doesn't match or schema not found
+    if (crossDocItems.length > 0) {
+      return crossDocItems;
+    }
   }
 
   // Key completion — if context is an array, offer properties from items schema
@@ -401,6 +418,173 @@ function resolveSchemaAtPath(
   }
 
   return current;
+}
+
+/**
+ * Cross-document completions: offer properties from referenced resource's openAPIV3Schema.
+ * E.g., Component spec.parameters.* → from ComponentType's parameters schema.
+ */
+function getCrossDocumentCompletions(
+  documentText: string,
+  yamlPath: string[],
+  crdKind: string,
+  resourceSchemas: ResourceSchemaCache,
+  indent: number,
+): CompletionItem[] {
+  try {
+    const doc = parseDocument(documentText, { keepSourceTokens: false });
+    if (!doc.contents || !isMap(doc.contents)) return [];
+
+    const pathStr = yamlPath.join('.');
+
+    // Component: spec.parameters → lookup componentType → parameters schema
+    if ((crdKind === 'Component') && pathStr === 'spec.parameters') {
+      const ctName = extractFieldValue(doc.contents, ['spec', 'componentType', 'name']);
+      if (ctName) {
+        return getSchemaPropertyCompletions(ctName, 'parameters', resourceSchemas, indent);
+      }
+    }
+
+    // ReleaseBinding: spec.componentTypeEnvironmentConfigs → need componentType from component
+    // For now, offer all known environmentConfig properties from all ComponentTypes
+    if (crdKind === 'ReleaseBinding' && pathStr === 'spec.componentTypeEnvironmentConfigs') {
+      return getAllSchemaPropertyCompletions('environmentConfigs', resourceSchemas, indent);
+    }
+
+    // ReleaseBinding: spec.traitEnvironmentConfigs → offer trait instance names as keys
+    // (would need component resolution — skip for now)
+
+    // Component: spec.traits[].parameters → lookup trait name → parameters schema
+    if (crdKind === 'Component' && yamlPath.length >= 3 &&
+        yamlPath[0] === 'spec' && yamlPath[1] === 'traits' &&
+        yamlPath[yamlPath.length - 1] === 'parameters') {
+      // Try to find the trait name from the current array item context
+      // This is complex — would need to track which array item we're in
+      // For now, offer a merged set from all known traits
+      return getAllSchemaPropertyCompletions('parameters', resourceSchemas, indent,
+        ['Trait', 'ClusterTrait']);
+    }
+  } catch {
+    // Non-fatal
+  }
+  return [];
+}
+
+/** Extract a scalar field value by walking a YAML path. */
+function extractFieldValue(node: YAMLMap, fieldPath: string[]): string | undefined {
+  let current: unknown = node;
+  for (const key of fieldPath) {
+    if (!isMap(current as Node)) return undefined;
+    const map = current as YAMLMap;
+    const pair = map.items.find(
+      (item) => isPair(item) && isScalar(item.key) && String(item.key.value) === key,
+    );
+    if (!pair || !isPair(pair)) return undefined;
+    current = pair.value;
+  }
+  if (isScalar(current as Node)) {
+    return String((current as Scalar).value);
+  }
+  return undefined;
+}
+
+/** Get completions from a specific resource's schema. */
+function getSchemaPropertyCompletions(
+  resourceName: string,
+  section: 'parameters' | 'environmentConfigs',
+  resourceSchemas: ResourceSchemaCache,
+  indent: number,
+): CompletionItem[] {
+  // Search across all kinds (ComponentType, ClusterComponentType, Trait, ClusterTrait)
+  for (const kindSchemas of Object.values(resourceSchemas)) {
+    const schemaData = kindSchemas[resourceName];
+    if (schemaData?.[section]) {
+      return openAPIV3SchemaToCompletions(schemaData[section] as Record<string, unknown>, indent);
+    }
+  }
+  return [];
+}
+
+/** Get merged completions from all resources' schemas (used when specific resource unknown). */
+function getAllSchemaPropertyCompletions(
+  section: 'parameters' | 'environmentConfigs',
+  resourceSchemas: ResourceSchemaCache,
+  indent: number,
+  kindFilter?: string[],
+): CompletionItem[] {
+  const seen = new Set<string>();
+  const items: CompletionItem[] = [];
+
+  for (const [kind, kindSchemas] of Object.entries(resourceSchemas)) {
+    if (kindFilter && !kindFilter.includes(kind)) continue;
+    for (const schemaData of Object.values(kindSchemas)) {
+      if (schemaData[section]) {
+        for (const item of openAPIV3SchemaToCompletions(schemaData[section] as Record<string, unknown>, indent)) {
+          if (!seen.has(item.label)) {
+            seen.add(item.label);
+            items.push(item);
+          }
+        }
+      }
+    }
+  }
+  return items;
+}
+
+/** Convert an openAPIV3Schema to completion items for its properties. */
+function openAPIV3SchemaToCompletions(
+  schema: Record<string, unknown>,
+  indent: number,
+): CompletionItem[] {
+  const props = schema.properties as Record<string, Record<string, unknown>> | undefined;
+  if (!props) return [];
+
+  const defs = (schema.$defs ?? schema.definitions ?? {}) as Record<string, Record<string, unknown>>;
+  const items: CompletionItem[] = [];
+  const indentStr = ' '.repeat(indent);
+
+  for (const [name, propSchema] of Object.entries(props)) {
+    // Resolve $ref
+    let resolved = propSchema;
+    const ref = propSchema.$ref as string | undefined;
+    if (ref) {
+      const match = ref.match(/^#\/\$defs\/(\w+)$/) ?? ref.match(/^#\/definitions\/(\w+)$/);
+      if (match && defs[match[1]]) {
+        resolved = defs[match[1]];
+      }
+    }
+
+    const type = resolved.type as string | undefined;
+    const defaultVal = resolved.default;
+    const enumVals = resolved.enum as string[] | undefined;
+
+    let detail = type ?? 'any';
+    if (defaultVal !== undefined) detail += ` (default: ${defaultVal})`;
+
+    const item: CompletionItem = {
+      label: name,
+      kind: CompletionItemKind.Property,
+      detail,
+      documentation: enumVals ? `Enum: ${enumVals.join(', ')}` : undefined,
+      insertTextFormat: InsertTextFormat.Snippet,
+    };
+
+    if (type === 'object') {
+      item.insertText = `${name}:\n${indentStr}  $0`;
+    } else if (enumVals) {
+      item.insertText = `${name}: \${1|${enumVals.join(',')}|}`;
+    } else if (type === 'boolean') {
+      item.insertText = `${name}: \${1|true,false|}`;
+    } else if (defaultVal !== undefined) {
+      item.insertText = `${name}: ${defaultVal}`;
+    } else {
+      item.insertText = `${name}: $0`;
+    }
+
+    items.push(item);
+  }
+
+  return items;
 }
 
 function formatSchemaType(schema: JsonSchema): string {

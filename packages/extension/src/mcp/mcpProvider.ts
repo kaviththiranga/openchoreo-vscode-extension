@@ -15,9 +15,8 @@ export function registerMcpServers(
   authProvider: OccConfigAuthProvider,
 ): void {
   // Check if the MCP API is available (VSCode 1.99+)
-  log.info(`VSCode lm API available: ${!!vscode.lm}, registerMcpServerDefinitionProvider: ${!!vscode.lm?.registerMcpServerDefinitionProvider}`);
   if (!vscode.lm?.registerMcpServerDefinitionProvider) {
-    log.info('MCP server registration not available (requires VSCode 1.99+)');
+    log.debug('MCP server registration not available (requires VSCode 1.99+)');
     return;
   }
 
