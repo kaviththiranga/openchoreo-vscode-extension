@@ -112,6 +112,36 @@ export function registerCommands(
     ),
   );
 
+  // Add resource to chat context
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.addToChat',
+      async (node: ResourceNodeData) => {
+        if (!node) {
+          return;
+        }
+
+        const resourceRef = {
+          type: node.type,
+          namespace: node.namespace,
+          name: node.resourceName ?? node.label,
+        };
+
+        // Open chat with the resource reference
+        try {
+          await vscode.commands.executeCommand('workbench.action.chat.open', {
+            query: `@openchoreo Tell me about ${node.type} "${resourceRef.name}"`,
+          });
+        } catch {
+          // Fallback: just open the resource YAML
+          vscode.window.showInformationMessage(
+            `Chat not available. Use the tree to open ${node.type} "${resourceRef.name}".`,
+          );
+        }
+      },
+    ),
+  );
+
   // Delete resource with confirmation
   context.subscriptions.push(
     vscode.commands.registerCommand(

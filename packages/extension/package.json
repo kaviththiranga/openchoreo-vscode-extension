@@ -28,6 +28,15 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "chatParticipants": [
+      {
+        "id": "openchoreo",
+        "fullName": "OpenChoreo",
+        "name": "openchoreo",
+        "description": "OpenChoreo platform — ask about resources, deployments, builds, observability",
+        "isSticky": true
+      }
+    ],
     "mcpServerDefinitionProviders": [
       {
         "id": "openchoreo",
@@ -124,6 +133,12 @@
         "title": "Refresh Cluster Resources",
         "category": "OpenChoreo",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "openchoreo.addToChat",
+        "title": "Add to Chat",
+        "category": "OpenChoreo",
+        "icon": "$(comment-discussion)"
       }
     ],
     "menus": {
@@ -185,6 +200,11 @@
           "command": "openchoreo.deleteResource",
           "when": "viewItem =~ /_deletable/",
           "group": "3_destructive"
+        },
+        {
+          "command": "openchoreo.addToChat",
+          "when": "viewItem =~ /^(project|component|environment|workflow|trait|workload|deployment-pipeline|data-plane|workflow-plane|observability-plane|component-type|secret-reference|release-binding|workflow-run|component-release|cluster-component-type|cluster-workflow|cluster-trait|cluster-data-plane|cluster-workflow-plane|cluster-observability-plane)/",
+          "group": "4_chat"
         }
       ]
     },
