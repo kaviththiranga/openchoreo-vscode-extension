@@ -17,7 +17,43 @@ IDE-native tooling for the [OpenChoreo](https://openchoreo.dev) developer platfo
 3. Install this extension
 4. The OpenChoreo icon appears in the activity bar — click to open
 
-The extension automatically detects your occ CLI session and connects to the configured control plane. Token refresh is handled automatically.
+The extension automatically detects your occ CLI session and connects to the configured control plane.
+
+## Authentication & Security
+
+The extension integrates directly with the **occ CLI** for authentication — it does not implement its own login flow or store tokens separately.
+
+### How It Works
+
+1. **Login** — handled entirely by the occ CLI (`occ login`). The CLI performs a PKCE/browser-based OAuth flow and writes tokens to `~/.openchoreo/config`
+2. **Token reading** — the extension reads JWT access tokens and refresh tokens directly from the occ CLI config file. No separate token storage.
+3. **Token refresh** — when the access token expires (checked via the JWT `exp` claim with a 60-second buffer), the extension automatically refreshes it:
+   - Fetches OAuth metadata from `{controlPlaneUrl}/.well-known/oauth-protected-resource` (RFC 9728)
+   - Discovers the token endpoint via `{authServer}/.well-known/openid-configuration` (RFC 8414)
+   - Exchanges the refresh token for a new access token
+   - **Writes the new tokens back to `~/.openchoreo/config`** — keeping CLI and extension in sync
+4. **Periodic refresh** — a background timer checks token freshness every 4 minutes to ensure tokens stay valid for MCP and API calls
+5. **Config file watching** — the extension polls `~/.openchoreo/config` every 5 seconds for changes. When the CLI updates tokens (e.g., after `occ login`), the extension auto-detects the change
+
+### Shared Token State
+
+The extension and occ CLI share the same config file (`~/.openchoreo/config`). This means:
+
+- Both always agree on the current token, namespace, and context
+- Switching namespace in the extension updates the CLI config (and vice versa)
+- Token refreshes by either the extension or CLI are visible to both
+- The config file uses `0600` permissions (owner read-write only)
+
+### MCP Authentication
+
+When registered with VSCode Copilot Chat, the OpenChoreo MCP server receives the current Bearer token via HTTP headers. The token is refreshed automatically via the periodic refresh timer and session change events — ensuring MCP requests always use a valid token.
+
+### Security Notes
+
+- Tokens are stored in **plain text** in the occ CLI config file (same model as kubectl/kubeconfig)
+- The extension does not implement its own OAuth flow — it delegates to the occ CLI
+- No tokens are stored in VSCode settings, extension storage, or keychain
+- All API communication uses the control plane URL from the occ CLI config
 
 ## Features
 

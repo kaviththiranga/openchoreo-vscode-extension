@@ -169,6 +169,19 @@ export async function activate(
   // Register OpenChoreo MCP servers for Copilot Chat
   registerMcpServers(context, authProvider);
 
+  // Periodic token pre-refresh — ensures tokens stay fresh for MCP and API calls.
+  // getToken() checks expiry and refreshes if needed, writing back to occ config.
+  // The config file watcher detects the change and fires onDidChangeSession,
+  // which re-registers MCP with the fresh token.
+  const tokenRefreshInterval = setInterval(async () => {
+    try {
+      await authProvider.getToken();
+    } catch {
+      // Non-fatal
+    }
+  }, 4 * 60 * 1000); // Every 4 minutes (tokens expire with 60s buffer)
+  context.subscriptions.push({ dispose: () => clearInterval(tokenRefreshInterval) });
+
   // Watch for occ config changes
   authProvider.startWatching();
 }
