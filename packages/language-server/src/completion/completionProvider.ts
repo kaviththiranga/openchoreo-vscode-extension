@@ -74,6 +74,9 @@ export function getCompletionItems(
 
   const yamlPath = resolveYamlPath(lines, position.line, indent);
 
+  // Collect existing sibling keys at the cursor's indentation level
+  const existingKeys = getExistingKeys(lines, position.line, indent);
+
   // Special: inside metadata.labels or metadata.annotations → offer common keys
   if (yamlPath.length >= 2) {
     const parent = yamlPath.slice(-1)[0];
@@ -132,7 +135,7 @@ export function getCompletionItems(
   // ReleaseBinding componentTypeEnvironmentConfigs, etc.
   if (crdKind && Object.keys(resourceSchemas).length > 0) {
     const crossDocItems = getCrossDocumentCompletions(
-      text, yamlPath, crdKind, resourceSchemas, indent,
+      text, yamlPath, crdKind, resourceSchemas, indent, existingKeys,
     );
     // Note: crossDocItems may be empty if path doesn't match or schema not found
     if (crossDocItems.length > 0) {
@@ -144,7 +147,7 @@ export function getCompletionItems(
   const keySchema = (contextSchema.type === 'array' && contextSchema.items?.properties)
     ? contextSchema.items
     : contextSchema;
-  return getPropertyCompletions(keySchema, indent);
+  return getPropertyCompletions(keySchema, indent, existingKeys);
 }
 
 /**
@@ -254,6 +257,7 @@ function getLabelAnnotationKeyCompletions(
 function getPropertyCompletions(
   schema: JsonSchema,
   indent: number,
+  existingKeys: Set<string> = new Set(),
 ): CompletionItem[] {
   if (!schema.properties) {
     return [];
@@ -265,6 +269,11 @@ function getPropertyCompletions(
   for (const [key, propSchema] of Object.entries(schema.properties)) {
     // Skip standard k8s fields — they're handled separately
     if (['apiVersion', 'kind', 'metadata', 'status'].includes(key)) {
+      continue;
+    }
+
+    // Skip properties already defined at this level
+    if (existingKeys.has(key)) {
       continue;
     }
 
@@ -403,6 +412,40 @@ function resolveYamlPath(lines: string[], targetLine: number, cursorIndent?: num
 }
 
 /**
+ * Collect existing YAML keys at the same indentation level as the cursor.
+ * Scans above and below the cursor line for sibling key definitions.
+ */
+function getExistingKeys(lines: string[], targetLine: number, targetIndent: number): Set<string> {
+  const keys = new Set<string>();
+
+  // Scan upward from cursor
+  for (let i = targetLine - 1; i >= 0; i--) {
+    const line = lines[i];
+    if (!line || line.trim() === '' || line.trim().startsWith('#')) continue;
+    const lineIndent = line.search(/\S/);
+    if (lineIndent < targetIndent) break; // reached parent level
+    if (lineIndent === targetIndent) {
+      const keyMatch = line.match(/^\s*(?:-\s+)?(\w[\w.-]*):/);
+      if (keyMatch) keys.add(keyMatch[1]);
+    }
+  }
+
+  // Scan downward from cursor
+  for (let i = targetLine + 1; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line || line.trim() === '' || line.trim().startsWith('#')) continue;
+    const lineIndent = line.search(/\S/);
+    if (lineIndent < targetIndent) break; // reached parent level
+    if (lineIndent === targetIndent) {
+      const keyMatch = line.match(/^\s*(?:-\s+)?(\w[\w.-]*):/);
+      if (keyMatch) keys.add(keyMatch[1]);
+    }
+  }
+
+  return keys;
+}
+
+/**
  * Walk a JSON Schema following a YAML path to find the contextual schema.
  */
 function resolveSchemaAtPath(
@@ -439,6 +482,7 @@ function getCrossDocumentCompletions(
   crdKind: string,
   resourceSchemas: ResourceSchemaCache,
   indent: number,
+  existingKeys: Set<string> = new Set(),
 ): CompletionItem[] {
   try {
     const doc = parseDocument(documentText, { keepSourceTokens: false });
@@ -450,14 +494,14 @@ function getCrossDocumentCompletions(
     if ((crdKind === 'Component') && pathStr === 'spec.parameters') {
       const ctName = extractFieldValue(doc.contents, ['spec', 'componentType', 'name']);
       if (ctName) {
-        return getSchemaPropertyCompletions(ctName, 'parameters', resourceSchemas, indent);
+        return getSchemaPropertyCompletions(ctName, 'parameters', resourceSchemas, indent, existingKeys);
       }
     }
 
     // ReleaseBinding: spec.componentTypeEnvironmentConfigs → need componentType from component
     // For now, offer all known environmentConfig properties from all ComponentTypes
     if (crdKind === 'ReleaseBinding' && pathStr === 'spec.componentTypeEnvironmentConfigs') {
-      return getAllSchemaPropertyCompletions('environmentConfigs', resourceSchemas, indent);
+      return getAllSchemaPropertyCompletions('environmentConfigs', resourceSchemas, indent, undefined, existingKeys);
     }
 
     // ReleaseBinding: spec.traitEnvironmentConfigs → offer trait instance names as keys
@@ -471,7 +515,7 @@ function getCrossDocumentCompletions(
       // This is complex — would need to track which array item we're in
       // For now, offer a merged set from all known traits
       return getAllSchemaPropertyCompletions('parameters', resourceSchemas, indent,
-        ['Trait', 'ClusterTrait']);
+        ['Trait', 'ClusterTrait'], existingKeys);
     }
   } catch {
     // Non-fatal
@@ -503,12 +547,12 @@ function getSchemaPropertyCompletions(
   section: 'parameters' | 'environmentConfigs',
   resourceSchemas: ResourceSchemaCache,
   indent: number,
+  existingKeys: Set<string> = new Set(),
 ): CompletionItem[] {
-  // Search across all kinds (ComponentType, ClusterComponentType, Trait, ClusterTrait)
   for (const kindSchemas of Object.values(resourceSchemas)) {
     const schemaData = kindSchemas[resourceName];
     if (schemaData?.[section]) {
-      return openAPIV3SchemaToCompletions(schemaData[section] as Record<string, unknown>, indent);
+      return openAPIV3SchemaToCompletions(schemaData[section] as Record<string, unknown>, indent, existingKeys);
     }
   }
   return [];
@@ -520,6 +564,7 @@ function getAllSchemaPropertyCompletions(
   resourceSchemas: ResourceSchemaCache,
   indent: number,
   kindFilter?: string[],
+  existingKeys: Set<string> = new Set(),
 ): CompletionItem[] {
   const seen = new Set<string>();
   const items: CompletionItem[] = [];
@@ -528,7 +573,7 @@ function getAllSchemaPropertyCompletions(
     if (kindFilter && !kindFilter.includes(kind)) continue;
     for (const schemaData of Object.values(kindSchemas)) {
       if (schemaData[section]) {
-        for (const item of openAPIV3SchemaToCompletions(schemaData[section] as Record<string, unknown>, indent)) {
+        for (const item of openAPIV3SchemaToCompletions(schemaData[section] as Record<string, unknown>, indent, existingKeys)) {
           if (!seen.has(item.label)) {
             seen.add(item.label);
             items.push(item);
@@ -544,6 +589,7 @@ function getAllSchemaPropertyCompletions(
 function openAPIV3SchemaToCompletions(
   schema: Record<string, unknown>,
   indent: number,
+  existingKeys: Set<string> = new Set(),
 ): CompletionItem[] {
   const props = schema.properties as Record<string, Record<string, unknown>> | undefined;
   if (!props) return [];
@@ -553,6 +599,7 @@ function openAPIV3SchemaToCompletions(
   const indentStr = ' '.repeat(indent);
 
   for (const [name, propSchema] of Object.entries(props)) {
+    if (existingKeys.has(name)) continue;
     // Resolve $ref
     let resolved = propSchema;
     const ref = propSchema.$ref as string | undefined;
