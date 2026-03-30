@@ -203,14 +203,21 @@ Inside `metadata.labels:` and `metadata.annotations:`, the extension suggests co
 
 **Annotations**: `openchoreo.dev/description`
 
-### MCP Server Auto-Registration
+### Copilot Chat Integration
 
-On VSCode 1.99+ with GitHub Copilot, the extension automatically registers the OpenChoreo Platform MCP server. This enables AI-powered interactions in Copilot Chat:
+On VSCode 1.99+ with GitHub Copilot, the extension automatically registers the OpenChoreo Platform MCP server, giving Copilot Chat access to all OpenChoreo tools (resource CRUD, build triggers, observability queries, etc.).
 
+**MCP Server Auto-Registration**:
 - URL derived from your occ CLI control plane configuration (not hardcoded)
 - Authentication token passed automatically from your session
 - Re-registers when you switch context or namespace
-- Provides access to all OpenChoreo MCP tools (resource CRUD, build triggers, observability queries, etc.)
+
+**Add to Chat** — right-click any resource in the tree to add it as context to Copilot Chat:
+
+- **Add to Chat** — populates the chat input with a resource reference (e.g., `Regarding OpenChoreo Component "api-service" in Project "my-project" in Namespace "dev": `). Type your question after the colon and press Enter.
+- **Add YAML to Chat** — fetches the full resource YAML and populates the chat input with the content. Type your question and press Enter.
+
+Both actions open Copilot Chat without auto-submitting, so you can compose your question before sending.
 
 ### Status Bar
 
@@ -261,6 +268,8 @@ NamespaceRole, NamespaceRoleBinding (in Platform Resources), ClusterRole, Cluste
 | `OpenChoreo: Refresh Cluster Resources` | Refresh Cluster Resources tree |
 | `OpenChoreo: Create New Resource` | Create from scaffold template (command palette) |
 | `OpenChoreo: Delete` | Delete resource (tree context menu) |
+| `OpenChoreo: Add to Chat` | Add resource reference to Copilot Chat (tree context menu) |
+| `OpenChoreo: Add YAML to Chat` | Add full resource YAML to Copilot Chat (tree context menu) |
 
 ## Architecture
 
