@@ -30,12 +30,15 @@ export class StatusBarManager implements vscode.Disposable {
     if (!contextInfo) {
       this.statusBarItem.text = '$(warning) OC: Not connected';
       this.statusBarItem.tooltip =
-        'Not connected to OpenChoreo. Run "occ login" to authenticate.';
+        'Not connected to OpenChoreo. Click to login.';
+      this.statusBarItem.command = 'openchoreo.login';
       this.statusBarItem.backgroundColor = new vscode.ThemeColor(
         'statusBarItem.warningBackground',
       );
       return;
     }
+
+    this.statusBarItem.command = 'openchoreo.switchContext';
 
     const ns = contextInfo.namespace || 'none';
     this.statusBarItem.text = `$(rocket) OC: ${contextInfo.contextName} $(organization) ${ns}`;

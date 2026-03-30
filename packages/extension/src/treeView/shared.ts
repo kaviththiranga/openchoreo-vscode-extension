@@ -147,13 +147,18 @@ export function toTreeItem(element: ResourceNodeData): vscode.TreeItem {
     treeItem.description = element.description;
   }
 
-  // Leaf resource nodes are clickable to open their API response
-  if (
-    element.type !== 'no-connection' &&
+  // "Not connected" / "Session expired" nodes trigger login on click
+  if (element.type === 'no-connection') {
+    treeItem.command = {
+      command: 'openchoreo.login',
+      title: 'Login',
+    };
+  } else if (
     element.type !== 'empty' &&
     element.type !== 'component-category' &&
     element.type !== 'infra-category'
   ) {
+    // Leaf resource nodes are clickable to open their API response
     treeItem.command = {
       command: 'openchoreo.openResource',
       title: 'Open Resource',

@@ -78,12 +78,22 @@ export function registerCommands(
     ),
   );
 
-  // Login prompt
+  // Login prompt — reuse existing terminal to prevent multiple concurrent login flows
+  let loginTerminal: vscode.Terminal | undefined;
   context.subscriptions.push(
     vscode.commands.registerCommand('openchoreo.login', () => {
-      const terminal = vscode.window.createTerminal('OpenChoreo Login');
-      terminal.show();
-      terminal.sendText('occ login');
+      if (loginTerminal && vscode.window.terminals.includes(loginTerminal)) {
+        loginTerminal.show();
+        return;
+      }
+      loginTerminal = vscode.window.createTerminal('OpenChoreo Login');
+      loginTerminal.show();
+      loginTerminal.sendText('occ login');
+    }),
+  );
+  context.subscriptions.push(
+    vscode.window.onDidCloseTerminal((t) => {
+      if (t === loginTerminal) loginTerminal = undefined;
     }),
   );
 
