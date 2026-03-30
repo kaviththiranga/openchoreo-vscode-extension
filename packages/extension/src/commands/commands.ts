@@ -122,7 +122,7 @@ export function registerCommands(
         const name = node.resourceName ?? node.label;
         const kind = new ResourceService().getCrdKind(node.type) ?? node.type;
         let ref = `Regarding OpenChoreo ${kind} "${name}"`;
-        if (node.project) ref += ` in Project "${node.project}"`;
+        if (node.project && node.project !== name) ref += ` in Project "${node.project}"`;
         if (node.namespace) ref += ` in Namespace "${node.namespace}"`;
 
         try {
@@ -146,7 +146,7 @@ export function registerCommands(
         const name = node.resourceName ?? node.label;
         const kind = new ResourceService().getCrdKind(node.type) ?? node.type;
         let ref = `Regarding OpenChoreo ${kind} "${name}"`;
-        if (node.project) ref += ` in Project "${node.project}"`;
+        if (node.project && node.project !== name) ref += ` in Project "${node.project}"`;
         if (node.namespace) ref += ` in Namespace "${node.namespace}"`;
 
         try {
