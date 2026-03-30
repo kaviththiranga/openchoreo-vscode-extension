@@ -13,6 +13,10 @@ import type { ResourceNodeData } from '../treeView/types';
 import { CRD_KIND_TO_SCAFFOLD, crdToYaml } from '../services/yamlService';
 import { ResourceService } from '../services/resourceService';
 import { buildPutRequest, fetchResource } from '../services/apiRoutes';
+import type { ComponentService } from '../services/componentService';
+import type { WorkflowRunService } from '../services/workflowRunService';
+import type { ReleaseBindingService } from '../services/releaseBindingService';
+import type { LogOutputService } from '../services/logOutputService';
 import {
   buildResourceUri,
   FS_SCHEME,
@@ -28,6 +32,10 @@ export function registerCommands(
   deleteService: DeleteService,
   capabilityService: CapabilityService,
   fsProvider: OpenChoreoFileSystemProvider,
+  componentService: ComponentService,
+  workflowRunService: WorkflowRunService,
+  releaseBindingService: ReleaseBindingService,
+  logOutputService: LogOutputService,
 ): void {
   // Refresh resources
   context.subscriptions.push(
@@ -189,6 +197,238 @@ export function registerCommands(
         } catch (err) {
           vscode.window.showErrorMessage(
             `Failed to fetch resource: ${err instanceof Error ? err.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // Generate an immutable release snapshot from a component
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.generateRelease',
+      async (node: ResourceNodeData) => {
+        if (!node?.namespace || !node?.component) return;
+
+        const releaseName = await vscode.window.showInputBox({
+          prompt: 'Enter release name (leave empty to auto-generate)',
+          placeHolder: 'e.g., v1.0.0',
+        });
+        if (releaseName === undefined) return; // Escape pressed
+
+        try {
+          const release = await componentService.generateRelease(
+            node.namespace,
+            node.component,
+            releaseName || undefined,
+          );
+          const name = release?.metadata?.name ?? 'unknown';
+          vscode.window.showInformationMessage(
+            `Release '${name}' generated for component '${node.component}'.`,
+          );
+          resourceExplorer.refresh();
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to generate release: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // Trigger a workflow run for a component
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.triggerBuild',
+      async (node: ResourceNodeData) => {
+        if (!node?.namespace || !node?.component) return;
+
+        try {
+          const client = await apiClientManager.getClient();
+          if (!client) {
+            vscode.window.showWarningMessage('Not authenticated.');
+            return;
+          }
+
+          const ns = node.namespace;
+          const [nsWorkflows, clusterWorkflows] = await Promise.all([
+            client.GET('/api/v1/namespaces/{namespaceName}/workflows', {
+              params: { path: { namespaceName: ns } },
+            }),
+            client.GET('/api/v1/clusterworkflows'),
+          ]);
+
+          const items: Array<
+            vscode.QuickPickItem & { workflowKind: string }
+          > = [];
+          for (const w of nsWorkflows.data?.items ?? []) {
+            const name = w.metadata?.name as string;
+            if (name) items.push({ label: name, description: 'Workflow', workflowKind: 'Workflow' });
+          }
+          for (const w of clusterWorkflows.data?.items ?? []) {
+            const name = w.metadata?.name as string;
+            if (name) items.push({ label: name, description: 'ClusterWorkflow', workflowKind: 'ClusterWorkflow' });
+          }
+
+          if (items.length === 0) {
+            vscode.window.showWarningMessage('No workflows available.');
+            return;
+          }
+
+          const selected = await vscode.window.showQuickPick(items, {
+            placeHolder: 'Select workflow to trigger',
+          });
+          if (!selected) return;
+
+          const runName = `${node.component}-${selected.label}-${Date.now()}`;
+          await workflowRunService.createWorkflowRun(ns, {
+            metadata: {
+              name: runName,
+              namespace: ns,
+              labels: {
+                'openchoreo.dev/project': node.project ?? '',
+                'openchoreo.dev/component': node.component,
+              },
+            },
+            spec: {
+              workflow: {
+                kind: selected.workflowKind,
+                name: selected.label,
+              },
+            },
+          });
+
+          vscode.window.showInformationMessage(
+            `Workflow run '${runName}' triggered.`,
+          );
+          resourceExplorer.refresh();
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to trigger build: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // View workflow run logs in an output channel
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.viewWorkflowRunLogs',
+      async (node: ResourceNodeData) => {
+        if (!node?.namespace || !node?.resourceName) return;
+        try {
+          const logs = await workflowRunService.getLogs(
+            node.namespace,
+            node.resourceName,
+          );
+          if (!logs || logs.length === 0) {
+            vscode.window.showInformationMessage(
+              `No logs available for '${node.resourceName}'.`,
+            );
+            return;
+          }
+          logOutputService.showLogs(
+            `OpenChoreo: Logs - ${node.resourceName}`,
+            logs,
+          );
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to fetch logs: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // View workflow run events in an output channel
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.viewWorkflowRunEvents',
+      async (node: ResourceNodeData) => {
+        if (!node?.namespace || !node?.resourceName) return;
+        try {
+          const events = await workflowRunService.getEvents(
+            node.namespace,
+            node.resourceName,
+          );
+          if (!events || events.length === 0) {
+            vscode.window.showInformationMessage(
+              `No events for '${node.resourceName}'.`,
+            );
+            return;
+          }
+          logOutputService.showEvents(
+            `OpenChoreo: Events - ${node.resourceName}`,
+            events,
+          );
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to fetch events: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // View K8s pod logs from a ReleaseBinding resource tree
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.viewK8sResourceLogs',
+      async (node: ResourceNodeData) => {
+        if (!node?.namespace || !node?.extra?.releaseBindingName || !node?.resourceName) return;
+        try {
+          const result = await releaseBindingService.getK8sResourceLogs(
+            node.namespace,
+            node.extra.releaseBindingName,
+            node.resourceName,
+          );
+          if (!result || result.length === 0) {
+            vscode.window.showInformationMessage(
+              `No logs available for pod '${node.resourceName}'.`,
+            );
+            return;
+          }
+          logOutputService.showLogs(
+            `OpenChoreo: Pod Logs - ${node.resourceName}`,
+            result,
+          );
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to fetch pod logs: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // View K8s resource events from a ReleaseBinding resource tree
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.viewK8sResourceEvents',
+      async (node: ResourceNodeData) => {
+        if (!node?.namespace || !node?.extra) return;
+        const { releaseBindingName, group, version, kind } = node.extra;
+        if (!releaseBindingName || !version || !kind || !node.resourceName) return;
+        try {
+          const result = await releaseBindingService.getK8sResourceEvents(
+            node.namespace,
+            releaseBindingName,
+            { group, version, kind, name: node.resourceName },
+          );
+          if (!result || result.length === 0) {
+            vscode.window.showInformationMessage(
+              `No events for '${node.resourceName}'.`,
+            );
+            return;
+          }
+          logOutputService.showEvents(
+            `OpenChoreo: Events - ${kind}/${node.resourceName}`,
+            result,
+          );
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to fetch events: ${error instanceof Error ? error.message : 'Unknown error'}`,
           );
         }
       },

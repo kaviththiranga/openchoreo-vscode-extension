@@ -91,6 +91,39 @@ Click the **+** button on a tree category or project to create a new resource fr
 
 Available scaffolds: Project, Component, ComponentType, Trait, Environment, DataPlane, WorkflowPlane, ObservabilityPlane, Workflow, Workload, DeploymentPipeline, SecretReference
 
+### Workflow Run Observability
+
+Expand any Workflow Run in the tree to see its step-by-step execution status:
+
+- **Colored status icons** — green check (Succeeded), red X (Failed), spinning sync (Running), clock (Pending), skip (Skipped), warning (Error)
+- **Step timing** — each step shows its phase and duration (e.g., `Succeeded (2m30s)`)
+- **View Logs** — right-click a Workflow Run → "View Logs" to stream logs into an Output channel
+- **View Events** — right-click a Workflow Run → "View Events" to see Kubernetes events
+
+Enable `openchoreo.autoRefresh` in settings to automatically poll running workflow run status.
+
+### Deployed Resource Tree
+
+Expand any Release Binding in the tree to see the Kubernetes resources deployed by that release:
+
+- **Hierarchical view** — shows the full resource hierarchy (e.g., Deployment → ReplicaSet → Pod)
+- **Health indicators** — colored icons for Healthy (green), Degraded (yellow), Progressing (blue), Missing (red)
+- **Pod Logs** — right-click a Pod → "View Pod Logs" to see container output
+- **Resource Events** — right-click any deployed resource → "View Events" to see Kubernetes events
+
+### Generate Release
+
+Right-click a Component → "Generate Release" to create an immutable release snapshot from the current component state (ComponentType + Traits + Workload configuration). Optionally provide a release name or let the server auto-generate one.
+
+### Trigger Build
+
+Right-click a Component → "Trigger Build" to create a new Workflow Run:
+
+1. A quick pick shows all available Workflows and ClusterWorkflows
+2. Select a workflow to trigger
+3. The run is created with labels linking it to the component and project
+4. The Workflow Runs category refreshes to show the new run
+
 ### Intelligent Completions
 
 The built-in language server provides context-aware completions across multiple dimensions:
@@ -268,6 +301,11 @@ NamespaceRole, NamespaceRoleBinding (in Platform Resources), ClusterRole, Cluste
 | `OpenChoreo: Refresh Cluster Resources` | Refresh Cluster Resources tree |
 | `OpenChoreo: Create New Resource` | Create from scaffold template (command palette) |
 | `OpenChoreo: Delete` | Delete resource (tree context menu) |
+| `OpenChoreo: Generate Release` | Create immutable release snapshot from component (tree context menu) |
+| `OpenChoreo: Trigger Build` | Trigger a workflow run for a component (tree context menu) |
+| `OpenChoreo: View Logs` | View workflow run logs in Output channel (tree context menu) |
+| `OpenChoreo: View Events` | View workflow run Kubernetes events (tree context menu) |
+| `OpenChoreo: View Pod Logs` | View deployed pod logs from release binding (tree context menu) |
 | `OpenChoreo: Add to Chat` | Add resource reference to Copilot Chat (tree context menu) |
 | `OpenChoreo: Add YAML to Chat` | Add full resource YAML to Copilot Chat (tree context menu) |
 

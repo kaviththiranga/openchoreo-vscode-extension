@@ -5,6 +5,11 @@ import * as vscode from 'vscode';
 import { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
 import type { CapabilityService } from '../services/capabilityService';
+import type { WorkflowRunService } from '../services/workflowRunService';
+import type {
+  ReleaseBindingService,
+  ResourceNode,
+} from '../services/releaseBindingService';
 import type { ResourceNodeData, ResourceNodeType } from './types';
 import { toTreeItem } from './shared';
 
@@ -24,6 +29,8 @@ export class ResourceExplorerProvider
     private readonly authProvider: OccConfigAuthProvider,
     private readonly apiClientManager: ApiClientManager,
     private readonly capabilityService: CapabilityService,
+    private readonly workflowRunService: WorkflowRunService,
+    private readonly releaseBindingService: ReleaseBindingService,
   ) {
     authProvider.onDidChangeSession(() => this.refresh());
   }
@@ -163,6 +170,10 @@ export class ResourceExplorerProvider
           return this.fetchReleaseBindings(client, element);
         case 'workloads':
           return this.fetchWorkloads(client, element);
+        case 'workflow-run-steps':
+          return this.fetchWorkflowRunSteps(element);
+        case 'k8s-resource-tree':
+          return this.fetchK8sResourceTree(element);
         default:
           return [];
       }
@@ -349,11 +360,13 @@ export class ResourceExplorerProvider
         type: 'workflow-run' as const,
         contextValue: 'workflow-run',
         description: isDeleting ? (phase ? `(deleting) ${phase}` : '(deleting)') : phase,
+        statusPhase: phase,
         namespace: element.namespace,
         project: element.project,
         component: element.component,
         resourceName: item.metadata?.name as string,
-        childrenMode: 'none' as const,
+        childrenMode: 'lazy' as const,
+        lazyChildrenKey: 'workflow-run-steps',
       };
     });
   }
@@ -435,7 +448,8 @@ export class ResourceExplorerProvider
         project: element.project,
         component: element.component,
         resourceName: item.metadata?.name as string,
-        childrenMode: 'none' as const,
+        childrenMode: 'lazy' as const,
+        lazyChildrenKey: 'k8s-resource-tree',
       };
     });
   }
@@ -479,5 +493,129 @@ export class ResourceExplorerProvider
         childrenMode: 'none' as const,
       };
     });
+  }
+
+  private async fetchWorkflowRunSteps(
+    element: ResourceNodeData,
+  ): Promise<ResourceNodeData[]> {
+    const status = await this.workflowRunService.getStatus(
+      element.namespace!,
+      element.resourceName!,
+    );
+
+    if (!status?.steps?.length) {
+      return [
+        { label: 'No steps available', type: 'empty', contextValue: 'empty', childrenMode: 'none' },
+      ];
+    }
+
+    return status.steps.map((step) => {
+      let desc = step.phase;
+      if (step.startedAt && step.finishedAt) {
+        const dur = new Date(step.finishedAt).getTime() - new Date(step.startedAt).getTime();
+        const secs = Math.round(dur / 1000);
+        desc = secs >= 60 ? `${step.phase} (${Math.floor(secs / 60)}m${secs % 60}s)` : `${step.phase} (${secs}s)`;
+      }
+      return {
+        label: step.name,
+        type: 'workflow-run-step' as const,
+        contextValue: 'workflow-run-step',
+        description: desc,
+        statusPhase: step.phase,
+        namespace: element.namespace,
+        project: element.project,
+        component: element.component,
+        resourceName: element.resourceName,
+        childrenMode: 'none' as const,
+      };
+    });
+  }
+
+  private async fetchK8sResourceTree(
+    element: ResourceNodeData,
+  ): Promise<ResourceNodeData[]> {
+    const tree = await this.releaseBindingService.getK8sResourceTree(
+      element.namespace!,
+      element.resourceName!,
+    );
+
+    if (!tree?.renderedReleases?.length) {
+      return [
+        { label: 'No deployed resources', type: 'empty', contextValue: 'empty', childrenMode: 'none' },
+      ];
+    }
+
+    const results: ResourceNodeData[] = [];
+    for (const release of tree.renderedReleases) {
+      const k8sNodes = this.buildK8sTree(
+        release.nodes,
+        element.resourceName!,
+        element.namespace!,
+      );
+      if (tree.renderedReleases.length === 1) {
+        // Single release — flatten (no grouping node)
+        results.push(...k8sNodes);
+      } else {
+        results.push({
+          label: `${release.name} (${release.targetPlane})`,
+          type: 'k8s-rendered-release',
+          contextValue: 'k8s-rendered-release',
+          namespace: element.namespace,
+          childrenMode: 'preloaded',
+          children: k8sNodes,
+        });
+      }
+    }
+
+    return results.length > 0
+      ? results
+      : [{ label: 'No deployed resources', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
+  }
+
+  private buildK8sTree(
+    nodes: ResourceNode[],
+    rbName: string,
+    ns: string,
+  ): ResourceNodeData[] {
+    const byUid = new Map<string, ResourceNode>();
+    for (const n of nodes) byUid.set(n.uid, n);
+
+    const childMap = new Map<string, ResourceNode[]>();
+    const rootNodes: ResourceNode[] = [];
+
+    for (const n of nodes) {
+      const parentInTree = n.parentRefs?.find((pr) => byUid.has(pr.uid));
+      if (parentInTree) {
+        const children = childMap.get(parentInTree.uid) ?? [];
+        children.push(n);
+        childMap.set(parentInTree.uid, children);
+      } else {
+        rootNodes.push(n);
+      }
+    }
+
+    const toNodeData = (n: ResourceNode): ResourceNodeData => {
+      const children = childMap.get(n.uid) ?? [];
+      const isPod = n.kind === 'Pod';
+      return {
+        label: `${n.kind}/${n.name}`,
+        type: isPod ? 'k8s-pod' : 'k8s-resource',
+        contextValue: isPod ? 'k8s-pod' : 'k8s-resource',
+        description: n.health?.message ?? n.health?.status,
+        healthStatus: n.health?.status,
+        namespace: ns,
+        resourceName: n.name,
+        extra: {
+          group: n.group ?? '',
+          version: n.version,
+          kind: n.kind,
+          releaseBindingName: rbName,
+        },
+        childrenMode: children.length > 0 ? 'preloaded' : 'none',
+        children: children.map(toNodeData),
+      };
+    };
+
+    return rootNodes.map(toNodeData);
   }
 }

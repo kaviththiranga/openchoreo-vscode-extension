@@ -136,6 +136,42 @@
         "title": "Add YAML to Chat",
         "category": "OpenChoreo",
         "icon": "$(code)"
+      },
+      {
+        "command": "openchoreo.generateRelease",
+        "title": "Generate Release",
+        "category": "OpenChoreo",
+        "icon": "$(tag)"
+      },
+      {
+        "command": "openchoreo.triggerBuild",
+        "title": "Trigger Build",
+        "category": "OpenChoreo",
+        "icon": "$(play)"
+      },
+      {
+        "command": "openchoreo.viewWorkflowRunLogs",
+        "title": "View Logs",
+        "category": "OpenChoreo",
+        "icon": "$(output)"
+      },
+      {
+        "command": "openchoreo.viewWorkflowRunEvents",
+        "title": "View Events",
+        "category": "OpenChoreo",
+        "icon": "$(list-unordered)"
+      },
+      {
+        "command": "openchoreo.viewK8sResourceLogs",
+        "title": "View Pod Logs",
+        "category": "OpenChoreo",
+        "icon": "$(output)"
+      },
+      {
+        "command": "openchoreo.viewK8sResourceEvents",
+        "title": "View Events",
+        "category": "OpenChoreo",
+        "icon": "$(list-unordered)"
       }
     ],
     "menus": {
@@ -197,6 +233,36 @@
           "command": "openchoreo.deleteResource",
           "when": "viewItem =~ /_deletable/",
           "group": "3_destructive"
+        },
+        {
+          "command": "openchoreo.generateRelease",
+          "when": "viewItem =~ /^component_editable/",
+          "group": "1_actions"
+        },
+        {
+          "command": "openchoreo.triggerBuild",
+          "when": "viewItem =~ /^component_editable/",
+          "group": "1_actions"
+        },
+        {
+          "command": "openchoreo.viewWorkflowRunLogs",
+          "when": "viewItem =~ /^workflow-run/",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.viewWorkflowRunEvents",
+          "when": "viewItem =~ /^workflow-run/",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.viewK8sResourceLogs",
+          "when": "viewItem =~ /^k8s-pod/",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.viewK8sResourceEvents",
+          "when": "viewItem =~ /^k8s-resource|^k8s-pod/",
+          "group": "2_observe"
         },
         {
           "command": "openchoreo.addToChat",

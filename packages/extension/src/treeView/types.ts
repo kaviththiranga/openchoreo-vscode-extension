@@ -33,6 +33,12 @@ export type ResourceNodeType =
   | 'cluster-data-plane'
   | 'cluster-workflow-plane'
   | 'cluster-observability-plane'
+  // Workflow run step nodes
+  | 'workflow-run-step'
+  // K8s resource tree nodes (from ReleaseBinding expansion)
+  | 'k8s-resource'
+  | 'k8s-pod'
+  | 'k8s-rendered-release'
   // Status nodes
   | 'no-connection'
   | 'empty';
@@ -52,6 +58,15 @@ export interface ResourceNodeData {
   project?: string;
   component?: string;
   resourceName?: string;
+
+  // Status-based icon overrides
+  /** Workflow run / step phase — drives colored status icon. */
+  statusPhase?: string;
+  /** K8s resource health status — drives colored health icon. */
+  healthStatus?: string;
+
+  /** Arbitrary metadata for command handlers (e.g., K8s resource identifiers). */
+  extra?: Record<string, string>;
 
   // Children strategy
   childrenMode: ChildrenMode;

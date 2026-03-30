@@ -74,6 +74,11 @@ const THEME_ICON_MAP: Record<ResourceNodeType, string> = {
   'cluster-data-plane': 'server',
   'cluster-workflow-plane': 'wrench',
   'cluster-observability-plane': 'eye',
+  // Workflow run steps & K8s resource tree
+  'workflow-run-step': 'circle-outline',
+  'k8s-resource': 'symbol-object',
+  'k8s-pod': 'server-process',
+  'k8s-rendered-release': 'layers',
   // Status
   'no-connection': 'warning',
   empty: 'info',
@@ -99,6 +104,30 @@ function resolveIcon(
     ? (THEME_ICON_MAP[iconOverride as ResourceNodeType] ?? 'circle-outline')
     : (THEME_ICON_MAP[type] ?? 'circle-outline');
   return new vscode.ThemeIcon(themeIconName);
+}
+
+/** Map workflow run/step phase to a colored ThemeIcon. */
+export function phaseIcon(phase: string): vscode.ThemeIcon {
+  switch (phase) {
+    case 'Succeeded': return new vscode.ThemeIcon('pass', new vscode.ThemeColor('testing.iconPassed'));
+    case 'Failed':    return new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
+    case 'Running':   return new vscode.ThemeIcon('sync~spin');
+    case 'Pending':   return new vscode.ThemeIcon('clock');
+    case 'Skipped':   return new vscode.ThemeIcon('debug-step-over');
+    case 'Error':     return new vscode.ThemeIcon('warning', new vscode.ThemeColor('problemsWarningIcon.foreground'));
+    default:          return new vscode.ThemeIcon('circle-outline');
+  }
+}
+
+/** Map K8s resource health status to a colored ThemeIcon. */
+export function healthIcon(status: string): vscode.ThemeIcon {
+  switch (status) {
+    case 'Healthy':     return new vscode.ThemeIcon('pass', new vscode.ThemeColor('testing.iconPassed'));
+    case 'Degraded':    return new vscode.ThemeIcon('warning', new vscode.ThemeColor('problemsWarningIcon.foreground'));
+    case 'Progressing': return new vscode.ThemeIcon('sync~spin');
+    case 'Missing':     return new vscode.ThemeIcon('error', new vscode.ThemeColor('testing.iconFailed'));
+    default:            return new vscode.ThemeIcon('question');
+  }
 }
 
 /** Builds a unique tree node ID from node context. */
@@ -143,9 +172,22 @@ export function toTreeItem(element: ResourceNodeData): vscode.TreeItem {
   }
   treeItem.iconPath = resolveIcon(element.type, element.icon);
 
+  // Override icon with colored status/health icons when available
+  if (element.statusPhase) {
+    treeItem.iconPath = phaseIcon(element.statusPhase);
+  } else if (element.healthStatus) {
+    treeItem.iconPath = healthIcon(element.healthStatus);
+  }
+
   if (element.description) {
     treeItem.description = element.description;
   }
+
+  // Non-clickable node types
+  const NON_CLICKABLE: ReadonlySet<string> = new Set([
+    'no-connection', 'empty', 'component-category', 'infra-category',
+    'workflow-run-step', 'k8s-resource', 'k8s-pod', 'k8s-rendered-release',
+  ]);
 
   // "Not connected" / "Session expired" nodes trigger login on click
   if (element.type === 'no-connection') {
@@ -153,11 +195,7 @@ export function toTreeItem(element: ResourceNodeData): vscode.TreeItem {
       command: 'openchoreo.login',
       title: 'Login',
     };
-  } else if (
-    element.type !== 'empty' &&
-    element.type !== 'component-category' &&
-    element.type !== 'infra-category'
-  ) {
+  } else if (!NON_CLICKABLE.has(element.type)) {
     // Leaf resource nodes are clickable to open their API response
     treeItem.command = {
       command: 'openchoreo.openResource',

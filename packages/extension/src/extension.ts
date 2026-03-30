@@ -22,6 +22,10 @@ import { initLogger, log } from './logging/logger';
 import { ClusterExplorerProvider } from './treeView/clusterExplorer';
 import { registerMcpServers } from './mcp/mcpProvider';
 import { setExtensionUri } from './treeView/shared';
+import { ComponentService } from './services/componentService';
+import { WorkflowRunService } from './services/workflowRunService';
+import { ReleaseBindingService } from './services/releaseBindingService';
+import { LogOutputService } from './services/logOutputService';
 import {
   OpenChoreoFileSystemProvider,
   FS_SCHEME,
@@ -55,11 +59,20 @@ export async function activate(
   // Initialize delete service
   const deleteService = new DeleteService(apiClientManager);
 
+  // Initialize new feature services
+  const componentService = new ComponentService(apiClientManager);
+  const workflowRunService = new WorkflowRunService(apiClientManager);
+  const releaseBindingService = new ReleaseBindingService(apiClientManager);
+  const logOutputService = new LogOutputService();
+  context.subscriptions.push(logOutputService);
+
   // Initialize resource explorer tree view
   const resourceExplorer = new ResourceExplorerProvider(
     authProvider,
     apiClientManager,
     capabilityService,
+    workflowRunService,
+    releaseBindingService,
   );
   const resourceTreeView = vscode.window.createTreeView(
     'openchoreo.resourceExplorer',
@@ -145,6 +158,10 @@ export async function activate(
     deleteService,
     capabilityService,
     fsProvider,
+    componentService,
+    workflowRunService,
+    releaseBindingService,
+    logOutputService,
   );
 
   // Register namespace selector
@@ -181,6 +198,16 @@ export async function activate(
     }
   }, 4 * 60 * 1000); // Every 4 minutes (tokens expire with 60s buffer)
   context.subscriptions.push({ dispose: () => clearInterval(tokenRefreshInterval) });
+
+  // Auto-refresh resource trees (useful for live workflow run status updates)
+  const config = vscode.workspace.getConfiguration('openchoreo');
+  if (config.get<boolean>('autoRefresh', false)) {
+    const interval = (config.get<number>('autoRefreshInterval', 30)) * 1000;
+    const autoRefreshTimer = setInterval(() => {
+      resourceExplorer.refresh();
+    }, interval);
+    context.subscriptions.push({ dispose: () => clearInterval(autoRefreshTimer) });
+  }
 
   // Watch for occ config changes
   authProvider.startWatching();
