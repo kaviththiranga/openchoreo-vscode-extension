@@ -121,14 +121,14 @@ export function registerCommands(
         if (!node) return;
         const name = node.resourceName ?? node.label;
         const kind = new ResourceService().getCrdKind(node.type) ?? node.type;
-        const parts = [`${kind}: ${name}`];
-        if (node.namespace) parts.push(`ns: ${node.namespace}`);
-        if (node.project) parts.push(`project: ${node.project}`);
-        if (node.component) parts.push(`component: ${node.component}`);
+        let ref = `Regarding OpenChoreo ${kind} "${name}"`;
+        if (node.project) ref += ` in Project "${node.project}"`;
+        if (node.namespace) ref += ` in Namespace "${node.namespace}"`;
 
         try {
           await vscode.commands.executeCommand('workbench.action.chat.open', {
-            query: `@openchoreo [${parts.join(' | ')}] `,
+            query: `${ref}: `,
+            isPartialQuery: true,
           });
         } catch {
           vscode.window.showInformationMessage(`Chat not available.`);
@@ -145,6 +145,9 @@ export function registerCommands(
         if (!node) return;
         const name = node.resourceName ?? node.label;
         const kind = new ResourceService().getCrdKind(node.type) ?? node.type;
+        let ref = `Regarding OpenChoreo ${kind} "${name}"`;
+        if (node.project) ref += ` in Project "${node.project}"`;
+        if (node.namespace) ref += ` in Namespace "${node.namespace}"`;
 
         try {
           const client = await apiClientManager.getClient();
@@ -169,7 +172,8 @@ export function registerCommands(
             const yaml = crdToYaml(crd);
 
             await vscode.commands.executeCommand('workbench.action.chat.open', {
-              query: `@openchoreo Here is ${kind} "${name}":\n\`\`\`yaml\n${yaml}\`\`\`\n\n`,
+              query: `${ref}:\n\`\`\`yaml\n${yaml}\`\`\`\n`,
+              isPartialQuery: true,
             });
           }
         } catch (err) {

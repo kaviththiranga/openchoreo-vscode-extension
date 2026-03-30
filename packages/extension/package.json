@@ -28,15 +28,6 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
-    "chatParticipants": [
-      {
-        "id": "openchoreo",
-        "fullName": "OpenChoreo",
-        "name": "openchoreo",
-        "description": "OpenChoreo platform — ask about resources, deployments, builds, observability",
-        "isSticky": true
-      }
-    ],
     "mcpServerDefinitionProviders": [
       {
         "id": "openchoreo",

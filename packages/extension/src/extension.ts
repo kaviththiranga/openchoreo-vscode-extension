@@ -21,7 +21,6 @@ import { registerNamespaceSelector } from './commands/namespaceSelector';
 import { initLogger, log } from './logging/logger';
 import { ClusterExplorerProvider } from './treeView/clusterExplorer';
 import { registerMcpServers } from './mcp/mcpProvider';
-import { registerChatParticipant } from './chat/chatParticipant';
 import { setExtensionUri } from './treeView/shared';
 import {
   OpenChoreoFileSystemProvider,
@@ -169,9 +168,6 @@ export async function activate(
 
   // Register OpenChoreo MCP servers for Copilot Chat
   registerMcpServers(context, authProvider);
-
-  // Register @openchoreo chat participant
-  registerChatParticipant(context, authProvider);
 
   // Periodic token pre-refresh — ensures tokens stay fresh for MCP and API calls.
   // getToken() checks expiry and refreshes if needed, writing back to occ config.
