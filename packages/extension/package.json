@@ -139,6 +139,12 @@
         "title": "Add to Chat",
         "category": "OpenChoreo",
         "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "openchoreo.addYamlToChat",
+        "title": "Add YAML to Chat",
+        "category": "OpenChoreo",
+        "icon": "$(code)"
       }
     ],
     "menus": {
@@ -203,6 +209,11 @@
         },
         {
           "command": "openchoreo.addToChat",
+          "when": "viewItem =~ /^(project|component|environment|workflow|trait|workload|deployment-pipeline|data-plane|workflow-plane|observability-plane|component-type|secret-reference|release-binding|workflow-run|component-release|cluster-component-type|cluster-workflow|cluster-trait|cluster-data-plane|cluster-workflow-plane|cluster-observability-plane)/",
+          "group": "4_chat"
+        },
+        {
+          "command": "openchoreo.addYamlToChat",
           "when": "viewItem =~ /^(project|component|environment|workflow|trait|workload|deployment-pipeline|data-plane|workflow-plane|observability-plane|component-type|secret-reference|release-binding|workflow-run|component-release|cluster-component-type|cluster-workflow|cluster-trait|cluster-data-plane|cluster-workflow-plane|cluster-observability-plane)/",
           "group": "4_chat"
         }

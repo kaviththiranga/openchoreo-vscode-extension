@@ -171,7 +171,7 @@ export async function activate(
   registerMcpServers(context, authProvider);
 
   // Register @openchoreo chat participant
-  registerChatParticipant(context, authProvider, apiClientManager);
+  registerChatParticipant(context, authProvider);
 
   // Periodic token pre-refresh — ensures tokens stay fresh for MCP and API calls.
   // getToken() checks expiry and refreshes if needed, writing back to occ config.

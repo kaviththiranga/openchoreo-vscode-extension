@@ -10,8 +10,9 @@ import type { ApiClientManager } from '../api/apiClient';
 import type { CapabilityService } from '../services/capabilityService';
 import type { DeleteService } from '../services/deleteService';
 import type { ResourceNodeData } from '../treeView/types';
-import { CRD_KIND_TO_SCAFFOLD } from '../services/yamlService';
-import { buildPutRequest } from '../services/apiRoutes';
+import { CRD_KIND_TO_SCAFFOLD, crdToYaml } from '../services/yamlService';
+import { ResourceService } from '../services/resourceService';
+import { buildPutRequest, fetchResource } from '../services/apiRoutes';
 import {
   buildResourceUri,
   FS_SCHEME,
@@ -112,30 +113,68 @@ export function registerCommands(
     ),
   );
 
-  // Add resource to chat context
+  // Add lightweight resource reference to chat
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.addToChat',
       async (node: ResourceNodeData) => {
-        if (!node) {
-          return;
-        }
+        if (!node) return;
+        const name = node.resourceName ?? node.label;
+        const kind = new ResourceService().getCrdKind(node.type) ?? node.type;
+        const parts = [`${kind}: ${name}`];
+        if (node.namespace) parts.push(`ns: ${node.namespace}`);
+        if (node.project) parts.push(`project: ${node.project}`);
+        if (node.component) parts.push(`component: ${node.component}`);
 
-        const resourceRef = {
-          type: node.type,
-          namespace: node.namespace,
-          name: node.resourceName ?? node.label,
-        };
-
-        // Open chat with the resource reference
         try {
           await vscode.commands.executeCommand('workbench.action.chat.open', {
-            query: `@openchoreo Tell me about ${node.type} "${resourceRef.name}"`,
+            query: `@openchoreo [${parts.join(' | ')}] `,
           });
         } catch {
-          // Fallback: just open the resource YAML
-          vscode.window.showInformationMessage(
-            `Chat not available. Use the tree to open ${node.type} "${resourceRef.name}".`,
+          vscode.window.showInformationMessage(`Chat not available.`);
+        }
+      },
+    ),
+  );
+
+  // Add full resource YAML to chat
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.addYamlToChat',
+      async (node: ResourceNodeData) => {
+        if (!node) return;
+        const name = node.resourceName ?? node.label;
+        const kind = new ResourceService().getCrdKind(node.type) ?? node.type;
+
+        try {
+          const client = await apiClientManager.getClient();
+          if (!client) {
+            vscode.window.showWarningMessage('Not authenticated.');
+            return;
+          }
+
+          const data = await fetchResource(
+            client,
+            node.type,
+            node.namespace ?? null,
+            name,
+          );
+
+          if (data) {
+            const crd = data as Record<string, unknown>;
+            if (!crd.apiVersion) {
+              crd.apiVersion = 'openchoreo.dev/v1alpha1';
+              crd.kind = kind;
+            }
+            const yaml = crdToYaml(crd);
+
+            await vscode.commands.executeCommand('workbench.action.chat.open', {
+              query: `@openchoreo Here is ${kind} "${name}":\n\`\`\`yaml\n${yaml}\`\`\`\n\n`,
+            });
+          }
+        } catch (err) {
+          vscode.window.showErrorMessage(
+            `Failed to fetch resource: ${err instanceof Error ? err.message : 'Unknown error'}`,
           );
         }
       },
