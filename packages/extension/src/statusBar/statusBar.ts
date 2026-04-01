@@ -24,13 +24,26 @@ export class StatusBarManager implements vscode.Disposable {
     this.statusBarItem.show();
   }
 
-  private update(): void {
+  private async update(): Promise<void> {
     const contextInfo = this.authProvider.getContextInfo();
 
     if (!contextInfo) {
       this.statusBarItem.text = '$(warning) OC: Not connected';
       this.statusBarItem.tooltip =
         'Not connected to OpenChoreo. Click to login.';
+      this.statusBarItem.command = 'openchoreo.login';
+      this.statusBarItem.backgroundColor = new vscode.ThemeColor(
+        'statusBarItem.warningBackground',
+      );
+      return;
+    }
+
+    // Check if token is still valid (getToken refreshes if expired)
+    const token = await this.authProvider.getToken();
+    if (!token) {
+      this.statusBarItem.text = '$(warning) OC: Session expired';
+      this.statusBarItem.tooltip =
+        'Session expired. Click to login.';
       this.statusBarItem.command = 'openchoreo.login';
       this.statusBarItem.backgroundColor = new vscode.ThemeColor(
         'statusBarItem.warningBackground',

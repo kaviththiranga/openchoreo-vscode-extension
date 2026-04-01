@@ -64,6 +64,18 @@ export class InfrastructureExplorerProvider
       ];
     }
 
+    const client = await this.apiClientManager.getClient();
+    if (!client) {
+      return [
+        {
+          label: 'Session expired. Run "occ login" to re-authenticate.',
+          type: 'no-connection',
+          contextValue: 'no-connection',
+          childrenMode: 'none',
+        },
+      ];
+    }
+
     const contextInfo = this.authProvider.getContextInfo();
     const ns = contextInfo?.namespace;
 

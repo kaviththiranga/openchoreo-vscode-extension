@@ -55,12 +55,24 @@ export class ClusterExplorerProvider
     return [];
   }
 
-  private getRootNodes(): ResourceNodeData[] {
+  private async getRootNodes(): Promise<ResourceNodeData[]> {
     const session = this.authProvider.getSession();
     if (!session) {
       return [
         {
           label: 'Not connected. Run "occ login" to authenticate.',
+          type: 'no-connection',
+          contextValue: 'no-connection',
+          childrenMode: 'none',
+        },
+      ];
+    }
+
+    const client = await this.apiClientManager.getClient();
+    if (!client) {
+      return [
+        {
+          label: 'Session expired. Run "occ login" to re-authenticate.',
           type: 'no-connection',
           contextValue: 'no-connection',
           childrenMode: 'none',
