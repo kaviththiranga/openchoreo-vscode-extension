@@ -5,6 +5,7 @@
   "version": "0.1.0",
   "publisher": "openchoreo",
   "license": "Apache-2.0",
+  "icon": "resources/openchoreo.png",
   "engines": {
     "vscode": "^1.85.0"
   },
