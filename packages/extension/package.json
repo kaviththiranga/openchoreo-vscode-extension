@@ -163,6 +163,12 @@
         "icon": "$(list-unordered)"
       },
       {
+        "command": "openchoreo.openK8sDefinition",
+        "title": "View Definition",
+        "category": "OpenChoreo",
+        "icon": "$(file-code)"
+      },
+      {
         "command": "openchoreo.viewK8sResourceLogs",
         "title": "View Pod Logs",
         "category": "OpenChoreo",
@@ -254,6 +260,11 @@
           "command": "openchoreo.viewWorkflowRunEvents",
           "when": "viewItem =~ /^workflow-run/",
           "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.openK8sDefinition",
+          "when": "viewItem =~ /^k8s-resource|^k8s-pod/",
+          "group": "2_open"
         },
         {
           "command": "openchoreo.viewK8sResourceLogs",

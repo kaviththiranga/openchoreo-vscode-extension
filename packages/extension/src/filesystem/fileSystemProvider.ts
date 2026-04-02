@@ -105,6 +105,11 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
     this.newResources.add(uri.toString());
   }
 
+  /** Store read-only content for a URI (no POST tracking). */
+  setReadonlyContent(uri: vscode.Uri, content: string): void {
+    this.pendingContent.set(uri.toString(), new TextEncoder().encode(content));
+  }
+
   watch(): vscode.Disposable {
     // No-op: we don't poll for remote changes.
     return new vscode.Disposable(() => {});

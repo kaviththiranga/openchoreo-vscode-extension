@@ -12,6 +12,7 @@ import type {
 } from '../services/releaseBindingService';
 import type { ResourceNodeData, ResourceNodeType } from './types';
 import { toTreeItem } from './shared';
+import { stringify } from 'yaml';
 
 type Client = NonNullable<
   Awaited<ReturnType<ApiClientManager['getClient']>>
@@ -610,6 +611,7 @@ export class ResourceExplorerProvider
           version: n.version,
           kind: n.kind,
           releaseBindingName: rbName,
+          objectYaml: stringify(n.object),
         },
         childrenMode: children.length > 0 ? 'preloaded' : 'none',
         children: children.map(toNodeData),

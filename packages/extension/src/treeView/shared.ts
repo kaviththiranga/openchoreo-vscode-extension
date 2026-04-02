@@ -186,7 +186,7 @@ export function toTreeItem(element: ResourceNodeData): vscode.TreeItem {
   // Non-clickable node types
   const NON_CLICKABLE: ReadonlySet<string> = new Set([
     'no-connection', 'empty', 'component-category', 'infra-category',
-    'workflow-run-step', 'k8s-resource', 'k8s-pod', 'k8s-rendered-release',
+    'workflow-run-step', 'k8s-rendered-release',
   ]);
 
   // "Not connected" / "Session expired" nodes trigger login on click
@@ -194,6 +194,13 @@ export function toTreeItem(element: ResourceNodeData): vscode.TreeItem {
     treeItem.command = {
       command: 'openchoreo.login',
       title: 'Login',
+    };
+  } else if (element.type === 'k8s-resource' || element.type === 'k8s-pod') {
+    // K8s resource nodes open their definition as read-only YAML
+    treeItem.command = {
+      command: 'openchoreo.openK8sDefinition',
+      title: 'View Definition',
+      arguments: [element],
     };
   } else if (!NON_CLICKABLE.has(element.type)) {
     // Leaf resource nodes are clickable to open their API response

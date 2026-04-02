@@ -115,6 +115,34 @@ export function registerCommands(
     }),
   );
 
+  // Open K8s resource definition as read-only YAML via virtual filesystem
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.openK8sDefinition',
+      async (node: ResourceNodeData) => {
+        if (!node?.extra?.objectYaml || !node?.extra?.kind || !node?.resourceName) return;
+        try {
+          const nsSegment = node.namespace ?? '_cluster';
+          const uri = vscode.Uri.from({
+            scheme: FS_SCHEME,
+            path: `/${nsSegment}/k8s-${node.extra.kind.toLowerCase()}/${node.resourceName}.yaml`,
+            query: 'readonly',
+          });
+          fsProvider.setReadonlyContent(uri, node.extra.objectYaml);
+          const doc = await vscode.workspace.openTextDocument(uri);
+          if (doc.languageId !== 'yaml') {
+            await vscode.languages.setTextDocumentLanguage(doc, 'yaml');
+          }
+          await vscode.window.showTextDocument(doc);
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to open definition: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
   // Open resource via the virtual filesystem
   context.subscriptions.push(
     vscode.commands.registerCommand(
