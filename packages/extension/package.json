@@ -103,8 +103,20 @@
         "icon": "$(cloud-upload)"
       },
       {
-        "command": "openchoreo.createResource",
-        "title": "Create New Resource",
+        "command": "openchoreo.createDevResource",
+        "title": "Create Resource",
+        "category": "OpenChoreo",
+        "icon": "$(add)"
+      },
+      {
+        "command": "openchoreo.createInfraResource",
+        "title": "Create Resource",
+        "category": "OpenChoreo",
+        "icon": "$(add)"
+      },
+      {
+        "command": "openchoreo.createClusterResource",
+        "title": "Create Cluster Resource",
         "category": "OpenChoreo",
         "icon": "$(add)"
       },
@@ -117,6 +129,12 @@
       {
         "command": "openchoreo.createChildResource",
         "title": "Create",
+        "category": "OpenChoreo",
+        "icon": "$(add)"
+      },
+      {
+        "command": "openchoreo.createComponent",
+        "title": "Create Component",
         "category": "OpenChoreo",
         "icon": "$(add)"
       },
@@ -195,7 +213,7 @@
           "group": "navigation"
         },
         {
-          "command": "openchoreo.createResource",
+          "command": "openchoreo.createDevResource",
           "when": "view == openchoreo.resourceExplorer",
           "group": "navigation"
         },
@@ -210,7 +228,7 @@
           "group": "navigation"
         },
         {
-          "command": "openchoreo.createResource",
+          "command": "openchoreo.createInfraResource",
           "when": "view == openchoreo.infrastructureExplorer",
           "group": "navigation"
         },
@@ -218,17 +236,32 @@
           "command": "openchoreo.refreshCluster",
           "when": "view == openchoreo.clusterExplorer",
           "group": "navigation"
+        },
+        {
+          "command": "openchoreo.createClusterResource",
+          "when": "view == openchoreo.clusterExplorer",
+          "group": "navigation"
         }
       ],
       "view/item/context": [
         {
+          "command": "openchoreo.createComponent",
+          "when": "viewItem =~ /^project.*_creatable/",
+          "group": "inline"
+        },
+        {
+          "command": "openchoreo.createComponent",
+          "when": "viewItem =~ /^project.*_creatable/",
+          "group": "1_create"
+        },
+        {
           "command": "openchoreo.createChildResource",
-          "when": "viewItem =~ /_creatable/",
+          "when": "viewItem =~ /^infra-category_creatable/",
           "group": "inline"
         },
         {
           "command": "openchoreo.createChildResource",
-          "when": "viewItem =~ /_creatable/",
+          "when": "viewItem =~ /^infra-category_creatable/",
           "group": "1_create"
         },
         {

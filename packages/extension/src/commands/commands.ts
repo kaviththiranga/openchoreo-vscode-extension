@@ -574,27 +574,70 @@ export function registerCommands(
     ),
   );
 
-  // Create new resource from scaffold (opens as untitled document)
+  // Create resource scoped to Developer Resources (Project, Component)
+  const DEV_KINDS = ['Project', 'Component'];
   context.subscriptions.push(
     vscode.commands.registerCommand(
-      'openchoreo.createResource',
+      'openchoreo.createDevResource',
       async () => {
-        const kinds = Object.keys(CRD_KIND_TO_SCAFFOLD);
-        const selected = await vscode.window.showQuickPick(kinds, {
+        const selected = await vscode.window.showQuickPick(DEV_KINDS, {
           placeHolder: 'Select resource kind to create',
         });
-
-        if (!selected) {
-          return;
-        }
-
+        if (!selected) return;
         const ctxInfo = authProvider.getContextInfo();
         openScaffold(selected, fsProvider, ctxInfo?.namespace, ctxInfo?.project);
       },
     ),
   );
 
-  // Create child resource from tree item context (inline "+" button)
+  // Create resource scoped to Platform Resources (namespace-scoped infra)
+  const INFRA_KINDS = Object.keys(CRD_KIND_TO_SCAFFOLD).filter(
+    (k) => !DEV_KINDS.includes(k) && !k.startsWith('Cluster'),
+  );
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.createInfraResource',
+      async () => {
+        const selected = await vscode.window.showQuickPick(INFRA_KINDS, {
+          placeHolder: 'Select resource kind to create',
+        });
+        if (!selected) return;
+        const ctxInfo = authProvider.getContextInfo();
+        openScaffold(selected, fsProvider, ctxInfo?.namespace);
+      },
+    ),
+  );
+
+  // Create resource scoped to Cluster Resources
+  // Uses namespace-scoped scaffolds (same YAML structure, user removes namespace field)
+  const CLUSTER_KINDS = ['ComponentType', 'Workflow', 'Trait', 'DataPlane', 'WorkflowPlane', 'ObservabilityPlane'];
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.createClusterResource',
+      async () => {
+        const selected = await vscode.window.showQuickPick(CLUSTER_KINDS, {
+          placeHolder: 'Select cluster resource kind to create',
+        });
+        if (!selected) return;
+        openScaffold(selected, fsProvider);
+      },
+    ),
+  );
+
+  // Create component from project node (inline "+" button)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.createComponent',
+      async (node: ResourceNodeData) => {
+        if (!node) return;
+        const ctxInfo = authProvider.getContextInfo();
+        const ns = node.namespace ?? ctxInfo?.namespace;
+        openScaffold('Component', fsProvider, ns, node.project);
+      },
+    ),
+  );
+
+  // Create child resource from tree item context (inline "+" button on infra categories)
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.createChildResource',
@@ -605,19 +648,6 @@ export function registerCommands(
 
         const ctxInfo = authProvider.getContextInfo();
         const ns = node.namespace ?? ctxInfo?.namespace;
-
-        if (node.type === 'project') {
-          // Project node → ask: Component or DeploymentPipeline?
-          const choice = await vscode.window.showQuickPick(
-            ['Component', 'DeploymentPipeline'],
-            { placeHolder: `Create resource in project '${node.project}'` },
-          );
-          if (!choice) {
-            return;
-          }
-          openScaffold(choice, fsProvider, ns, node.project);
-          return;
-        }
 
         if (node.type === 'infra-category' && node.lazyChildrenKey) {
           // Infrastructure category → create the matching kind
