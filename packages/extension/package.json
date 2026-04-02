@@ -305,9 +305,9 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "clean": "rm -rf dist out",
-    "prepackage": "cp -r ../../schemas ./schemas",
+    "prepackage": "cp -r ../../schemas ./schemas && mkdir -p ./language-server/dist && cp ../language-server/dist/server.js ./language-server/dist/server.js",
     "package": "pnpm build && vsce package --no-dependencies --allow-missing-repository --skip-license",
-    "postpackage": "rm -rf ./schemas"
+    "postpackage": "rm -rf ./schemas ./language-server"
   },
   "dependencies": {
     "@openchoreo/openchoreo-client-node": "link:/Users/kavithlokuhewage/git/backstage-plugins/packages/openchoreo-client-node",

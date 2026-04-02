@@ -380,9 +380,11 @@ async function pushResourceSchemas(
 function startLanguageServer(
   context: vscode.ExtensionContext,
 ): LanguageClient {
-  const serverModule = context.asAbsolutePath(
-    path.join('..', 'language-server', 'dist', 'server.js'),
-  );
+  // Check bundled copy first (VSIX), then monorepo sibling (F5 dev)
+  const bundledServer = path.join(context.extensionPath, 'language-server', 'dist', 'server.js');
+  const repoServer = path.join(context.extensionPath, '..', 'language-server', 'dist', 'server.js');
+  const nodeFs = require('fs');
+  const serverModule = nodeFs.existsSync(bundledServer) ? bundledServer : repoServer;
 
   const serverOptions: ServerOptions = {
     run: { module: serverModule, transport: TransportKind.ipc },
