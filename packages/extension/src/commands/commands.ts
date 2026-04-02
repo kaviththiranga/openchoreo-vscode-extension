@@ -122,10 +122,13 @@ export function registerCommands(
       async (node: ResourceNodeData) => {
         if (!node?.extra?.objectYaml || !node?.extra?.kind || !node?.resourceName) return;
         try {
-          const nsSegment = node.namespace ?? '_cluster';
+          const k8sType = `k8s-${node.extra.kind.toLowerCase()}`;
+          const path = node.namespace
+            ? `/namespaces/${node.namespace}/${k8sType}/${node.resourceName}.yaml`
+            : `/${k8sType}/${node.resourceName}.yaml`;
           const uri = vscode.Uri.from({
             scheme: FS_SCHEME,
-            path: `/${nsSegment}/k8s-${node.extra.kind.toLowerCase()}/${node.resourceName}.yaml`,
+            path,
             query: 'readonly',
           });
           fsProvider.setReadonlyContent(uri, node.extra.objectYaml);
@@ -710,10 +713,12 @@ async function openScaffold(
     ((openScaffold as { _counter?: number })._counter ?? 0) + 1;
   const placeholderName = `new-${kind.toLowerCase()}-${counter}`;
   const nodeType = kindToNodeType(kind);
-  const nsSegment = isCluster ? '_cluster' : ns;
+  const path = isCluster
+    ? `/${nodeType}/${placeholderName}.yaml`
+    : `/namespaces/${ns}/${nodeType}/${placeholderName}.yaml`;
   const uri = vscode.Uri.from({
     scheme: FS_SCHEME,
-    path: `/${nsSegment}/${nodeType}/${placeholderName}.yaml`,
+    path,
   });
 
   // Store empty content for readFile — the scaffold is applied via edit

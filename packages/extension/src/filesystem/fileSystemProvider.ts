@@ -34,15 +34,24 @@ interface ResourceUri {
  *   openchoreo:/_cluster/{type}/{name}.yaml       (cluster-scoped)
  *   ?readonly appended for non-editable resources
  */
+/**
+ * Build an openchoreo:// URI for a resource node.
+ *
+ * Format:
+ *   openchoreo:/namespaces/{namespace}/{type}/{name}.yaml   (namespace-scoped)
+ *   openchoreo:/{type}/{name}.yaml                          (cluster-scoped)
+ *   ?readonly appended for non-editable resources
+ */
 export function buildResourceUri(node: ResourceNodeData): vscode.Uri {
   const resourceService = new ResourceService();
   const isCluster = resourceService.isClusterScoped(node.type);
   const isDeleting = node.description?.includes('(deleting)') ?? false;
   const isEditable = !isDeleting && DEFINITION_RESOURCE_TYPES.has(node.type);
 
-  const nsSegment = isCluster ? '_cluster' : (node.namespace ?? 'default');
   const name = node.resourceName ?? node.label;
-  const path = `/${nsSegment}/${node.type}/${name}.yaml`;
+  const path = isCluster
+    ? `/${node.type}/${name}.yaml`
+    : `/namespaces/${node.namespace ?? 'default'}/${node.type}/${name}.yaml`;
   const query = isEditable ? '' : 'readonly';
 
   return vscode.Uri.from({
@@ -54,25 +63,35 @@ export function buildResourceUri(node: ResourceNodeData): vscode.Uri {
 
 /**
  * Parse an openchoreo:// URI back into its resource components.
+ *
+ * Formats:
+ *   /namespaces/{namespace}/{type}/{name}.yaml   → namespace-scoped
+ *   /{type}/{name}.yaml                          → cluster-scoped
  */
 function parseResourceUri(uri: vscode.Uri): ResourceUri {
-  // path: /{namespace-or-_cluster}/{type}/{name}.yaml
   const segments = uri.path.split('/').filter(Boolean);
-  if (segments.length < 3) {
-    throw vscode.FileSystemError.FileNotFound(uri);
+
+  // Namespace-scoped: namespaces/{ns}/{type}/{name}.yaml
+  if (segments[0] === 'namespaces' && segments.length >= 4) {
+    return {
+      namespace: segments[1],
+      type: segments[2] as ResourceNodeType,
+      name: segments[3].replace(/\.yaml$/, ''),
+      readonly: uri.query === 'readonly',
+    };
   }
 
-  const nsSegment = segments[0];
-  const type = segments[1] as ResourceNodeType;
-  const fileName = segments[2];
-  const name = fileName.replace(/\.yaml$/, '');
+  // Cluster-scoped: {type}/{name}.yaml
+  if (segments.length >= 2) {
+    return {
+      namespace: null,
+      type: segments[0] as ResourceNodeType,
+      name: segments[1].replace(/\.yaml$/, ''),
+      readonly: uri.query === 'readonly',
+    };
+  }
 
-  return {
-    namespace: nsSegment === '_cluster' ? null : nsSegment,
-    type,
-    name,
-    readonly: uri.query === 'readonly',
-  };
+  throw vscode.FileSystemError.FileNotFound(uri);
 }
 
 /**
@@ -299,9 +318,12 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
 
       // Reopen with the correct URI based on the actual resource name
       const parsed = parseResourceUri(uri);
+      const correctPath = parsed.namespace
+        ? `/namespaces/${parsed.namespace}/${parsed.type}/${name}.yaml`
+        : `/${parsed.type}/${name}.yaml`;
       const correctUri = vscode.Uri.from({
         scheme: FS_SCHEME,
-        path: `/${parsed.namespace ?? '_cluster'}/${parsed.type}/${name}.yaml`,
+        path: correctPath,
         query: uri.query,
       });
 
