@@ -65,7 +65,11 @@ connection.onNotification(
   (params: Record<string, Record<string, { parameters?: unknown; environmentConfigs?: unknown }>>) => {
     resourceSchemas = params;
     const total = Object.values(params).reduce((sum, m) => sum + Object.keys(m).length, 0);
-    connection.console.log(`[OpenChoreo] Received resource schemas: ${total} schemas`);
+    const detail = Object.entries(params).map(([kind, m]) => {
+      const names = Object.keys(m);
+      return `${kind}(${names.length}): ${names.join(', ')}`;
+    }).join(' | ');
+    connection.console.log(`[OpenChoreo] Received resource schemas: ${total} — ${detail}`);
   },
 );
 

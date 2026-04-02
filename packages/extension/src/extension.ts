@@ -257,6 +257,17 @@ async function pushResourceNames(
       api.GET('/api/v1/namespaces/{namespaceName}/dataplanes', params).then(r => { resources['DataPlane'] = names(r.data?.items ?? []); }),
       api.GET('/api/v1/namespaces/{namespaceName}/workflowplanes', params).then(r => { resources['WorkflowPlane'] = names(r.data?.items ?? []); }),
       api.GET('/api/v1/namespaces/{namespaceName}/deploymentpipelines', params).then(r => { resources['DeploymentPipeline'] = names(r.data?.items ?? []); }),
+      api.GET('/api/v1/namespaces/{namespaceName}/componentreleases', params).then(r => {
+        // Group releases by component for scoped completions
+        for (const item of r.data?.items ?? []) {
+          const relName = item.metadata?.name as string;
+          const compName = (item as { spec?: { owner?: { componentName?: string } } })?.spec?.owner?.componentName;
+          if (relName && compName) {
+            const key = `ComponentRelease:${compName}`;
+            (resources[key] ??= []).push(relName);
+          }
+        }
+      }),
       // Cluster-scoped resources (no namespace param)
       api.GET('/api/v1/namespaces').then(r => { resources['Namespace'] = names(r.data?.items ?? []); }),
       api.GET('/api/v1/clustercomponenttypes').then(r => { resources['ClusterComponentType'] = names(r.data?.items ?? []); }),
@@ -332,6 +343,20 @@ async function pushResourceSchemas(
       }).catch(() => {}),
     );
 
+    // Fetch cluster-scoped Workflows
+    fetchers.push(
+      api.GET('/api/v1/clusterworkflows').then(r => {
+        schemas['ClusterWorkflow'] = {};
+        for (const item of r.data?.items ?? []) {
+          const name = (item.metadata?.name as string);
+          if (name) {
+            const s = extractSchema(item);
+            if (s) schemas['ClusterWorkflow'][name] = s;
+          }
+        }
+      }).catch(() => {}),
+    );
+
     // Namespace-scoped (if namespace selected)
     if (ns) {
       const params = { params: { path: { namespaceName: ns } } };
@@ -357,6 +382,19 @@ async function pushResourceSchemas(
             if (name) {
               const s = extractSchema(item);
               if (s) schemas['Trait'][name] = s;
+            }
+          }
+        }).catch(() => {}),
+      );
+
+      fetchers.push(
+        api.GET('/api/v1/namespaces/{namespaceName}/workflows', params).then(r => {
+          schemas['Workflow'] = {};
+          for (const item of r.data?.items ?? []) {
+            const name = (item.metadata?.name as string);
+            if (name) {
+              const s = extractSchema(item);
+              if (s) schemas['Workflow'][name] = s;
             }
           }
         }).catch(() => {}),

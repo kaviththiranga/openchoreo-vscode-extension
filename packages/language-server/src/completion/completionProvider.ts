@@ -90,13 +90,10 @@ export function getCompletionItems(
   }
 
   const contextSchema = resolveSchemaAtPath(schema, yamlPath);
-  if (!contextSchema) {
-    return [];
-  }
 
   // Check if we're completing a value (after ":") or a key
   const colonIndex = currentLine.indexOf(':');
-  if (colonIndex >= 0 && position.character > colonIndex) {
+  if (colonIndex >= 0 && position.character > colonIndex && contextSchema) {
     const keyMatch = currentLine.match(/^\s*(?:-\s+)?(\w[\w.-]*):/);
     if (keyMatch) {
       const fieldName = keyMatch[1];
@@ -117,6 +114,24 @@ export function getCompletionItems(
         ];
       }
 
+      // Special: ReleaseBinding releaseName → component-scoped release names
+      if (crdKind === 'ReleaseBinding' && fieldName === 'releaseName') {
+        try {
+          const doc = parseDocument(text, { keepSourceTokens: false });
+          if (doc.contents && isMap(doc.contents)) {
+            const compName = extractFieldValue(doc.contents, ['spec', 'owner', 'componentName']);
+            if (compName) {
+              const releaseNames = resourceNames[`ComponentRelease:${compName}`] ?? [];
+              return releaseNames.map((name: string) => ({
+                label: name,
+                kind: CompletionItemKind.Reference,
+                detail: `ComponentRelease (${compName})`,
+              }));
+            }
+          }
+        } catch { /* non-fatal */ }
+      }
+
       // Look up field in context schema properties, or in array items properties
       const props = contextSchema.properties ??
         (contextSchema.type === 'array' && contextSchema.items?.properties
@@ -133,7 +148,8 @@ export function getCompletionItems(
 
   // Cross-document completions: Component spec.parameters, spec.traits[].parameters,
   // ReleaseBinding componentTypeEnvironmentConfigs, etc.
-  if (crdKind && Object.keys(resourceSchemas).length > 0) {
+  // Try these even when contextSchema is null (schema path unresolved for dynamic fields)
+  if (crdKind) {
     const crossDocItems = getCrossDocumentCompletions(
       text, yamlPath, crdKind, resourceSchemas, indent, existingKeys,
     );
@@ -144,6 +160,7 @@ export function getCompletionItems(
   }
 
   // Key completion — if context is an array, offer properties from items schema
+  if (!contextSchema) return [];
   const keySchema = (contextSchema.type === 'array' && contextSchema.items?.properties)
     ? contextSchema.items
     : contextSchema;
@@ -490,32 +507,44 @@ function getCrossDocumentCompletions(
 
     const pathStr = yamlPath.join('.');
 
-    // Component: spec.parameters → lookup componentType → parameters schema
-    if ((crdKind === 'Component') && pathStr === 'spec.parameters') {
+    // Component: spec.parameters[.nested...] → lookup componentType → parameters schema
+    if (crdKind === 'Component' && (pathStr === 'spec.parameters' || pathStr.startsWith('spec.parameters.'))) {
       const ctName = extractFieldValue(doc.contents, ['spec', 'componentType', 'name']);
+      const subPath = yamlPath.slice(2); // remove 'spec', 'parameters' → remaining nested path
       if (ctName) {
-        return getSchemaPropertyCompletions(ctName, 'parameters', resourceSchemas, indent, existingKeys);
+        return getSchemaPropertyCompletions(ctName, 'parameters', resourceSchemas, indent, existingKeys, subPath);
       }
     }
 
-    // ReleaseBinding: spec.componentTypeEnvironmentConfigs → need componentType from component
-    // For now, offer all known environmentConfig properties from all ComponentTypes
-    if (crdKind === 'ReleaseBinding' && pathStr === 'spec.componentTypeEnvironmentConfigs') {
+    // Component: spec.workflow.parameters[.nested...] → lookup workflow → parameters schema
+    if (crdKind === 'Component' && (pathStr === 'spec.workflow.parameters' || pathStr.startsWith('spec.workflow.parameters.'))) {
+      const wfName = extractFieldValue(doc.contents, ['spec', 'workflow', 'name']);
+      const subPath = yamlPath.slice(3); // remove 'spec', 'workflow', 'parameters'
+      if (wfName) {
+        return getSchemaPropertyCompletions(wfName, 'parameters', resourceSchemas, indent, existingKeys, subPath);
+      }
+      // Fallback: offer merged parameters from all known workflows
+      return getAllSchemaPropertyCompletions('parameters', resourceSchemas, indent,
+        ['Workflow', 'ClusterWorkflow'], existingKeys);
+    }
+
+    // ReleaseBinding: spec.componentTypeEnvironmentConfigs[.nested...] → ComponentType environmentConfigs
+    if (crdKind === 'ReleaseBinding' && (pathStr === 'spec.componentTypeEnvironmentConfigs' || pathStr.startsWith('spec.componentTypeEnvironmentConfigs.'))) {
       return getAllSchemaPropertyCompletions('environmentConfigs', resourceSchemas, indent, undefined, existingKeys);
     }
 
     // ReleaseBinding: spec.traitEnvironmentConfigs → offer trait instance names as keys
     // (would need component resolution — skip for now)
 
-    // Component: spec.traits[].parameters → lookup trait name → parameters schema
+    // Component: spec.traits[].parameters[.nested...] → lookup trait name → parameters schema
     if (crdKind === 'Component' && yamlPath.length >= 3 &&
-        yamlPath[0] === 'spec' && yamlPath[1] === 'traits' &&
-        yamlPath[yamlPath.length - 1] === 'parameters') {
-      // Try to find the trait name from the current array item context
-      // This is complex — would need to track which array item we're in
-      // For now, offer a merged set from all known traits
-      return getAllSchemaPropertyCompletions('parameters', resourceSchemas, indent,
-        ['Trait', 'ClusterTrait'], existingKeys);
+        yamlPath[0] === 'spec' && yamlPath[1] === 'traits') {
+      const paramsIdx = yamlPath.indexOf('parameters');
+      if (paramsIdx >= 2) {
+        // For now, offer a merged set from all known traits
+        return getAllSchemaPropertyCompletions('parameters', resourceSchemas, indent,
+          ['Trait', 'ClusterTrait'], existingKeys);
+      }
     }
   } catch {
     // Non-fatal
@@ -548,11 +577,18 @@ function getSchemaPropertyCompletions(
   resourceSchemas: ResourceSchemaCache,
   indent: number,
   existingKeys: Set<string> = new Set(),
+  subPath: string[] = [],
 ): CompletionItem[] {
   for (const kindSchemas of Object.values(resourceSchemas)) {
     const schemaData = kindSchemas[resourceName];
     if (schemaData?.[section]) {
-      return openAPIV3SchemaToCompletions(schemaData[section] as Record<string, unknown>, indent, existingKeys);
+      let schema = schemaData[section] as Record<string, unknown>;
+      if (subPath.length > 0) {
+        const nested = resolveSchemaSubPath(schema, subPath);
+        if (!nested) return [];
+        schema = nested;
+      }
+      return openAPIV3SchemaToCompletions(schema, indent, existingKeys);
     }
   }
   return [];
@@ -583,6 +619,36 @@ function getAllSchemaPropertyCompletions(
     }
   }
   return items;
+}
+
+/**
+ * Walk into a schema following a sub-path through nested properties.
+ * Resolves $ref at each level. Returns the schema at the target depth, or undefined.
+ */
+function resolveSchemaSubPath(
+  schema: Record<string, unknown>,
+  subPath: string[],
+): Record<string, unknown> | undefined {
+  const defs = (schema.$defs ?? schema.definitions ?? {}) as Record<string, Record<string, unknown>>;
+  let current = schema;
+
+  for (const segment of subPath) {
+    const props = current.properties as Record<string, Record<string, unknown>> | undefined;
+    if (!props?.[segment]) return undefined;
+
+    let next = props[segment];
+    // Resolve $ref
+    const ref = next.$ref as string | undefined;
+    if (ref) {
+      const match = ref.match(/^#\/\$defs\/(\w+)$/) ?? ref.match(/^#\/definitions\/(\w+)$/);
+      if (match && defs[match[1]]) {
+        next = defs[match[1]];
+      }
+    }
+    current = next;
+  }
+
+  return current;
 }
 
 /** Convert an openAPIV3Schema to completion items for its properties. */
