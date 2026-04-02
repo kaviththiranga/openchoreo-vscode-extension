@@ -60,7 +60,7 @@ export function registerCommands(
     ),
   );
 
-  // Switch context
+  // Switch context, then prompt for namespace
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.switchContext',
@@ -73,15 +73,25 @@ export function registerCommands(
           return;
         }
 
-        const selected = await vscode.window.showQuickPick(contexts, {
+        const currentCtx = authProvider.getContextInfo()?.contextName;
+        const items = contexts.map((name) => ({
+          label: name,
+          description: name === currentCtx ? '(current)' : undefined,
+        }));
+
+        const selected = await vscode.window.showQuickPick(items, {
           placeHolder: 'Select OpenChoreo context',
         });
 
-        if (selected) {
-          vscode.window.showInformationMessage(
-            `To switch context, run: occ config use-context ${selected}`,
-          );
-        }
+        if (!selected || selected.label === currentCtx) return;
+
+        authProvider.switchContext(selected.label);
+        vscode.window.showInformationMessage(
+          `Switched to context: ${selected.label}`,
+        );
+
+        // Follow up with namespace selection
+        await vscode.commands.executeCommand('openchoreo.selectNamespace');
       },
     ),
   );
