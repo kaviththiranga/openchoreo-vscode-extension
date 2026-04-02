@@ -324,10 +324,15 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
       vscode.window.showInformationMessage(`${kind} '${name}' updated on cluster.`);
     }
 
-    // Notify VSCode that the file changed (updates mtime)
-    this._onDidChangeFile.fire([
-      { type: vscode.FileChangeType.Changed, uri },
-    ]);
+    // Notify VSCode that the file changed — triggers readFile() which
+    // re-fetches from the API, reflecting any server-side normalization
+    // (e.g., removed default values, added status fields).
+    // Small delay to let the backend finish processing the write.
+    setTimeout(() => {
+      this._onDidChangeFile.fire([
+        { type: vscode.FileChangeType.Changed, uri },
+      ]);
+    }, 300);
 
     // Refresh tree views
     this.onResourceSaved?.();

@@ -705,8 +705,10 @@ async function openScaffold(
   scaffold = scaffold.replace(/\{\{namespace\}\}/g, ns);
   scaffold = scaffold.replace(/\{\{project\}\}/g, project ?? 'default');
 
-  // Build a URI for the new resource on the virtual filesystem
-  const placeholderName = `new-${kind.toLowerCase()}`;
+  // Build a URI with a unique counter to support multiple new resources
+  const counter = (openScaffold as { _counter?: number })._counter =
+    ((openScaffold as { _counter?: number })._counter ?? 0) + 1;
+  const placeholderName = `new-${kind.toLowerCase()}-${counter}`;
   const nodeType = kindToNodeType(kind);
   const nsSegment = isCluster ? '_cluster' : ns;
   const uri = vscode.Uri.from({
@@ -714,8 +716,9 @@ async function openScaffold(
     path: `/${nsSegment}/${nodeType}/${placeholderName}.yaml`,
   });
 
-  // Store scaffold content so readFile returns it instead of fetching from API
-  provider.setPendingContent(uri, scaffold);
+  // Store empty content for readFile — the scaffold is applied via edit
+  // so VSCode treats the document as dirty (unsaved).
+  provider.setPendingContent(uri, '');
 
   const doc = await vscode.workspace.openTextDocument(uri);
   if (doc.languageId !== 'yaml') {
@@ -723,10 +726,14 @@ async function openScaffold(
   }
   const editor = await vscode.window.showTextDocument(doc);
 
-  // Mark document as dirty so the user knows it needs saving
-  const pos = new vscode.Position(0, 0);
-  await editor.edit((eb) => eb.insert(pos, ' '));
-  await vscode.commands.executeCommand('undo');
+  // Replace the empty content with the scaffold — this makes the doc dirty
+  const fullRange = new vscode.Range(
+    new vscode.Position(0, 0),
+    doc.lineAt(doc.lineCount - 1).range.end,
+  );
+  await editor.edit((eb) => {
+    eb.replace(fullRange, scaffold);
+  });
 }
 
 /** Map CRD kind name to ResourceNodeType for URI construction. */
