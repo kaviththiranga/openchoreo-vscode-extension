@@ -304,4 +304,125 @@ spec:
   planeID: shared-obs
   observerURL: http://observer.observability-plane.svc:8080
 `,
+
+  // Cluster-scoped scaffolds (no namespace)
+  ClusterComponentType: `apiVersion: openchoreo.dev/v1alpha1
+kind: ClusterComponentType
+metadata:
+  name: my-cluster-component-type
+spec:
+  workloadType: deployment
+
+  allowedWorkflows:
+    - kind: ClusterWorkflow
+      name: docker
+
+  parameters:
+    openAPIV3Schema:
+      type: object
+      properties:
+        replicas:
+          type: integer
+          default: 1
+
+  resources:
+    - id: deployment
+      template:
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: "\${metadata.name}"
+        spec:
+          replicas: "\${parameters.replicas}"
+          selector:
+            matchLabels:
+              app: "\${metadata.name}"
+          template:
+            metadata:
+              labels:
+                app: "\${metadata.name}"
+            spec:
+              containers:
+                - name: main
+                  image: "\${workload.container.image}"
+`,
+
+  ClusterWorkflow: `apiVersion: openchoreo.dev/v1alpha1
+kind: ClusterWorkflow
+metadata:
+  name: my-cluster-workflow
+spec:
+  workflowPlaneRef:
+    kind: ClusterWorkflowPlane
+    name: default
+
+  parameters:
+    openAPIV3Schema:
+      type: object
+      properties:
+        dockerfile:
+          type: string
+          default: Dockerfile
+
+  runTemplate:
+    apiVersion: argoproj.io/v1alpha1
+    kind: Workflow
+    metadata:
+      generateName: my-workflow-
+    spec:
+      entrypoint: main
+      templates:
+        - name: main
+          container:
+            image: alpine:latest
+            command: ["echo", "hello"]
+`,
+
+  ClusterTrait: `apiVersion: openchoreo.dev/v1alpha1
+kind: ClusterTrait
+metadata:
+  name: my-cluster-trait
+spec:
+  parameters:
+    openAPIV3Schema:
+      type: object
+      properties:
+        enabled:
+          type: boolean
+          default: true
+
+  creates:
+    - template:
+        apiVersion: v1
+        kind: ConfigMap
+        metadata:
+          name: "\${metadata.name}-my-trait"
+        data:
+          config: "\${parameters.enabled}"
+`,
+
+  ClusterDataPlane: `apiVersion: openchoreo.dev/v1alpha1
+kind: ClusterDataPlane
+metadata:
+  name: default
+spec:
+  planeID: prod-cluster
+`,
+
+  ClusterWorkflowPlane: `apiVersion: openchoreo.dev/v1alpha1
+kind: ClusterWorkflowPlane
+metadata:
+  name: default
+spec:
+  planeID: ci-cluster
+`,
+
+  ClusterObservabilityPlane: `apiVersion: openchoreo.dev/v1alpha1
+kind: ClusterObservabilityPlane
+metadata:
+  name: default
+spec:
+  planeID: shared-obs
+  observerURL: http://observer.observability-plane.svc:8080
+`,
 };

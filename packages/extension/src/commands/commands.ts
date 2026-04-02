@@ -608,9 +608,8 @@ export function registerCommands(
     ),
   );
 
-  // Create resource scoped to Cluster Resources
-  // Uses namespace-scoped scaffolds (same YAML structure, user removes namespace field)
-  const CLUSTER_KINDS = ['ComponentType', 'Workflow', 'Trait', 'DataPlane', 'WorkflowPlane', 'ObservabilityPlane'];
+  // Create resource scoped to Cluster Resources (cluster-scoped scaffolds, no namespace)
+  const CLUSTER_KINDS = ['ClusterComponentType', 'ClusterWorkflow', 'ClusterTrait', 'ClusterDataPlane', 'ClusterWorkflowPlane', 'ClusterObservabilityPlane'];
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.createClusterResource',
@@ -662,11 +661,12 @@ export function registerCommands(
             'secret-references': 'SecretReference',
             'observability-planes': 'ObservabilityPlane',
             // Cluster-scoped
-            'cluster-component-types': 'ComponentType',
-            'cluster-workflows': 'Workflow',
-            'cluster-traits': 'Trait',
-            'cluster-data-planes': 'DataPlane',
-            'cluster-workflow-planes': 'WorkflowPlane',
+            'cluster-component-types': 'ClusterComponentType',
+            'cluster-workflows': 'ClusterWorkflow',
+            'cluster-traits': 'ClusterTrait',
+            'cluster-data-planes': 'ClusterDataPlane',
+            'cluster-workflow-planes': 'ClusterWorkflowPlane',
+            'cluster-observability-planes': 'ClusterObservabilityPlane',
           };
           const kind = kindMap[node.lazyChildrenKey];
           if (kind) {
@@ -700,6 +700,7 @@ async function openScaffold(
     return;
   }
 
+  const isCluster = kind.startsWith('Cluster');
   const ns = namespace ?? 'default';
   scaffold = scaffold.replace(/\{\{namespace\}\}/g, ns);
   scaffold = scaffold.replace(/\{\{project\}\}/g, project ?? 'default');
@@ -707,9 +708,10 @@ async function openScaffold(
   // Build a URI for the new resource on the virtual filesystem
   const placeholderName = `new-${kind.toLowerCase()}`;
   const nodeType = kindToNodeType(kind);
+  const nsSegment = isCluster ? '_cluster' : ns;
   const uri = vscode.Uri.from({
     scheme: FS_SCHEME,
-    path: `/${ns}/${nodeType}/${placeholderName}.yaml`,
+    path: `/${nsSegment}/${nodeType}/${placeholderName}.yaml`,
   });
 
   // Store scaffold content so readFile returns it instead of fetching from API
@@ -742,6 +744,12 @@ function kindToNodeType(kind: string): string {
     DeploymentPipeline: 'deployment-pipeline',
     SecretReference: 'secret-reference',
     ObservabilityPlane: 'observability-plane',
+    ClusterComponentType: 'cluster-component-type',
+    ClusterWorkflow: 'cluster-workflow',
+    ClusterTrait: 'cluster-trait',
+    ClusterDataPlane: 'cluster-data-plane',
+    ClusterWorkflowPlane: 'cluster-workflow-plane',
+    ClusterObservabilityPlane: 'cluster-observability-plane',
   };
   return map[kind] ?? kind.toLowerCase();
 }
