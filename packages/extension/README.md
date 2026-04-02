@@ -97,8 +97,8 @@ Expand any Workflow Run in the tree to see its step-by-step execution status:
 
 - **Colored status icons** — green check (Succeeded), red X (Failed), spinning sync (Running), clock (Pending), skip (Skipped), warning (Error)
 - **Step timing** — each step shows its phase and duration (e.g., `Succeeded (2m30s)`)
-- **View Logs** — right-click a Workflow Run → "View Logs" to stream logs into an Output channel
-- **View Events** — right-click a Workflow Run → "View Events" to see Kubernetes events
+- **View Logs** — right-click a Workflow Run → "View Logs" to stream logs into an Output channel. Logs auto-refresh every 3 seconds while the channel is open, so new entries appear as the workflow progresses
+- **View Events** — right-click a Workflow Run → "View Events" to see Kubernetes events. Events auto-refresh to show new events as they occur
 
 Enable `openchoreo.autoRefresh` in settings to automatically poll running workflow run status.
 
@@ -108,8 +108,8 @@ Expand any Release Binding in the tree to see the Kubernetes resources deployed 
 
 - **Hierarchical view** — shows the full resource hierarchy (e.g., Deployment → ReplicaSet → Pod)
 - **Health indicators** — colored icons for Healthy (green), Degraded (yellow), Progressing (blue), Missing (red)
-- **Pod Logs** — right-click a Pod → "View Pod Logs" to see container output
-- **Resource Events** — right-click any deployed resource → "View Events" to see Kubernetes events
+- **Pod Logs** — right-click a Pod → "View Pod Logs" to stream container output. Logs auto-refresh every 3 seconds
+- **Resource Events** — right-click any deployed resource → "View Events" to see Kubernetes events with auto-refresh
 
 ### Generate Release
 
