@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { log } from '../logging/logger';
 
 /** A line entry returned by a fetch function. */
 export interface LogEntry {
@@ -80,13 +79,20 @@ export class LogOutputService implements vscode.Disposable {
 
   /**
    * Start polling a fetch function and appending new lines to the channel.
+   * Distinguishes three outcomes per poll:
+   *   - Success with new lines → append them, reset counters
+   *   - Success with empty result → on first occurrence show `emptyMessage`;
+   *     after MAX_EMPTY consecutive empties, stop the stream
+   *   - Error → after MAX_ERROR consecutive errors, stop the stream
    * Stops any existing stream on the same channel.
    */
   startStreaming(
     channelName: string,
     fetchFn: () => Promise<string[]>,
-    intervalMs = 3000,
+    options: { emptyMessage?: string; intervalMs?: number } = {},
   ): void {
+    const { emptyMessage = 'No data yet.', intervalMs = 3000 } = options;
+
     // Stop any existing stream on this channel
     this.stopStreaming(channelName);
 
@@ -95,19 +101,52 @@ export class LogOutputService implements vscode.Disposable {
     ch.show(true);
     this.lineCount.set(channelName, 0);
 
-    // Initial fetch
+    let emptyPolls = 0;
+    let errorPolls = 0;
+    let emptyPlaceholderShown = false;
+    const MAX_EMPTY = 10; // ~30s at 3s interval
+    const MAX_ERROR = 3;  // ~9s at 3s interval
+
     const poll = async () => {
       try {
         const lines = await fetchFn();
+        errorPolls = 0;
         const prev = this.lineCount.get(channelName) ?? 0;
+
         if (lines.length > prev) {
+          // New data arrived. If we'd shown the empty placeholder, clear and re-render.
+          if (emptyPlaceholderShown) {
+            ch.clear();
+            emptyPlaceholderShown = false;
+          }
           for (let i = prev; i < lines.length; i++) {
             ch.appendLine(lines[i]);
           }
           this.lineCount.set(channelName, lines.length);
+          emptyPolls = 0;
+          return;
         }
-      } catch (err) {
-        log.debug(`Stream polling error for ${channelName}: ${err}`);
+
+        // No new data
+        if (prev === 0) {
+          // We've never received any data. Show the empty placeholder on the first poll.
+          if (!emptyPlaceholderShown) {
+            ch.appendLine(emptyMessage);
+            emptyPlaceholderShown = true;
+          }
+        }
+
+        emptyPolls++;
+        if (emptyPolls >= MAX_EMPTY) {
+          ch.appendLine('--- stream ended (no new data) ---');
+          this.stopStreaming(channelName);
+        }
+      } catch {
+        errorPolls++;
+        if (errorPolls >= MAX_ERROR) {
+          ch.appendLine('--- stream ended (fetch error) ---');
+          this.stopStreaming(channelName);
+        }
       }
     };
 

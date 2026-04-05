@@ -369,6 +369,7 @@ export function registerCommands(
               return `${prefix}${e.log}`;
             });
           },
+          { emptyMessage: 'No logs available yet. Waiting for new entries...' },
         );
       },
     ),
@@ -391,6 +392,7 @@ export function registerCommands(
               return `${ts}${ev.type} ${ev.reason}: ${ev.message}`;
             });
           },
+          { emptyMessage: 'No events recorded for this workflow run.' },
         );
       },
     ),
@@ -414,6 +416,7 @@ export function registerCommands(
               return `${prefix}${e.log}`;
             });
           },
+          { emptyMessage: 'No logs from this pod yet.' },
         );
       },
     ),
@@ -442,6 +445,7 @@ export function registerCommands(
               return `${tsPrefix}${ev.type} ${ev.reason}${cnt}: ${ev.message}`;
             });
           },
+          { emptyMessage: 'No events for this resource.' },
         );
       },
     ),
