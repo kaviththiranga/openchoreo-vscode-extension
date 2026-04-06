@@ -44,7 +44,7 @@ const MUI_ICON_MAP: Partial<Record<ResourceNodeType, string>> = {
  */
 const THEME_ICON_MAP: Record<ResourceNodeType, string> = {
   // Resource view
-  namespace: 'organization',
+  namespace: 'symbol-namespace',
   project: 'project',
   component: 'package',
   'component-category': 'symbol-folder',

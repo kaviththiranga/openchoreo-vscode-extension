@@ -124,7 +124,7 @@
         "command": "openchoreo.selectNamespace",
         "title": "Select Namespace",
         "category": "OpenChoreo",
-        "icon": "$(organization)"
+        "icon": "$(symbol-namespace)"
       },
       {
         "command": "openchoreo.createChildResource",
