@@ -527,6 +527,7 @@ export class ResourceExplorerProvider
         project: element.project,
         component: element.component,
         resourceName: element.resourceName,
+        extra: { taskName: step.name },
         childrenMode: 'none' as const,
       };
     });

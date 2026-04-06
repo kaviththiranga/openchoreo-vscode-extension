@@ -398,6 +398,54 @@ export function registerCommands(
     ),
   );
 
+  // View step-level workflow run logs — filtered by task name
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.viewStepLogs',
+      (node: ResourceNodeData) => {
+        if (!node?.namespace || !node?.resourceName || !node?.extra?.taskName) return;
+        const ns = node.namespace;
+        const runName = node.resourceName;
+        const task = node.extra.taskName;
+        logOutputService.startStreaming(
+          `OpenChoreo: Logs - ${runName}/${task}`,
+          async () => {
+            const logs = await workflowRunService.getLogs(ns, runName, task);
+            return logs.map((e: { timestamp?: string; log: string }) => {
+              const prefix = e.timestamp ? `[${e.timestamp}] ` : '';
+              return `${prefix}${e.log}`;
+            });
+          },
+          { emptyMessage: `No logs available for step "${task}" yet.` },
+        );
+      },
+    ),
+  );
+
+  // View step-level workflow run events — filtered by task name
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.viewStepEvents',
+      (node: ResourceNodeData) => {
+        if (!node?.namespace || !node?.resourceName || !node?.extra?.taskName) return;
+        const ns = node.namespace;
+        const runName = node.resourceName;
+        const task = node.extra.taskName;
+        logOutputService.startStreaming(
+          `OpenChoreo: Events - ${runName}/${task}`,
+          async () => {
+            const events = await workflowRunService.getEvents(ns, runName, task);
+            return events.map((ev: { timestamp: string; type: string; reason: string; message: string }) => {
+              const ts = ev.timestamp ? `[${ev.timestamp}] ` : '';
+              return `${ts}${ev.type} ${ev.reason}: ${ev.message}`;
+            });
+          },
+          { emptyMessage: `No events for step "${task}".` },
+        );
+      },
+    ),
+  );
+
   // View K8s pod logs — live streaming
   context.subscriptions.push(
     vscode.commands.registerCommand(

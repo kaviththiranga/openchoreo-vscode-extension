@@ -181,6 +181,18 @@
         "icon": "$(list-unordered)"
       },
       {
+        "command": "openchoreo.viewStepLogs",
+        "title": "View Step Logs",
+        "category": "OpenChoreo",
+        "icon": "$(output)"
+      },
+      {
+        "command": "openchoreo.viewStepEvents",
+        "title": "View Step Events",
+        "category": "OpenChoreo",
+        "icon": "$(list-unordered)"
+      },
+      {
         "command": "openchoreo.openK8sDefinition",
         "title": "View Definition",
         "category": "OpenChoreo",
@@ -286,12 +298,22 @@
         },
         {
           "command": "openchoreo.viewWorkflowRunLogs",
-          "when": "viewItem =~ /^workflow-run/",
+          "when": "viewItem == workflow-run",
           "group": "2_observe"
         },
         {
           "command": "openchoreo.viewWorkflowRunEvents",
-          "when": "viewItem =~ /^workflow-run/",
+          "when": "viewItem == workflow-run",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.viewStepLogs",
+          "when": "viewItem == workflow-run-step",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.viewStepEvents",
+          "when": "viewItem == workflow-run-step",
           "group": "2_observe"
         },
         {

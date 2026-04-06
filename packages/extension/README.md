@@ -97,8 +97,12 @@ Expand any Workflow Run in the tree to see its step-by-step execution status:
 
 - **Colored status icons** — green check (Succeeded), red X (Failed), spinning sync (Running), clock (Pending), skip (Skipped), warning (Error)
 - **Step timing** — each step shows its phase and duration (e.g., `Succeeded (2m30s)`)
-- **View Logs** — right-click a Workflow Run → "View Logs" to stream logs into an Output channel. Logs auto-refresh every 3 seconds while the channel is open, so new entries appear as the workflow progresses
-- **View Events** — right-click a Workflow Run → "View Events" to see Kubernetes events. Events auto-refresh to show new events as they occur
+- **View Logs** — right-click a Workflow Run → "View Logs" to stream all logs into an Output channel. Logs auto-refresh every 3 seconds while the channel is open
+- **View Events** — right-click a Workflow Run → "View Events" to see all Kubernetes events with auto-refresh
+- **View Step Logs** — right-click an individual step → "View Step Logs" to stream logs for that specific step only
+- **View Step Events** — right-click an individual step → "View Step Events" to see events for that step only
+- **Empty state feedback** — if no logs/events are available yet, a message is shown immediately (e.g., "No logs available yet") instead of a blank channel
+- **Auto-stop** — streaming stops automatically after ~30s of no new data or ~9s of consecutive fetch errors
 
 Enable `openchoreo.autoRefresh` in settings to automatically poll running workflow run status.
 
@@ -108,7 +112,8 @@ Expand any Release Binding in the tree to see the Kubernetes resources deployed 
 
 - **Hierarchical view** — shows the full resource hierarchy (e.g., Deployment → ReplicaSet → Pod)
 - **Health indicators** — colored icons for Healthy (green), Degraded (yellow), Progressing (blue), Missing (red)
-- **Pod Logs** — right-click a Pod → "View Pod Logs" to stream container output. Logs auto-refresh every 3 seconds
+- **View Definition** — click any K8s resource to view its full YAML definition (read-only)
+- **Pod Logs** — right-click a Pod → "View Pod Logs" to stream container output with auto-refresh
 - **Resource Events** — right-click any deployed resource → "View Events" to see Kubernetes events with auto-refresh
 
 ### Generate Release
@@ -303,9 +308,12 @@ NamespaceRole, NamespaceRoleBinding (in Platform Resources), ClusterRole, Cluste
 | `OpenChoreo: Delete` | Delete resource (tree context menu) |
 | `OpenChoreo: Generate Release` | Create immutable release snapshot from component (tree context menu) |
 | `OpenChoreo: Trigger Build` | Trigger a workflow run for a component (tree context menu) |
-| `OpenChoreo: View Logs` | View workflow run logs in Output channel (tree context menu) |
-| `OpenChoreo: View Events` | View workflow run Kubernetes events (tree context menu) |
+| `OpenChoreo: View Logs` | View all workflow run logs (tree context menu) |
+| `OpenChoreo: View Events` | View all workflow run Kubernetes events (tree context menu) |
+| `OpenChoreo: View Step Logs` | View logs for a specific workflow run step (tree context menu) |
+| `OpenChoreo: View Step Events` | View events for a specific workflow run step (tree context menu) |
 | `OpenChoreo: View Pod Logs` | View deployed pod logs from release binding (tree context menu) |
+| `OpenChoreo: View Definition` | View K8s resource YAML definition (tree context menu) |
 | `OpenChoreo: Add to Chat` | Add resource reference to Copilot Chat (tree context menu) |
 | `OpenChoreo: Add YAML to Chat` | Add full resource YAML to Copilot Chat (tree context menu) |
 
