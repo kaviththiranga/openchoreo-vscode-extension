@@ -10,15 +10,30 @@ import type { ResourceNodeData } from './types/nodes';
 
 import './styles/sidebar.css';
 
-/** State persisted across webview hide/show via vscode.getState/setState. */
-interface PersistedState {
+/** Per-context tree view state. */
+interface TreeViewState {
   expandedNodes: string[];
   expandedSections: string[];
   selectedNodeId?: string;
 }
 
+/** Top-level persisted state keyed by context:namespace. */
+interface PersistedState {
+  contextStates: Record<string, TreeViewState>;
+  lastContextKey?: string;
+}
+
+const DEFAULT_TREE_STATE: TreeViewState = { expandedNodes: [], expandedSections: ['projects'] };
+
+function getContextKey(ctx?: string, ns?: string): string {
+  return `${ctx ?? ''}:${ns ?? ''}`;
+}
+
 function loadPersistedState(): PersistedState {
-  return vscode.getState<PersistedState>() ?? { expandedNodes: [], expandedSections: ['projects'] };
+  const raw = vscode.getState<Record<string, unknown>>();
+  // Handle migration from old format (flat expandedNodes/expandedSections)
+  if (raw && 'contextStates' in raw) return raw as unknown as PersistedState;
+  return { contextStates: {} };
 }
 
 export function App() {
@@ -33,51 +48,96 @@ export function App() {
   const [childrenMap, setChildrenMap] = useState<Record<string, ResourceNodeData[]>>({});
   const [iconFontLoaded, setIconFontLoaded] = useState(false);
 
-  // Persisted expand state
+  // Persisted expand state — keyed by context:namespace
   const persisted = loadPersistedState();
-  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => new Set(persisted.expandedNodes));
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set(persisted.expandedSections));
-  const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(persisted.selectedNodeId);
+  const contextKey = getContextKey(authState.contextName, authState.namespace);
+  const initialState = persisted.contextStates[contextKey] ?? DEFAULT_TREE_STATE;
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => new Set(initialState.expandedNodes));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set(initialState.expandedSections));
+  const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(initialState.selectedNodeId);
+  const [activeContextKey, setActiveContextKey] = useState(contextKey);
 
-  // Persist state whenever it changes
+  // When context/namespace changes, swap to that context's persisted state
+  useEffect(() => {
+    const newKey = getContextKey(authState.contextName, authState.namespace);
+    if (newKey !== activeContextKey && authState.connected) {
+      const stored = loadPersistedState();
+      const state = stored.contextStates[newKey] ?? DEFAULT_TREE_STATE;
+      setExpandedNodes(new Set(state.expandedNodes));
+      setExpandedSections(new Set(state.expandedSections));
+      setSelectedNodeId(state.selectedNodeId);
+      setActiveContextKey(newKey);
+    }
+  }, [authState.contextName, authState.namespace, authState.connected, activeContextKey]);
+
+  // Persist state for current context
   const persistState = useCallback((nodes: Set<string>, sections: Set<string>, selected?: string) => {
-    vscode.setState<PersistedState>({
+    const stored = loadPersistedState();
+    stored.contextStates[activeContextKey] = {
       expandedNodes: [...nodes],
       expandedSections: [...sections],
       selectedNodeId: selected,
-    });
-  }, []);
+    };
+    stored.lastContextKey = activeContextKey;
+    vscode.setState<PersistedState>(stored);
+  }, [activeContextKey]);
 
   const toggleNode = useCallback((nodeId: string) => {
     setExpandedNodes(prev => {
       const next = new Set(prev);
       if (next.has(nodeId)) next.delete(nodeId);
       else next.add(nodeId);
-      persistState(next, expandedSections);
+      persistState(next, expandedSections, selectedNodeId);
       return next;
     });
-  }, [expandedSections, persistState]);
+  }, [expandedSections, selectedNodeId, persistState]);
 
   const toggleSection = useCallback((section: string) => {
     setExpandedSections(prev => {
       const next = new Set(prev);
       if (next.has(section)) next.delete(section);
       else next.add(section);
-      persistState(expandedNodes, next);
+      persistState(expandedNodes, next, selectedNodeId);
       return next;
     });
-  }, [expandedNodes, persistState]);
+  }, [expandedNodes, selectedNodeId, persistState]);
 
   const selectNode = useCallback((nodeId: string) => {
     setSelectedNodeId(nodeId);
     persistState(expandedNodes, expandedSections, nodeId);
   }, [expandedNodes, expandedSections, persistState]);
 
-  const collapseAll = useCallback(() => {
-    const next = new Set<string>();
-    persistState(next, expandedSections, selectedNodeId);
-    setExpandedNodes(next);
-  }, [expandedSections, selectedNodeId, persistState]);
+  const collapseAll = useCallback((section: Section) => {
+    // Collect all node IDs that belong to this section's roots
+    const roots = sectionRoots[section];
+    const sectionIds = new Set<string>();
+    const collectIds = (nodes: ResourceNodeData[], parentPath: string) => {
+      for (const node of nodes) {
+        const parts: string[] = [node.type];
+        if (node.namespace) parts.push(node.namespace);
+        if (node.project) parts.push(node.project);
+        if (node.component) parts.push(node.component);
+        if (node.resourceName) parts.push(node.resourceName);
+        parts.push(node.label);
+        const local = parts.join(':');
+        const id = parentPath ? `${parentPath}/${local}` : local;
+        sectionIds.add(id);
+        // Recurse into expanded children
+        if (expandedNodes.has(id)) {
+          const children = node.childrenMode === 'preloaded' ? node.children : childrenMap[id];
+          if (children) collectIds(children, id);
+        }
+      }
+    };
+    collectIds(roots, '');
+
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      for (const id of sectionIds) next.delete(id);
+      persistState(next, expandedSections, selectedNodeId);
+      return next;
+    });
+  }, [sectionRoots, childrenMap, expandedNodes, expandedSections, selectedNodeId, persistState]);
 
   // Handle messages from extension host
   useEffect(() => {

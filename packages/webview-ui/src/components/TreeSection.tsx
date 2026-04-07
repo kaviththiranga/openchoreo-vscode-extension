@@ -21,7 +21,7 @@ interface TreeSectionProps {
   onRequestChildren: (section: Section, nodeId: string, lazyChildrenKey: string) => void;
   onNodeClick: (section: Section, node: ResourceNodeData) => void;
   onRefresh: (section: Section) => void;
-  onCollapseAll: () => void;
+  onCollapseAll: (section: Section) => void;
   onSelectNode: (nodeId: string) => void;
 }
 
@@ -172,7 +172,7 @@ export function TreeSection({
           <button
             class="icon-button"
             title="Collapse All"
-            onClick={(e) => { e.stopPropagation(); onCollapseAll(); }}
+            onClick={(e) => { e.stopPropagation(); onCollapseAll(section); }}
           >
             <i class="codicon codicon-collapse-all" />
           </button>
