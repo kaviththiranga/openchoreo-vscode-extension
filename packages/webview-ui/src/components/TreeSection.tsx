@@ -77,28 +77,24 @@ export function TreeSection({
         </div>
       </div>
 
-      {expanded && (
+      {expanded && roots.length === 0 && (
+        <div class="progress-bar"><div class="progress-bar-indicator" /></div>
+      )}
+      {expanded && roots.length > 0 && (
         <div class="section-body" role="tree">
-          {roots.length === 0 ? (
-            <div class="tree-row loading-row" style={{ paddingLeft: '28px' }}>
-              <i class="codicon codicon-loading spin" />
-              <span class="tree-label loading-text">Loading...</span>
-            </div>
-          ) : (
-            roots.map(node => (
-              <TreeNode
-                key={`${node.type}:${node.label}`}
-                node={node}
-                section={section}
-                depth={0}
-                childrenMap={childrenMap}
-                expandedNodes={expandedNodes}
-                onToggleNode={onToggleNode}
-                onRequestChildren={onRequestChildren}
-                onNodeClick={onNodeClick}
-              />
-            ))
-          )}
+          {roots.map(node => (
+            <TreeNode
+              key={`${node.type}:${node.label}`}
+              node={node}
+              section={section}
+              depth={0}
+              childrenMap={childrenMap}
+              expandedNodes={expandedNodes}
+              onToggleNode={onToggleNode}
+              onRequestChildren={onRequestChildren}
+              onNodeClick={onNodeClick}
+            />
+          ))}
         </div>
       )}
     </div>

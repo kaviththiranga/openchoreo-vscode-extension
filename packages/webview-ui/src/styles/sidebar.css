@@ -288,11 +288,29 @@ body {
   color: var(--vscode-problemsWarningIcon-foreground, #cca700);
 }
 
-/* ── Loading ──────────────────────────────────────────────────────── */
+/* ── Progress Bar ─────────────────────────────────────────────────── */
 
-.loading-row {
-  cursor: default;
+.progress-bar {
+  width: 100%;
+  height: 2px;
+  overflow: hidden;
+  background: transparent;
 }
+
+.progress-bar-indicator {
+  height: 100%;
+  width: 2%;
+  background: var(--vscode-progressBar-background, #0078d4);
+  animation: progress-slide 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes progress-slide {
+  0%   { margin-left: 0%; width: 2%; }
+  50%  { width: 25%; }
+  100% { margin-left: 100%; width: 2%; }
+}
+
+/* ── Loading ──────────────────────────────────────────────────────── */
 
 .loading-text {
   color: var(--vscode-descriptionForeground);
