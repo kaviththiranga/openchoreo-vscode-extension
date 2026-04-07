@@ -14,6 +14,8 @@ interface TreeNodeProps {
   childrenMap: Record<string, ResourceNodeData[]>;
   expandedNodes: Set<string>;
   selectedNodeId?: string;
+  /** Depth index of a guide that should always be visible (from a selected+expanded ancestor). */
+  activeGuideDepth?: number;
   onToggleNode: (nodeId: string) => void;
   onRequestChildren: (section: TreeSection, nodeId: string, lazyChildrenKey: string) => void;
   onNodeClick: (section: TreeSection, node: ResourceNodeData) => void;
@@ -42,7 +44,7 @@ const NON_CLICKABLE = new Set([
   'workflow-run-step', 'k8s-rendered-release',
 ]);
 
-export function TreeNode({ node, section, depth, parentPath, childrenMap, expandedNodes, selectedNodeId, onToggleNode, onRequestChildren, onNodeClick, onSelectNode }: TreeNodeProps) {
+export function TreeNode({ node, section, depth, parentPath, childrenMap, expandedNodes, selectedNodeId, activeGuideDepth, onToggleNode, onRequestChildren, onNodeClick, onSelectNode }: TreeNodeProps) {
   const nodeId = buildNodeId(parentPath, node);
   const expanded = expandedNodes.has(nodeId);
   const selected = selectedNodeId === nodeId;
@@ -98,16 +100,31 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
     preventDefaultContextMenuItems: true,
   });
 
+  // Build indent guide elements for this depth
+  const guides = [];
+  for (let i = 0; i < depth; i++) {
+    const isActive = activeGuideDepth !== undefined && i === activeGuideDepth;
+    guides.push(<span key={i} class={`indent-guide${isActive ? ' indent-guide-active' : ''}`} />);
+  }
+
+  // Determine activeGuideDepth for children:
+  // If this node is selected+expanded, its children get this node's depth as active guide.
+  // Otherwise, pass through the inherited activeGuideDepth.
+  const childActiveGuideDepth = (selected && expanded && !isLeaf)
+    ? depth
+    : activeGuideDepth;
+
   return (
     <div class="tree-node" role="treeitem" aria-expanded={hasChildren && !isLeaf ? expanded : undefined}>
       <div
         class={`tree-row${selected ? ' selected' : ''}`}
-        style={{ paddingLeft: `${depth * 16 + 12}px` }}
+        style={{ paddingLeft: '12px' }}
         data-vscode-context={contextData}
         data-node-id={nodeId}
         onClick={(e) => { e.stopPropagation(); onClick(); }}
       >
-        {/* Expand/collapse chevron */}
+        {guides}
+
         <span
           class={`tree-chevron ${isLeaf ? 'hidden' : ''}`}
           onClick={(e) => { e.stopPropagation(); onSelectNode(nodeId); onToggle(); }}
@@ -115,23 +132,23 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
           <i class={`codicon codicon-chevron-${expanded ? 'down' : 'right'}`} />
         </span>
 
-        {/* Node icon */}
         <i class={`codicon codicon-${codicon} tree-icon ${colorClass} ${spinning ? 'spin' : ''}`} />
 
-        {/* Label */}
         <span class="tree-label">{node.label}</span>
 
-        {/* Description */}
         {node.description && (
           <span class="tree-description">{node.description}</span>
         )}
       </div>
 
-      {/* Children */}
       {expanded && !isLeaf && (
         <div class="tree-children" role="group">
           {loading && (
-            <div class="tree-row" style={{ paddingLeft: `${(depth + 1) * 16 + 12}px` }}>
+            <div class="tree-row" style={{ paddingLeft: '12px' }}>
+              {Array.from({ length: depth + 1 }, (_, i) => {
+                const isActive = childActiveGuideDepth !== undefined && i === childActiveGuideDepth;
+                return <span key={i} class={`indent-guide${isActive ? ' indent-guide-active' : ''}`} />;
+              })}
               <i class="codicon codicon-loading spin" />
               <span class="tree-label loading-text">Loading...</span>
             </div>
@@ -146,6 +163,7 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
               childrenMap={childrenMap}
               expandedNodes={expandedNodes}
               selectedNodeId={selectedNodeId}
+              activeGuideDepth={childActiveGuideDepth}
               onToggleNode={onToggleNode}
               onRequestChildren={onRequestChildren}
               onNodeClick={onNodeClick}

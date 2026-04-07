@@ -197,6 +197,37 @@ body {
   visibility: hidden;
 }
 
+/* ── Indent Guides ────────────────────────────────────────────────── */
+
+.indent-guide {
+  width: 16px;
+  height: 100%;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.indent-guide::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 7px;
+  width: 1px;
+  background: var(--vscode-tree-indentGuidesStroke, rgba(255, 255, 255, 0.1));
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+/* Show all guides on hover anywhere in the section (subtle) */
+.section-body:hover .indent-guide::before {
+  opacity: 0.4;
+}
+
+/* Active guide from selected+expanded ancestor is prominent */
+.indent-guide-active::before {
+  opacity: 1 !important;
+}
+
 .tree-icon {
   font-size: 16px;
   flex-shrink: 0;
