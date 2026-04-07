@@ -20,7 +20,6 @@ interface TreeNodeProps {
   onRequestChildren: (section: TreeSection, nodeId: string, lazyChildrenKey: string) => void;
   onNodeClick: (section: TreeSection, node: ResourceNodeData) => void;
   onSelectNode: (nodeId: string) => void;
-  iconsBaseUri: string;
 }
 
 /** Build a local segment for this node. */
@@ -45,7 +44,7 @@ const NON_CLICKABLE = new Set([
   'workflow-run-step', 'k8s-rendered-release',
 ]);
 
-export function TreeNode({ node, section, depth, parentPath, childrenMap, expandedNodes, selectedNodeId, activeGuideDepth, onToggleNode, onRequestChildren, onNodeClick, onSelectNode, iconsBaseUri }: TreeNodeProps) {
+export function TreeNode({ node, section, depth, parentPath, childrenMap, expandedNodes, selectedNodeId, activeGuideDepth, onToggleNode, onRequestChildren, onNodeClick, onSelectNode }: TreeNodeProps) {
   const nodeId = buildNodeId(parentPath, node);
   const expanded = expandedNodes.has(nodeId);
   const selected = selectedNodeId === nodeId;
@@ -134,11 +133,9 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
         </span>
 
         {node.type !== 'component-category' && node.type !== 'infra-category' && (
-          icon.kind === 'svg' && iconsBaseUri
-            ? <img class="tree-icon-svg" src={`${iconsBaseUri}/${icon.filename}`} alt="" />
-            : icon.kind === 'codicon'
-              ? <i class={`codicon codicon-${icon.codicon} tree-icon ${icon.colorClass} ${spinning ? 'spin' : ''}`} />
-              : null
+          icon.kind === 'font'
+            ? <span class="tree-icon-font">{icon.char}</span>
+            : <i class={`codicon codicon-${icon.codicon} tree-icon ${icon.colorClass} ${spinning ? 'spin' : ''}`} />
         )}
 
         <span class="tree-label">{node.label}</span>
@@ -175,7 +172,6 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
               onRequestChildren={onRequestChildren}
               onNodeClick={onNodeClick}
               onSelectNode={onSelectNode}
-              iconsBaseUri={iconsBaseUri}
             />
           ))}
         </div>

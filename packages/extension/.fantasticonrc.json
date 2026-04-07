@@ -3,7 +3,7 @@
   "outputDir": "resources",
   "name": "openchoreo-icons",
   "fontTypes": ["woff2"],
-  "assetTypes": [],
+  "assetTypes": ["json"],
   "prefix": "openchoreo",
   "normalize": true,
   "fontHeight": 1000,

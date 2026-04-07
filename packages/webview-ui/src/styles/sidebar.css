@@ -61,6 +61,13 @@ body {
   font-size: 14px;
 }
 
+.chip-font-icon {
+  font-family: 'openchoreo-icons';
+  font-size: 14px;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
 .chip-label {
   color: var(--vscode-descriptionForeground);
   font-size: 11px;
@@ -233,10 +240,14 @@ body {
   flex-shrink: 0;
 }
 
-.tree-icon-svg {
-  width: 16px;
-  height: 16px;
+.tree-icon-font {
+  font-family: 'openchoreo-icons';
+  font-size: 16px;
   flex-shrink: 0;
+  line-height: 1;
+  display: inline-block;
+  width: 16px;
+  text-align: center;
 }
 
 .tree-label {

@@ -146,7 +146,10 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     const iconsUri = this.view.webview.asWebviewUri(
       vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons'),
     );
-    this.postMessage({ type: 'setIconsBaseUri', uri: iconsUri.toString() });
+    const fontUri = this.view.webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'resources', 'openchoreo-icons.woff2'),
+    );
+    this.postMessage({ type: 'setIconsBaseUri', uri: iconsUri.toString(), fontUri: fontUri.toString() });
   }
 
   private sendAuthState(): void {

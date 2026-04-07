@@ -54,7 +54,7 @@ export class StatusBarManager implements vscode.Disposable {
     this.statusBarItem.command = 'openchoreo.switchContext';
 
     const ns = contextInfo.namespace || 'none';
-    this.statusBarItem.text = `$(openchoreo-logo) OC: ${contextInfo.contextName} $(openchoreo-apartment) ${ns}`;
+    this.statusBarItem.text = `$(openchoreo-logo) ${contextInfo.contextName} $(openchoreo-apartment) ${ns}`;
     this.statusBarItem.tooltip = [
       `Context: ${contextInfo.contextName}`,
       `Namespace: ${ns}`,

@@ -23,7 +23,6 @@ interface TreeSectionProps {
   onRefresh: (section: Section) => void;
   onCollapseAll: () => void;
   onSelectNode: (nodeId: string) => void;
-  iconsBaseUri: string;
 }
 
 /** Collect all visible nodes with their full path IDs in depth-first order. */
@@ -68,7 +67,6 @@ export function TreeSection({
   onRefresh,
   onCollapseAll,
   onSelectNode,
-  iconsBaseUri,
 }: TreeSectionProps) {
   const bodyRef = useRef<HTMLDivElement>(null);
 
@@ -206,7 +204,6 @@ export function TreeSection({
               onRequestChildren={onRequestChildren}
               onNodeClick={onNodeClick}
               onSelectNode={onSelectNode}
-              iconsBaseUri={iconsBaseUri}
             />
           ))}
         </div>
