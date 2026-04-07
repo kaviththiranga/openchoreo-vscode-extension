@@ -118,7 +118,7 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
     <div class="tree-node" role="treeitem" aria-expanded={hasChildren && !isLeaf ? expanded : undefined}>
       <div
         class={`tree-row${selected ? ' selected' : ''}`}
-        style={{ paddingLeft: `${depth === 0 ? 16 : 8}px` }}
+        style={{ paddingLeft: '8px' }}
         data-vscode-context={contextData}
         data-node-id={nodeId}
         onClick={(e) => { e.stopPropagation(); onClick(); }}
@@ -148,7 +148,7 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
       {expanded && !isLeaf && (
         <div class="tree-children" role="group">
           {loading && (
-            <div class="tree-row" style={{ paddingLeft: `${depth === 0 ? 16 : 8}px` }}>
+            <div class="tree-row" style={{ paddingLeft: '8px' }}>
               {Array.from({ length: depth + 1 }, (_, i) => {
                 const isActive = childActiveGuideDepth !== undefined && i === childActiveGuideDepth;
                 return <span key={i} class={`indent-guide${isActive ? ' indent-guide-active' : ''}`} />;
