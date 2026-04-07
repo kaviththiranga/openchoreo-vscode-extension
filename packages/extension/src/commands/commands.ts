@@ -17,11 +17,31 @@ import type { ComponentService } from '../services/componentService';
 import type { WorkflowRunService } from '../services/workflowRunService';
 import type { ReleaseBindingService } from '../services/releaseBindingService';
 import type { LogOutputService } from '../services/logOutputService';
+import type { SidebarViewProvider } from '../webview/sidebarViewProvider';
 import {
   buildResourceUri,
   FS_SCHEME,
   type OpenChoreoFileSystemProvider,
 } from '../filesystem/fileSystemProvider';
+
+/**
+ * Resolve a command argument into a ResourceNodeData.
+ * Works for both native tree view items and webview context menu contexts.
+ */
+function resolveNode(
+  arg: unknown,
+  sidebarProvider?: SidebarViewProvider,
+): ResourceNodeData | undefined {
+  if (!arg || typeof arg !== 'object') return undefined;
+  const obj = arg as Record<string, unknown>;
+  // Native tree view: has childrenMode (ResourceNodeData property)
+  if ('childrenMode' in obj) return obj as unknown as ResourceNodeData;
+  // Webview context menu: has nodeId set via data-vscode-context
+  if ('nodeId' in obj && typeof obj.nodeId === 'string' && sidebarProvider) {
+    return sidebarProvider.getNode(obj.nodeId);
+  }
+  return undefined;
+}
 
 export function registerCommands(
   context: vscode.ExtensionContext,
@@ -36,6 +56,7 @@ export function registerCommands(
   workflowRunService: WorkflowRunService,
   releaseBindingService: ReleaseBindingService,
   logOutputService: LogOutputService,
+  sidebarProvider?: SidebarViewProvider,
 ): void {
   // Refresh resources
   context.subscriptions.push(
@@ -119,7 +140,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.openK8sDefinition',
-      async (node: ResourceNodeData) => {
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node?.extra?.objectYaml || !node?.extra?.kind || !node?.resourceName) return;
         try {
           const k8sType = `k8s-${node.extra.kind.toLowerCase()}`;
@@ -150,7 +172,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.openResource',
-      async (node: ResourceNodeData) => {
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node) {
           return;
         }
@@ -176,7 +199,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.addToChat',
-      async (node: ResourceNodeData) => {
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node) return;
         const name = node.resourceName ?? node.label;
         const kind = new ResourceService().getCrdKind(node.type) ?? node.type;
@@ -200,7 +224,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.addYamlToChat',
-      async (node: ResourceNodeData) => {
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node) return;
         const name = node.resourceName ?? node.label;
         const kind = new ResourceService().getCrdKind(node.type) ?? node.type;
@@ -248,7 +273,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.generateRelease',
-      async (node: ResourceNodeData) => {
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node?.namespace || !node?.component) return;
 
         const releaseName = await vscode.window.showInputBox({
@@ -281,7 +307,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.triggerBuild',
-      async (node: ResourceNodeData) => {
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node?.namespace || !node?.component) return;
 
         try {
@@ -356,7 +383,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.viewWorkflowRunLogs',
-      (node: ResourceNodeData) => {
+      (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node?.namespace || !node?.resourceName) return;
         const ns = node.namespace;
         const name = node.resourceName;
@@ -379,7 +407,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.viewWorkflowRunEvents',
-      (node: ResourceNodeData) => {
+      (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node?.namespace || !node?.resourceName) return;
         const ns = node.namespace;
         const name = node.resourceName;
@@ -402,7 +431,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.viewStepLogs',
-      (node: ResourceNodeData) => {
+      (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node?.namespace || !node?.resourceName || !node?.extra?.taskName) return;
         const ns = node.namespace;
         const runName = node.resourceName;
@@ -426,7 +456,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.viewStepEvents',
-      (node: ResourceNodeData) => {
+      (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node?.namespace || !node?.resourceName || !node?.extra?.taskName) return;
         const ns = node.namespace;
         const runName = node.resourceName;
@@ -450,7 +481,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.viewK8sResourceLogs',
-      (node: ResourceNodeData) => {
+      (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node?.namespace || !node?.extra?.releaseBindingName || !node?.resourceName) return;
         const ns = node.namespace;
         const rbName = node.extra.releaseBindingName;
@@ -474,7 +506,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.viewK8sResourceEvents',
-      (node: ResourceNodeData) => {
+      (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node?.namespace || !node?.extra) return;
         const { releaseBindingName, group, version, kind } = node.extra;
         if (!releaseBindingName || !version || !kind || !node.resourceName) return;
@@ -503,7 +536,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.deleteResource',
-      async (node: ResourceNodeData) => {
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node) {
           return;
         }
@@ -682,7 +716,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.createComponent',
-      async (node: ResourceNodeData) => {
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node) return;
         const ctxInfo = authProvider.getContextInfo();
         const ns = node.namespace ?? ctxInfo?.namespace;
@@ -695,7 +730,8 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.createChildResource',
-      async (node: ResourceNodeData) => {
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
         if (!node) {
           return;
         }

@@ -24,6 +24,7 @@
   "activationEvents": [
     "onLanguage:yaml",
     "onFileSystem:openchoreo",
+    "onView:openchoreo.sidebar",
     "onView:openchoreo.resourceExplorer",
     "onView:openchoreo.infrastructureExplorer"
   ],
@@ -47,8 +48,14 @@
     "views": {
       "openchoreo": [
         {
+          "id": "openchoreo.sidebar",
+          "type": "webview",
+          "name": "Explorer"
+        },
+        {
           "id": "openchoreo.resourceExplorer",
-          "name": "Developer Resources"
+          "name": "Developer Resources",
+          "visibility": "collapsed"
         },
         {
           "id": "openchoreo.infrastructureExplorer",
@@ -255,6 +262,83 @@
           "group": "navigation"
         }
       ],
+      "webview/context": [
+        {
+          "command": "openchoreo.createComponent",
+          "when": "webviewId == openchoreo.sidebar && nodeType == project && isCreatable",
+          "group": "1_create"
+        },
+        {
+          "command": "openchoreo.createChildResource",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'infra-category' && isCreatable",
+          "group": "1_create"
+        },
+        {
+          "command": "openchoreo.generateRelease",
+          "when": "webviewId == openchoreo.sidebar && nodeType == component && isEditable",
+          "group": "1_actions"
+        },
+        {
+          "command": "openchoreo.triggerBuild",
+          "when": "webviewId == openchoreo.sidebar && nodeType == component && isEditable",
+          "group": "1_actions"
+        },
+        {
+          "command": "openchoreo.openResource",
+          "when": "webviewId == openchoreo.sidebar && isEditable",
+          "group": "2_open"
+        },
+        {
+          "command": "openchoreo.openK8sDefinition",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'k8s-resource' || webviewId == openchoreo.sidebar && nodeType == 'k8s-pod'",
+          "group": "2_open"
+        },
+        {
+          "command": "openchoreo.viewWorkflowRunLogs",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'workflow-run'",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.viewWorkflowRunEvents",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'workflow-run'",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.viewStepLogs",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'workflow-run-step'",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.viewStepEvents",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'workflow-run-step'",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.viewK8sResourceLogs",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'k8s-pod'",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.viewK8sResourceEvents",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'k8s-resource' || webviewId == openchoreo.sidebar && nodeType == 'k8s-pod'",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.deleteResource",
+          "when": "webviewId == openchoreo.sidebar && isDeletable",
+          "group": "3_destructive"
+        },
+        {
+          "command": "openchoreo.addToChat",
+          "when": "webviewId == openchoreo.sidebar && nodeType && nodeType != 'no-connection' && nodeType != empty && nodeType != 'component-category' && nodeType != 'infra-category'",
+          "group": "4_chat"
+        },
+        {
+          "command": "openchoreo.addYamlToChat",
+          "when": "webviewId == openchoreo.sidebar && nodeType && nodeType != 'no-connection' && nodeType != empty && nodeType != 'component-category' && nodeType != 'infra-category'",
+          "group": "4_chat"
+        }
+      ],
       "view/item/context": [
         {
           "command": "openchoreo.createComponent",
@@ -371,9 +455,9 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "clean": "rm -rf dist out",
-    "prepackage": "cp -r ../../schemas ./schemas && mkdir -p ./language-server/dist && cp ../language-server/dist/server.js ./language-server/dist/server.js",
+    "prepackage": "cp -r ../../schemas ./schemas && mkdir -p ./language-server/dist && cp ../language-server/dist/server.js ./language-server/dist/server.js && mkdir -p ./webview-ui/dist && cp ../webview-ui/dist/* ./webview-ui/dist/",
     "package": "pnpm build && vsce package --no-dependencies --allow-missing-repository --skip-license",
-    "postpackage": "rm -rf ./schemas ./language-server"
+    "postpackage": "rm -rf ./schemas ./language-server ./webview-ui"
   },
   "dependencies": {
     "@openchoreo/openchoreo-client-node": "link:/Users/kavithlokuhewage/git/backstage-plugins/packages/openchoreo-client-node",

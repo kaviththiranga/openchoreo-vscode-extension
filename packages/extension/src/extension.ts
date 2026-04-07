@@ -20,6 +20,7 @@ import { registerCommands } from './commands/commands';
 import { registerNamespaceSelector } from './commands/namespaceSelector';
 import { initLogger, log } from './logging/logger';
 import { ClusterExplorerProvider } from './treeView/clusterExplorer';
+import { SidebarViewProvider } from './webview/sidebarViewProvider';
 import { registerMcpServers } from './mcp/mcpProvider';
 import { setExtensionUri } from './treeView/shared';
 import { ComponentService } from './services/componentService';
@@ -125,6 +126,21 @@ export async function activate(
   );
   context.subscriptions.push(clusterTreeView);
 
+  // Initialize sidebar webview
+  const sidebarProvider = new SidebarViewProvider(
+    context.extensionUri,
+    authProvider,
+    resourceExplorer,
+    infrastructureExplorer,
+    clusterExplorer,
+  );
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(
+      SidebarViewProvider.viewType,
+      sidebarProvider,
+    ),
+  );
+
   // Register cluster refresh command
   context.subscriptions.push(
     vscode.commands.registerCommand('openchoreo.refreshCluster', () => {
@@ -139,6 +155,7 @@ export async function activate(
       resourceExplorer.refresh();
       infrastructureExplorer.refresh();
       clusterExplorer.refresh();
+      sidebarProvider.refreshAll();
     },
   );
   context.subscriptions.push(
@@ -162,6 +179,7 @@ export async function activate(
     workflowRunService,
     releaseBindingService,
     logOutputService,
+    sidebarProvider,
   );
 
   // Register namespace selector
