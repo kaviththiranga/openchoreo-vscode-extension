@@ -67,7 +67,7 @@ export async function activate(
   const logOutputService = new LogOutputService();
   context.subscriptions.push(logOutputService);
 
-  // Initialize resource explorer tree view
+  // Initialize data providers (used by the sidebar webview)
   const resourceExplorer = new ResourceExplorerProvider(
     authProvider,
     apiClientManager,
@@ -75,56 +75,16 @@ export async function activate(
     workflowRunService,
     releaseBindingService,
   );
-  const resourceTreeView = vscode.window.createTreeView(
-    'openchoreo.resourceExplorer',
-    {
-      treeDataProvider: resourceExplorer,
-      showCollapseAll: true,
-    },
-  );
-  context.subscriptions.push(resourceTreeView);
-
-  // Initialize infrastructure explorer tree view
   const infrastructureExplorer = new InfrastructureExplorerProvider(
     authProvider,
     apiClientManager,
     capabilityService,
   );
-  const infrastructureTreeView = vscode.window.createTreeView(
-    'openchoreo.infrastructureExplorer',
-    {
-      treeDataProvider: infrastructureExplorer,
-      showCollapseAll: true,
-    },
-  );
-  context.subscriptions.push(infrastructureTreeView);
-
-  // Show current namespace in view descriptions
-  const updateViewDescriptions = () => {
-    const ns = authProvider.getContextInfo()?.namespace;
-    const desc = ns ? `ns: ${ns}` : undefined;
-    resourceTreeView.description = desc;
-    infrastructureTreeView.description = desc;
-  };
-  updateViewDescriptions();
-  context.subscriptions.push(
-    authProvider.onDidChangeSession(updateViewDescriptions),
-  );
-
-  // Initialize cluster resources explorer tree view
   const clusterExplorer = new ClusterExplorerProvider(
     authProvider,
     apiClientManager,
     capabilityService,
   );
-  const clusterTreeView = vscode.window.createTreeView(
-    'openchoreo.clusterExplorer',
-    {
-      treeDataProvider: clusterExplorer,
-      showCollapseAll: true,
-    },
-  );
-  context.subscriptions.push(clusterTreeView);
 
   // Initialize sidebar webview
   const sidebarProvider = new SidebarViewProvider(

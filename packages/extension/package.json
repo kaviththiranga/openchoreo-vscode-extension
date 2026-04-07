@@ -24,9 +24,7 @@
   "activationEvents": [
     "onLanguage:yaml",
     "onFileSystem:openchoreo",
-    "onView:openchoreo.sidebar",
-    "onView:openchoreo.resourceExplorer",
-    "onView:openchoreo.infrastructureExplorer"
+    "onView:openchoreo.sidebar"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -51,21 +49,6 @@
           "id": "openchoreo.sidebar",
           "type": "webview",
           "name": "Explorer"
-        },
-        {
-          "id": "openchoreo.resourceExplorer",
-          "name": "Developer Resources",
-          "visibility": "collapsed"
-        },
-        {
-          "id": "openchoreo.infrastructureExplorer",
-          "name": "Platform Resources",
-          "visibility": "collapsed"
-        },
-        {
-          "id": "openchoreo.clusterExplorer",
-          "name": "Cluster Resources",
-          "visibility": "collapsed"
         }
       ]
     },
@@ -220,48 +203,7 @@
     ],
     "menus": {
       "editor/title": [],
-      "view/title": [
-        {
-          "command": "openchoreo.selectNamespace",
-          "when": "view == openchoreo.resourceExplorer",
-          "group": "navigation"
-        },
-        {
-          "command": "openchoreo.refreshResources",
-          "when": "view == openchoreo.resourceExplorer",
-          "group": "navigation"
-        },
-        {
-          "command": "openchoreo.createDevResource",
-          "when": "view == openchoreo.resourceExplorer",
-          "group": "navigation"
-        },
-        {
-          "command": "openchoreo.selectNamespace",
-          "when": "view == openchoreo.infrastructureExplorer",
-          "group": "navigation"
-        },
-        {
-          "command": "openchoreo.refreshInfrastructure",
-          "when": "view == openchoreo.infrastructureExplorer",
-          "group": "navigation"
-        },
-        {
-          "command": "openchoreo.createInfraResource",
-          "when": "view == openchoreo.infrastructureExplorer",
-          "group": "navigation"
-        },
-        {
-          "command": "openchoreo.refreshCluster",
-          "when": "view == openchoreo.clusterExplorer",
-          "group": "navigation"
-        },
-        {
-          "command": "openchoreo.createClusterResource",
-          "when": "view == openchoreo.clusterExplorer",
-          "group": "navigation"
-        }
-      ],
+      "view/title": [],
       "webview/context": [
         {
           "command": "openchoreo.createComponent",
@@ -339,93 +281,7 @@
           "group": "4_chat"
         }
       ],
-      "view/item/context": [
-        {
-          "command": "openchoreo.createComponent",
-          "when": "viewItem =~ /^project.*_creatable/",
-          "group": "inline"
-        },
-        {
-          "command": "openchoreo.createComponent",
-          "when": "viewItem =~ /^project.*_creatable/",
-          "group": "1_create"
-        },
-        {
-          "command": "openchoreo.createChildResource",
-          "when": "viewItem =~ /^infra-category_creatable/",
-          "group": "inline"
-        },
-        {
-          "command": "openchoreo.createChildResource",
-          "when": "viewItem =~ /^infra-category_creatable/",
-          "group": "1_create"
-        },
-        {
-          "command": "openchoreo.openResource",
-          "when": "viewItem =~ /^(project|component|environment|workflow|trait|workload|release-binding|deployment-pipeline|secret-reference)(_editable)?(_deletable)?(_creatable)?$/",
-          "group": "2_open"
-        },
-        {
-          "command": "openchoreo.deleteResource",
-          "when": "viewItem =~ /_deletable/",
-          "group": "3_destructive"
-        },
-        {
-          "command": "openchoreo.generateRelease",
-          "when": "viewItem =~ /^component_editable/",
-          "group": "1_actions"
-        },
-        {
-          "command": "openchoreo.triggerBuild",
-          "when": "viewItem =~ /^component_editable/",
-          "group": "1_actions"
-        },
-        {
-          "command": "openchoreo.viewWorkflowRunLogs",
-          "when": "viewItem == workflow-run",
-          "group": "2_observe"
-        },
-        {
-          "command": "openchoreo.viewWorkflowRunEvents",
-          "when": "viewItem == workflow-run",
-          "group": "2_observe"
-        },
-        {
-          "command": "openchoreo.viewStepLogs",
-          "when": "viewItem == workflow-run-step",
-          "group": "2_observe"
-        },
-        {
-          "command": "openchoreo.viewStepEvents",
-          "when": "viewItem == workflow-run-step",
-          "group": "2_observe"
-        },
-        {
-          "command": "openchoreo.openK8sDefinition",
-          "when": "viewItem =~ /^k8s-resource|^k8s-pod/",
-          "group": "2_open"
-        },
-        {
-          "command": "openchoreo.viewK8sResourceLogs",
-          "when": "viewItem =~ /^k8s-pod/",
-          "group": "2_observe"
-        },
-        {
-          "command": "openchoreo.viewK8sResourceEvents",
-          "when": "viewItem =~ /^k8s-resource|^k8s-pod/",
-          "group": "2_observe"
-        },
-        {
-          "command": "openchoreo.addToChat",
-          "when": "viewItem =~ /^(project|component|environment|workflow|trait|workload|deployment-pipeline|data-plane|workflow-plane|observability-plane|component-type|secret-reference|release-binding|workflow-run|component-release|cluster-component-type|cluster-workflow|cluster-trait|cluster-data-plane|cluster-workflow-plane|cluster-observability-plane)/",
-          "group": "4_chat"
-        },
-        {
-          "command": "openchoreo.addYamlToChat",
-          "when": "viewItem =~ /^(project|component|environment|workflow|trait|workload|deployment-pipeline|data-plane|workflow-plane|observability-plane|component-type|secret-reference|release-binding|workflow-run|component-release|cluster-component-type|cluster-workflow|cluster-trait|cluster-data-plane|cluster-workflow-plane|cluster-observability-plane)/",
-          "group": "4_chat"
-        }
-      ]
+      "view/item/context": []
     },
     "configuration": {
       "title": "OpenChoreo",
