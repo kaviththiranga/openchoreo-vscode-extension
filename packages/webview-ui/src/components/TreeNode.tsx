@@ -132,7 +132,9 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
           <i class={`codicon codicon-chevron-${expanded ? 'down' : 'right'}`} />
         </span>
 
-        <i class={`codicon codicon-${codicon} tree-icon ${colorClass} ${spinning ? 'spin' : ''}`} />
+        {node.type !== 'component-category' && node.type !== 'infra-category' && (
+          <i class={`codicon codicon-${codicon} tree-icon ${colorClass} ${spinning ? 'spin' : ''}`} />
+        )}
 
         <span class="tree-label">{node.label}</span>
 
