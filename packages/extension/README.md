@@ -57,17 +57,27 @@ When registered with VSCode Copilot Chat, the OpenChoreo MCP server receives the
 
 ## Features
 
-### Resource Explorer
+### Sidebar Explorer
 
-Three tree views organized by scope:
+A unified webview sidebar replaces the traditional tree views, providing a richer experience:
 
-**Developer Resources** — Projects, Components, Deployment Pipelines, Workflow Runs, Releases, Release Bindings, Workloads
+**Context Header** — shows the current context and namespace as clickable chips with custom icons. Click to switch context or select a namespace.
 
-**Platform Resources** — Environments, Data Planes, Workflow Planes, Observability Planes, Component Types, Workflows, Traits, Secret References, RBAC Roles & Bindings
+**Projects** — Projects, Components, Deployment Pipelines, Workflow Runs, Releases, Release Bindings, Workloads
 
-**Cluster Resources** — Cluster-scoped variants of infrastructure resources (ClusterComponentTypes, ClusterWorkflows, ClusterTraits, etc.) and Cluster RBAC
+**Namespace Resources** — Environments, Data Planes, Workflow Planes, Observability Planes, Component Types, Workflows, Traits, Secret References, RBAC Roles & Bindings
 
-Each view shows the current namespace in the header. Click the namespace selector button to switch namespaces — the change syncs back to the occ CLI config.
+**Cluster Resources** — Cluster-scoped variants of infrastructure resources and Cluster RBAC
+
+Each section has a title bar with **create (+)**, **refresh**, and **collapse all** buttons.
+
+**Selection & Keyboard Navigation** — click to select and activate a node. Use arrow keys to navigate (Up/Down to move, Left/Right to collapse/expand, Enter to open, Space to toggle). Selection persists across view switches.
+
+**Indent Guides** — vertical guide lines appear on hover at each depth level, with the selected node's guide rendered at full opacity for clarity.
+
+**Progress Indicators** — section-level loading shows a native-style horizontal progress bar under the section header.
+
+**Custom Icons** — resource types use Backstage Material UI icons via a custom WOFF2 icon font (`openchoreo-icons`), ensuring consistent visuals between the VS Code extension and the Backstage portal. Icons inherit the theme foreground color automatically.
 
 Resources with a `deletionTimestamp` (being deleted) are shown with a `(deleting)` label and opened as read-only.
 
@@ -89,7 +99,15 @@ Click the **+** button on a tree category or project to create a new resource fr
 - Edit the template, then **Cmd+S** to create the resource on the cluster (uses POST)
 - After successful creation, the tab reopens pointing to the actual resource
 
-Available scaffolds: Project, Component, ComponentType, Trait, Environment, DataPlane, WorkflowPlane, ObservabilityPlane, Workflow, Workload, DeploymentPipeline, SecretReference
+Available scaffolds: Project, Component, ComponentType, Trait, Environment, DataPlane, WorkflowPlane, ObservabilityPlane, Workflow, Workload, DeploymentPipeline, SecretReference, AuthzRole, AuthzRoleBinding, ClusterAuthzRole, ClusterAuthzRoleBinding
+
+### Create Namespace
+
+The namespace selector includes a **"Create New Namespace..."** option at the bottom. Enter a name, and it creates the namespace via the API and switches to it automatically.
+
+### Create Context
+
+The context switcher includes a **"Create New Context..."** option. Enter a context name and control plane URL, then authenticate via `occ login` in a terminal that opens automatically.
 
 ### Workflow Run Observability
 
@@ -259,9 +277,9 @@ Both actions open Copilot Chat without auto-submitting, so you can compose your 
 
 ### Status Bar
 
-The status bar shows your current connection status:
+The status bar shows your current connection status using the custom OpenChoreo icon font:
 
-- Connected: `OC: {context} {namespace}`
+- Connected: `[OC logo] {context} [namespace icon] {namespace}`
 - Not connected: `OC: Not connected`
 
 Click to switch context.
@@ -292,18 +310,15 @@ Project, Component, Environment, DataPlane, WorkflowPlane, ObservabilityPlane, C
 ClusterComponentType, ClusterWorkflow, ClusterTrait, ClusterDataPlane, ClusterWorkflowPlane, ClusterObservabilityPlane, ClusterRole, ClusterRoleBinding
 
 ### RBAC
-NamespaceRole, NamespaceRoleBinding (in Platform Resources), ClusterRole, ClusterRoleBinding (in Cluster Resources)
+AuthzRole, AuthzRoleBinding (in Namespace Resources), ClusterAuthzRole, ClusterAuthzRoleBinding (in Cluster Resources) — full CRUD support including scaffolds, create, edit, and delete (RBAC-gated)
 
 ## Commands
 
 | Command | Description |
 |---|---|
 | `OpenChoreo: Login (via occ CLI)` | Opens a terminal with `occ login` |
-| `OpenChoreo: Select Namespace` | Switch namespace (syncs to occ config) |
-| `OpenChoreo: Switch Context` | Switch occ CLI context |
-| `OpenChoreo: Refresh Resources` | Refresh Developer Resources tree |
-| `OpenChoreo: Refresh Infrastructure` | Refresh Platform Resources tree |
-| `OpenChoreo: Refresh Cluster Resources` | Refresh Cluster Resources tree |
+| `OpenChoreo: Select Namespace` | Switch namespace or create a new one (syncs to occ config) |
+| `OpenChoreo: Switch Context` | Switch occ CLI context or create a new one |
 | `OpenChoreo: Create New Resource` | Create from scaffold template (command palette) |
 | `OpenChoreo: Delete` | Delete resource (tree context menu) |
 | `OpenChoreo: Generate Release` | Create immutable release snapshot from component (tree context menu) |
@@ -325,15 +340,28 @@ packages/
 │   ├── src/
 │   │   ├── auth/        # occ CLI session & token management
 │   │   ├── api/         # Typed OpenChoreo API client
-│   │   ├── treeView/    # 3 tree view providers
+│   │   ├── treeView/    # Data providers (used by webview sidebar)
+│   │   ├── webview/     # WebviewViewProvider & message protocol
 │   │   ├── filesystem/  # Virtual filesystem (openchoreo://)
 │   │   ├── commands/    # Command handlers & namespace selector
 │   │   ├── services/    # RBAC, delete, resource, YAML services
 │   │   ├── mcp/         # MCP server auto-registration
+│   │   ├── statusBar/   # Status bar with custom icon font
 │   │   └── logging/     # Output channel logger
-│   └── resources/
-│       ├── openchoreo.svg    # Activity bar icon
-│       └── icons/            # Material UI SVG icons
+│   ├── resources/
+│   │   ├── openchoreo.svg           # Activity bar icon
+│   │   ├── openchoreo-icons.woff2   # Custom icon font (generated)
+│   │   ├── openchoreo-icons.json    # Codepoint map (generated)
+│   │   └── icons/                   # Material UI SVG source icons
+│   └── scripts/
+│       └── update-icon-font.mjs     # Sync font codepoints to package.json
+├── webview-ui/          # Preact-based sidebar webview
+│   ├── src/
+│   │   ├── components/  # TreeNode, TreeSection, NamespaceHeader, icons
+│   │   ├── hooks/       # VS Code API wrapper
+│   │   ├── styles/      # CSS with VS Code theme variables
+│   │   └── types/       # Protocol & node type mirrors
+│   └── build.mjs        # esbuild config
 ├── language-server/     # LSP server (separate process)
 │   └── src/
 │       ├── completion/  # YAML + CEL completions
@@ -343,6 +371,17 @@ packages/
 │       └── schemas/     # Schema loader
 └── schemas/             # JSON Schema files for all CRD types
 ```
+
+### Icon Font
+
+Custom icons are generated from SVG source files using [fantasticon](https://github.com/tancredi/fantasticon):
+
+```bash
+cd packages/extension
+pnpm generate:icons    # Generates WOFF2 font + JSON codepoints + updates package.json
+```
+
+To add a new icon: drop an SVG into `resources/icons/`, run `pnpm generate:icons`. The codepoints are auto-synced to both `package.json` (for VS Code `contributes.icons`) and the webview (via JSON import).
 
 ## License
 

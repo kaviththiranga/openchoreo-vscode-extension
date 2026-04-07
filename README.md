@@ -6,9 +6,9 @@ Monorepo for Visual Studio Code tooling for the [OpenChoreo](https://openchoreo.
 
 | Package | Description |
 |---|---|
-| [`packages/extension`](packages/extension/) | Main VSCode extension — tree views, resource editing, commands |
+| [`packages/extension`](packages/extension/) | Main VSCode extension — webview sidebar, resource editing, commands |
 | [`packages/language-server`](packages/language-server/) | Language server — completions, validation, hover, symbols |
-| [`packages/webview-ui`](packages/webview-ui/) | Webview UI components (Phase 3 — planned) |
+| [`packages/webview-ui`](packages/webview-ui/) | Preact-based sidebar webview — unified tree explorer with custom icons |
 | [`schemas`](schemas/) | JSON Schema files for OpenChoreo CRD types |
 
 See the [extension README](packages/extension/README.md) for full feature documentation.
