@@ -1,7 +1,7 @@
 // Copyright 2026 The OpenChoreo Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState, useEffect } from 'preact/hooks';
+import { useEffect } from 'preact/hooks';
 import type { ResourceNodeData } from '../types/nodes';
 import type { TreeSection as Section } from '../types/protocol';
 import { TreeNode } from './TreeNode';
@@ -12,10 +12,13 @@ interface TreeSectionProps {
   section: Section;
   roots: ResourceNodeData[];
   childrenMap: Record<string, ResourceNodeData[]>;
+  expandedNodes: Set<string>;
+  expanded: boolean;
+  onToggleSection: (section: string) => void;
+  onToggleNode: (nodeId: string) => void;
   onRequestChildren: (section: Section, nodeId: string, lazyChildrenKey: string) => void;
   onNodeClick: (section: Section, node: ResourceNodeData) => void;
   onRefresh: (section: Section) => void;
-  defaultExpanded?: boolean;
 }
 
 export function TreeSection({
@@ -23,13 +26,14 @@ export function TreeSection({
   section,
   roots,
   childrenMap,
+  expandedNodes,
+  expanded,
+  onToggleSection,
+  onToggleNode,
   onRequestChildren,
   onNodeClick,
   onRefresh,
-  defaultExpanded = false,
 }: TreeSectionProps) {
-  const [expanded, setExpanded] = useState(defaultExpanded);
-
   // Request roots when section is first expanded
   useEffect(() => {
     if (expanded && roots.length === 0) {
@@ -39,7 +43,7 @@ export function TreeSection({
 
   return (
     <div class="tree-section">
-      <div class="section-header" onClick={() => setExpanded(!expanded)}>
+      <div class="section-header" onClick={() => onToggleSection(section)}>
         <i class={`codicon codicon-chevron-${expanded ? 'down' : 'right'} section-chevron`} />
         <span class="section-title">{title}</span>
         <div class="section-actions">
@@ -68,6 +72,8 @@ export function TreeSection({
                 section={section}
                 depth={0}
                 childrenMap={childrenMap}
+                expandedNodes={expandedNodes}
+                onToggleNode={onToggleNode}
                 onRequestChildren={onRequestChildren}
                 onNodeClick={onNodeClick}
               />

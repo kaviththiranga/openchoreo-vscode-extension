@@ -1,7 +1,7 @@
 // Copyright 2026 The OpenChoreo Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState, useCallback } from 'preact/hooks';
+import { useCallback, useEffect } from 'preact/hooks';
 import type { ResourceNodeData } from '../types/nodes';
 import type { TreeSection } from '../types/protocol';
 import { resolveNodeIcon } from './icons';
@@ -11,12 +11,14 @@ interface TreeNodeProps {
   section: TreeSection;
   depth: number;
   childrenMap: Record<string, ResourceNodeData[]>;
+  expandedNodes: Set<string>;
+  onToggleNode: (nodeId: string) => void;
   onRequestChildren: (section: TreeSection, nodeId: string, lazyChildrenKey: string) => void;
   onNodeClick: (section: TreeSection, node: ResourceNodeData) => void;
 }
 
 /** Build a unique node ID for the webview node cache. */
-function buildNodeId(node: ResourceNodeData): string {
+export function buildNodeId(node: ResourceNodeData): string {
   const parts: string[] = [node.type];
   if (node.namespace) parts.push(node.namespace);
   if (node.project) parts.push(node.project);
@@ -32,9 +34,9 @@ const NON_CLICKABLE = new Set([
   'workflow-run-step', 'k8s-rendered-release',
 ]);
 
-export function TreeNode({ node, section, depth, childrenMap, onRequestChildren, onNodeClick }: TreeNodeProps) {
-  const [expanded, setExpanded] = useState(false);
+export function TreeNode({ node, section, depth, childrenMap, expandedNodes, onToggleNode, onRequestChildren, onNodeClick }: TreeNodeProps) {
   const nodeId = buildNodeId(node);
+  const expanded = expandedNodes.has(nodeId);
 
   const hasChildren = node.childrenMode !== 'none';
   const isLeaf = !hasChildren ||
@@ -46,14 +48,17 @@ export function TreeNode({ node, section, depth, childrenMap, onRequestChildren,
 
   const loading = expanded && node.childrenMode === 'lazy' && !resolvedChildren;
 
-  const onToggle = useCallback(() => {
-    if (isLeaf) return;
-    const next = !expanded;
-    setExpanded(next);
-    if (next && node.childrenMode === 'lazy' && !resolvedChildren && node.lazyChildrenKey) {
+  // Request lazy children when expanded and not yet loaded
+  useEffect(() => {
+    if (expanded && node.childrenMode === 'lazy' && !resolvedChildren && node.lazyChildrenKey) {
       onRequestChildren(section, nodeId, node.lazyChildrenKey);
     }
-  }, [expanded, isLeaf, node, resolvedChildren, section, nodeId, onRequestChildren]);
+  }, [expanded, node.childrenMode, node.lazyChildrenKey, resolvedChildren, section, nodeId, onRequestChildren]);
+
+  const onToggle = useCallback(() => {
+    if (isLeaf) return;
+    onToggleNode(nodeId);
+  }, [isLeaf, nodeId, onToggleNode]);
 
   const onClick = useCallback(() => {
     if (NON_CLICKABLE.has(node.type)) {
@@ -73,7 +78,6 @@ export function TreeNode({ node, section, depth, childrenMap, onRequestChildren,
   const spinning = node.statusPhase === 'Running' || node.healthStatus === 'Progressing';
 
   // Context data for native VS Code context menus (webview/context)
-  // Parse contextValue flags (e.g., "project_editable_deletable_creatable")
   const cv = node.contextValue;
   const contextData = JSON.stringify({
     webviewSection: section,
@@ -118,7 +122,7 @@ export function TreeNode({ node, section, depth, childrenMap, onRequestChildren,
       {expanded && !isLeaf && (
         <div class="tree-children" role="group">
           {loading && (
-            <div class="tree-row" style={{ paddingLeft: `${(depth + 1) * 16 + 4}px` }}>
+            <div class="tree-row" style={{ paddingLeft: `${(depth + 1) * 16 + 12}px` }}>
               <i class="codicon codicon-loading spin" />
               <span class="tree-label loading-text">Loading...</span>
             </div>
@@ -130,6 +134,8 @@ export function TreeNode({ node, section, depth, childrenMap, onRequestChildren,
               section={section}
               depth={depth + 1}
               childrenMap={childrenMap}
+              expandedNodes={expandedNodes}
+              onToggleNode={onToggleNode}
               onRequestChildren={onRequestChildren}
               onNodeClick={onNodeClick}
             />

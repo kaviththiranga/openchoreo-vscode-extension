@@ -10,6 +10,16 @@ import type { ResourceNodeData } from './types/nodes';
 
 import './styles/sidebar.css';
 
+/** State persisted across webview hide/show via vscode.getState/setState. */
+interface PersistedState {
+  expandedNodes: string[];
+  expandedSections: string[];
+}
+
+function loadPersistedState(): PersistedState {
+  return vscode.getState<PersistedState>() ?? { expandedNodes: [], expandedSections: ['projects'] };
+}
+
 export function App() {
   const [authState, setAuthState] = useState<AuthState>({
     connected: false,
@@ -20,6 +30,39 @@ export function App() {
     cluster: [],
   });
   const [childrenMap, setChildrenMap] = useState<Record<string, ResourceNodeData[]>>({});
+
+  // Persisted expand state
+  const persisted = loadPersistedState();
+  const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => new Set(persisted.expandedNodes));
+  const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set(persisted.expandedSections));
+
+  // Persist state whenever it changes
+  const persistState = useCallback((nodes: Set<string>, sections: Set<string>) => {
+    vscode.setState<PersistedState>({
+      expandedNodes: [...nodes],
+      expandedSections: [...sections],
+    });
+  }, []);
+
+  const toggleNode = useCallback((nodeId: string) => {
+    setExpandedNodes(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      persistState(next, expandedSections);
+      return next;
+    });
+  }, [expandedSections, persistState]);
+
+  const toggleSection = useCallback((section: string) => {
+    setExpandedSections(prev => {
+      const next = new Set(prev);
+      if (next.has(section)) next.delete(section);
+      else next.add(section);
+      persistState(expandedNodes, next);
+      return next;
+    });
+  }, [expandedNodes, persistState]);
 
   // Handle messages from extension host
   useEffect(() => {
@@ -42,7 +85,6 @@ export function App() {
           vscode.postMessage({ type: 'requestRoots', section: 'cluster' });
           break;
         case 'refreshSection':
-          // Clear cached children for this section and re-request roots
           setChildrenMap({});
           setSectionRoots(prev => ({ ...prev, [msg.section]: [] }));
           vscode.postMessage({ type: 'requestRoots', section: msg.section });
@@ -110,16 +152,23 @@ export function App() {
         section="projects"
         roots={sectionRoots.projects}
         childrenMap={childrenMap}
+        expandedNodes={expandedNodes}
+        expanded={expandedSections.has('projects')}
+        onToggleSection={toggleSection}
+        onToggleNode={toggleNode}
         onRequestChildren={onRequestChildren}
         onNodeClick={onNodeClick}
         onRefresh={onRefresh}
-        defaultExpanded
       />
       <TreeSection
         title="Namespace Resources"
         section="infrastructure"
         roots={sectionRoots.infrastructure}
         childrenMap={childrenMap}
+        expandedNodes={expandedNodes}
+        expanded={expandedSections.has('infrastructure')}
+        onToggleSection={toggleSection}
+        onToggleNode={toggleNode}
         onRequestChildren={onRequestChildren}
         onNodeClick={onNodeClick}
         onRefresh={onRefresh}
@@ -129,6 +178,10 @@ export function App() {
         section="cluster"
         roots={sectionRoots.cluster}
         childrenMap={childrenMap}
+        expandedNodes={expandedNodes}
+        expanded={expandedSections.has('cluster')}
+        onToggleSection={toggleSection}
+        onToggleNode={toggleNode}
         onRequestChildren={onRequestChildren}
         onNodeClick={onNodeClick}
         onRefresh={onRefresh}
