@@ -14,6 +14,7 @@ interface TreeSectionProps {
   childrenMap: Record<string, ResourceNodeData[]>;
   expandedNodes: Set<string>;
   expanded: boolean;
+  createCommand?: string;
   onToggleSection: (section: string) => void;
   onToggleNode: (nodeId: string) => void;
   onRequestChildren: (section: Section, nodeId: string, lazyChildrenKey: string) => void;
@@ -28,6 +29,7 @@ export function TreeSection({
   childrenMap,
   expandedNodes,
   expanded,
+  createCommand,
   onToggleSection,
   onToggleNode,
   onRequestChildren,
@@ -47,6 +49,15 @@ export function TreeSection({
         <i class={`codicon codicon-chevron-${expanded ? 'down' : 'right'} section-chevron`} />
         <span class="section-title">{title}</span>
         <div class="section-actions">
+          {createCommand && (
+            <button
+              class="icon-button"
+              title={`Create Resource`}
+              onClick={(e) => { e.stopPropagation(); vscode.postMessage({ type: 'executeCommand', command: createCommand }); }}
+            >
+              <i class="codicon codicon-add" />
+            </button>
+          )}
           <button
             class="icon-button"
             title={`Refresh ${title}`}

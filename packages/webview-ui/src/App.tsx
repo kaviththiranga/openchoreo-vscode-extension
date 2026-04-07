@@ -155,6 +155,7 @@ export function App() {
         childrenMap={childrenMap}
         expandedNodes={expandedNodes}
         expanded={expandedSections.has('projects')}
+        createCommand="openchoreo.createDevResource"
         onToggleSection={toggleSection}
         onToggleNode={toggleNode}
         onRequestChildren={onRequestChildren}
@@ -168,6 +169,7 @@ export function App() {
         childrenMap={childrenMap}
         expandedNodes={expandedNodes}
         expanded={expandedSections.has('infrastructure')}
+        createCommand="openchoreo.createInfraResource"
         onToggleSection={toggleSection}
         onToggleNode={toggleNode}
         onRequestChildren={onRequestChildren}
@@ -181,6 +183,7 @@ export function App() {
         childrenMap={childrenMap}
         expandedNodes={expandedNodes}
         expanded={expandedSections.has('cluster')}
+        createCommand="openchoreo.createClusterResource"
         onToggleSection={toggleSection}
         onToggleNode={toggleNode}
         onRequestChildren={onRequestChildren}
