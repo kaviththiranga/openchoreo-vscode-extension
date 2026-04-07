@@ -146,6 +146,7 @@ export function App() {
         namespace={authState.namespace}
         contextName={authState.contextName}
         onSelectNamespace={() => vscode.postMessage({ type: 'selectNamespace' })}
+        onSwitchContext={() => vscode.postMessage({ type: 'executeCommand', command: 'openchoreo.switchContext' })}
       />
       <TreeSection
         title="Projects"

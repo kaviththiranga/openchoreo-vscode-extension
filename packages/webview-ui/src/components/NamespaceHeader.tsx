@@ -5,22 +5,22 @@ interface NamespaceHeaderProps {
   namespace?: string;
   contextName?: string;
   onSelectNamespace: () => void;
+  onSwitchContext: () => void;
 }
 
-export function NamespaceHeader({ namespace, contextName, onSelectNamespace }: NamespaceHeaderProps) {
+export function NamespaceHeader({ namespace, contextName, onSelectNamespace, onSwitchContext }: NamespaceHeaderProps) {
   return (
-    <div class="namespace-header">
-      <div class="namespace-info">
-        <i class="codicon codicon-symbol-namespace" />
-        <span class="namespace-name">{namespace || 'No namespace'}</span>
-        {contextName && <span class="context-name">{contextName}</span>}
-      </div>
-      <button
-        class="icon-button"
-        title="Switch Namespace"
-        onClick={onSelectNamespace}
-      >
-        <i class="codicon codicon-arrow-swap" />
+    <div class="context-header">
+      <button class="context-chip" title="Switch Context" onClick={onSwitchContext}>
+        <span class="chip-label">ctx:</span>
+        <span class="chip-text">{contextName || 'None'}</span>
+        <i class="codicon codicon-chevron-down chip-arrow" />
+      </button>
+      <span class="context-separator">/</span>
+      <button class="context-chip" title="Select Namespace" onClick={onSelectNamespace}>
+        <span class="chip-label">ns:</span>
+        <span class="chip-text">{namespace || 'None'}</span>
+        <i class="codicon codicon-chevron-down chip-arrow" />
       </button>
     </div>
   );

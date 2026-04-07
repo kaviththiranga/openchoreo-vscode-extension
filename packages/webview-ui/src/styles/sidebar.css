@@ -24,39 +24,66 @@ body {
   overflow: hidden;
 }
 
-/* ── Namespace Header ─────────────────────────────────────────────── */
+/* ── Context Header ───────────────────────────────────────────────── */
 
-.namespace-header {
+.context-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 6px 8px;
+  padding: 6px 8px 6px 12px;
+  gap: 4px;
   border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border));
-  background: var(--vscode-sideBarSectionHeader-background, transparent);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 6px;
+  border: none;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--vscode-foreground);
+  font-size: 12px;
+  cursor: pointer;
+  min-width: 0;
+  max-width: 50%;
+}
+
+.context-chip:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+}
+
+.context-chip .codicon {
+  flex-shrink: 0;
+  font-size: 14px;
+}
+
+.chip-label {
+  color: var(--vscode-descriptionForeground);
+  font-size: 11px;
   flex-shrink: 0;
 }
 
-.namespace-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.namespace-name {
+.chip-text {
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
 }
 
-.context-name {
+.chip-arrow {
+  font-size: 10px !important;
+  opacity: 0.6;
+}
+
+.context-separator {
   color: var(--vscode-descriptionForeground);
-  font-size: 0.9em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  opacity: 0.5;
+  flex-shrink: 0;
 }
 
 /* ── Section ──────────────────────────────────────────────────────── */
