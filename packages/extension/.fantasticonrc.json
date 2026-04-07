@@ -1,0 +1,11 @@
+{
+  "inputDir": "resources/icons",
+  "outputDir": "resources",
+  "name": "openchoreo-icons",
+  "fontTypes": ["woff2"],
+  "assetTypes": [],
+  "prefix": "openchoreo",
+  "normalize": true,
+  "fontHeight": 1000,
+  "descent": 0
+}

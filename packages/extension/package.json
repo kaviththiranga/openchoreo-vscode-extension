@@ -28,6 +28,113 @@
   ],
   "main": "./dist/extension.js",
   "contributes": {
+    "icons": {
+      "openchoreo-logo": {
+        "description": "OpenChoreo logo",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-apartment": {
+        "description": "Namespace",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-dashboard": {
+        "description": "Project",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-memory": {
+        "description": "Component",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-storage": {
+        "description": "Workload",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-cloud": {
+        "description": "Environment",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-dns": {
+        "description": "Data Plane",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-build": {
+        "description": "Workflow Plane",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-visibility": {
+        "description": "Observability Plane",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-category": {
+        "description": "Component Type",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-extension": {
+        "description": "Trait",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-play-circle-outline": {
+        "description": "Workflow",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-account-tree": {
+        "description": "Deployment Pipeline",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-security": {
+        "description": "Role",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      },
+      "openchoreo-link": {
+        "description": "Role Binding",
+        "default": {
+          "fontPath": "resources/openchoreo-icons.woff2",
+          "fontCharacter": ""
+        }
+      }
+    },
     "mcpServerDefinitionProviders": [
       {
         "id": "openchoreo",
@@ -114,7 +221,7 @@
         "command": "openchoreo.selectNamespace",
         "title": "Select Namespace",
         "category": "OpenChoreo",
-        "icon": "$(symbol-namespace)"
+        "icon": "$(openchoreo-apartment)"
       },
       {
         "command": "openchoreo.createChildResource",
@@ -310,6 +417,7 @@
     "dev": "pnpm build --watch",
     "lint": "tsc --noEmit",
     "test": "vitest run",
+    "generate:icons": "fantasticon",
     "clean": "rm -rf dist out",
     "prepackage": "cp -r ../../schemas ./schemas && mkdir -p ./language-server/dist && cp ../language-server/dist/server.js ./language-server/dist/server.js && mkdir -p ./webview-ui/dist && cp ../webview-ui/dist/* ./webview-ui/dist/",
     "package": "pnpm build && vsce package --no-dependencies --allow-missing-repository --skip-license",
@@ -322,11 +430,12 @@
     "yaml": "^2.6.0"
   },
   "devDependencies": {
-    "@types/vscode": "^1.85.0",
     "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.2.0",
     "esbuild": "^0.24.0",
+    "fantasticon": "^4.1.0",
     "typescript": "^5.7.0",
-    "vitest": "^2.1.0",
-    "@vscode/vsce": "^3.2.0"
+    "vitest": "^2.1.0"
   }
 }
