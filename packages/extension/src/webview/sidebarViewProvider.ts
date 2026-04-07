@@ -108,6 +108,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     switch (msg.type) {
       case 'ready':
         this.sendAuthState();
+        this.sendIconsBaseUri();
         break;
 
       case 'requestRoots':
@@ -138,6 +139,14 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         vscode.commands.executeCommand('openchoreo.selectNamespace');
         break;
     }
+  }
+
+  private sendIconsBaseUri(): void {
+    if (!this.view) return;
+    const iconsUri = this.view.webview.asWebviewUri(
+      vscode.Uri.joinPath(this.extensionUri, 'resources', 'icons'),
+    );
+    this.postMessage({ type: 'setIconsBaseUri', uri: iconsUri.toString() });
   }
 
   private sendAuthState(): void {
@@ -251,6 +260,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     content="default-src 'none';
       style-src ${webview.cspSource} 'unsafe-inline';
       font-src ${webview.cspSource} data:;
+      img-src ${webview.cspSource};
       script-src 'nonce-${nonce}';">
   <link rel="stylesheet" href="${styleUri}">
   <title>OpenChoreo</title>

@@ -20,6 +20,7 @@ interface TreeNodeProps {
   onRequestChildren: (section: TreeSection, nodeId: string, lazyChildrenKey: string) => void;
   onNodeClick: (section: TreeSection, node: ResourceNodeData) => void;
   onSelectNode: (nodeId: string) => void;
+  iconsBaseUri: string;
 }
 
 /** Build a local segment for this node. */
@@ -44,7 +45,7 @@ const NON_CLICKABLE = new Set([
   'workflow-run-step', 'k8s-rendered-release',
 ]);
 
-export function TreeNode({ node, section, depth, parentPath, childrenMap, expandedNodes, selectedNodeId, activeGuideDepth, onToggleNode, onRequestChildren, onNodeClick, onSelectNode }: TreeNodeProps) {
+export function TreeNode({ node, section, depth, parentPath, childrenMap, expandedNodes, selectedNodeId, activeGuideDepth, onToggleNode, onRequestChildren, onNodeClick, onSelectNode, iconsBaseUri }: TreeNodeProps) {
   const nodeId = buildNodeId(parentPath, node);
   const expanded = expandedNodes.has(nodeId);
   const selected = selectedNodeId === nodeId;
@@ -84,7 +85,7 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
     onNodeClick(section, node);
   }, [node, section, nodeId, onNodeClick, onToggle, onSelectNode]);
 
-  const { codicon, colorClass } = resolveNodeIcon(node.type, node.statusPhase, node.healthStatus, node.icon);
+  const icon = resolveNodeIcon(node.type, node.statusPhase, node.healthStatus, node.icon);
   const spinning = node.statusPhase === 'Running' || node.healthStatus === 'Progressing';
 
   // Context data for native VS Code context menus (webview/context)
@@ -133,7 +134,11 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
         </span>
 
         {node.type !== 'component-category' && node.type !== 'infra-category' && (
-          <i class={`codicon codicon-${codicon} tree-icon ${colorClass} ${spinning ? 'spin' : ''}`} />
+          icon.kind === 'svg' && iconsBaseUri
+            ? <img class="tree-icon-svg" src={`${iconsBaseUri}/${icon.filename}`} alt="" />
+            : icon.kind === 'codicon'
+              ? <i class={`codicon codicon-${icon.codicon} tree-icon ${icon.colorClass} ${spinning ? 'spin' : ''}`} />
+              : null
         )}
 
         <span class="tree-label">{node.label}</span>
@@ -170,6 +175,7 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
               onRequestChildren={onRequestChildren}
               onNodeClick={onNodeClick}
               onSelectNode={onSelectNode}
+              iconsBaseUri={iconsBaseUri}
             />
           ))}
         </div>

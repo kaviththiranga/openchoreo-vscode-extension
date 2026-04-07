@@ -37,6 +37,7 @@ export type WebviewToExtMessage =
 
 export type ExtToWebviewMessage =
   | { type: 'setAuthState'; state: AuthState }
+  | { type: 'setIconsBaseUri'; uri: string }
   | { type: 'setRoots'; section: TreeSection; nodes: ResourceNodeData[] }
   | { type: 'setChildren'; section: TreeSection; nodeId: string; nodes: ResourceNodeData[] }
   | { type: 'refreshAll' }

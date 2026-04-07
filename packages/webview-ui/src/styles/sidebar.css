@@ -233,6 +233,12 @@ body {
   flex-shrink: 0;
 }
 
+.tree-icon-svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
 .tree-label {
   overflow: hidden;
   text-overflow: ellipsis;

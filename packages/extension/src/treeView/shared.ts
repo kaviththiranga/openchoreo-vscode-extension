@@ -37,6 +37,10 @@ const MUI_ICON_MAP: Partial<Record<ResourceNodeType, string>> = {
   workflow: 'play-circle-outline.svg',
   'cluster-workflow': 'play-circle-outline.svg',
   'deployment-pipeline': 'account-tree.svg',
+  'namespace-role': 'security.svg',
+  'cluster-role': 'security.svg',
+  'namespace-role-binding': 'link.svg',
+  'cluster-role-binding': 'link.svg',
 };
 
 /**

@@ -4,10 +4,38 @@
 import type { ResourceNodeType } from '../types/nodes';
 
 /**
- * Maps resource node types to codicon names.
- * Mirrors THEME_ICON_MAP from extension's shared.ts.
+ * Maps resource types to custom SVG icon filenames.
+ * Mirrors MUI_ICON_MAP from extension's shared.ts.
  */
-export const CODICON_MAP: Record<ResourceNodeType, string> = {
+const SVG_ICON_MAP: Partial<Record<ResourceNodeType, string>> = {
+  namespace: 'apartment.svg',
+  project: 'dashboard.svg',
+  component: 'memory.svg',
+  workload: 'storage.svg',
+  environment: 'cloud.svg',
+  'data-plane': 'dns.svg',
+  'cluster-data-plane': 'dns.svg',
+  'workflow-plane': 'build.svg',
+  'cluster-workflow-plane': 'build.svg',
+  'observability-plane': 'visibility.svg',
+  'cluster-observability-plane': 'visibility.svg',
+  'component-type': 'category.svg',
+  'cluster-component-type': 'category.svg',
+  trait: 'extension.svg',
+  'cluster-trait': 'extension.svg',
+  workflow: 'play-circle-outline.svg',
+  'cluster-workflow': 'play-circle-outline.svg',
+  'deployment-pipeline': 'account-tree.svg',
+  'namespace-role': 'security.svg',
+  'cluster-role': 'security.svg',
+  'namespace-role-binding': 'link.svg',
+  'cluster-role-binding': 'link.svg',
+};
+
+/**
+ * Fallback codicon map for types without custom SVG icons.
+ */
+const CODICON_MAP: Record<ResourceNodeType, string> = {
   namespace: 'symbol-namespace',
   project: 'project',
   component: 'package',
@@ -68,19 +96,31 @@ export function healthIcon(status: string): { codicon: string; colorClass: strin
   }
 }
 
-/** Resolve the codicon name and color class for a node. */
+export type ResolvedIcon =
+  | { kind: 'codicon'; codicon: string; colorClass: string }
+  | { kind: 'svg'; filename: string };
+
+/** Resolve the icon for a node — SVG if available, codicon fallback. */
 export function resolveNodeIcon(
   type: ResourceNodeType,
   statusPhase?: string,
   healthStatus?: string,
   iconOverride?: string,
-): { codicon: string; colorClass: string } {
-  if (statusPhase) return phaseIcon(statusPhase);
-  if (healthStatus) return healthIcon(healthStatus);
-  // Icon override: look up the override as a resource type in the codicon map
+): ResolvedIcon {
+  // Status/health icons are always codicons (colored)
+  if (statusPhase) return { kind: 'codicon', ...phaseIcon(statusPhase) };
+  if (healthStatus) return { kind: 'codicon', ...healthIcon(healthStatus) };
+
+  // Check for SVG icon (with override support)
+  const svgFile = iconOverride
+    ? SVG_ICON_MAP[iconOverride as ResourceNodeType]
+    : SVG_ICON_MAP[type];
+  if (svgFile) return { kind: 'svg', filename: svgFile };
+
+  // Codicon fallback (with override support)
   if (iconOverride) {
     const overrideIcon = CODICON_MAP[iconOverride as ResourceNodeType];
-    if (overrideIcon) return { codicon: overrideIcon, colorClass: '' };
+    if (overrideIcon) return { kind: 'codicon', codicon: overrideIcon, colorClass: '' };
   }
-  return { codicon: CODICON_MAP[type] ?? 'circle-outline', colorClass: '' };
+  return { kind: 'codicon', codicon: CODICON_MAP[type] ?? 'circle-outline', colorClass: '' };
 }

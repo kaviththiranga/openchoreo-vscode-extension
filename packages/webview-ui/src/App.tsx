@@ -31,6 +31,7 @@ export function App() {
     cluster: [],
   });
   const [childrenMap, setChildrenMap] = useState<Record<string, ResourceNodeData[]>>({});
+  const [iconsBaseUri, setIconsBaseUri] = useState<string>('');
 
   // Persisted expand state
   const persisted = loadPersistedState();
@@ -85,6 +86,9 @@ export function App() {
       switch (msg.type) {
         case 'setAuthState':
           setAuthState(msg.state);
+          break;
+        case 'setIconsBaseUri':
+          setIconsBaseUri(msg.uri);
           break;
         case 'setRoots':
           setSectionRoots(prev => ({ ...prev, [msg.section]: msg.nodes }));
@@ -178,6 +182,7 @@ export function App() {
         onCollapseAll={collapseAll}
         selectedNodeId={selectedNodeId}
         onSelectNode={selectNode}
+        iconsBaseUri={iconsBaseUri}
       />
       <TreeSection
         title="Namespace Resources"
@@ -195,6 +200,7 @@ export function App() {
         onCollapseAll={collapseAll}
         selectedNodeId={selectedNodeId}
         onSelectNode={selectNode}
+        iconsBaseUri={iconsBaseUri}
       />
       <TreeSection
         title="Cluster Resources"
@@ -212,6 +218,7 @@ export function App() {
         onCollapseAll={collapseAll}
         selectedNodeId={selectedNodeId}
         onSelectNode={selectNode}
+        iconsBaseUri={iconsBaseUri}
       />
     </div>
   );
