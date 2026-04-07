@@ -82,29 +82,37 @@ export function registerCommands(
   );
 
   // Switch context, then prompt for namespace
+  const CREATE_CTX_LABEL = '$(add) Create New Context...';
+
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.switchContext',
       async () => {
         const contexts = authProvider.getAvailableContexts();
-        if (contexts.length === 0) {
-          vscode.window.showWarningMessage(
-            'No OpenChoreo contexts found. Run "occ config set-context" to create one.',
-          );
-          return;
-        }
-
         const currentCtx = authProvider.getContextInfo()?.contextName;
-        const items = contexts.map((name) => ({
+
+        const items: vscode.QuickPickItem[] = contexts.map((name) => ({
           label: name,
           description: name === currentCtx ? '(current)' : undefined,
         }));
+
+        if (items.length > 0) {
+          items.push({ label: '', kind: vscode.QuickPickItemKind.Separator });
+        }
+        items.push({ label: CREATE_CTX_LABEL, alwaysShow: true });
 
         const selected = await vscode.window.showQuickPick(items, {
           placeHolder: 'Select OpenChoreo context',
         });
 
-        if (!selected || selected.label === currentCtx) return;
+        if (!selected) return;
+
+        if (selected.label === CREATE_CTX_LABEL) {
+          await createContextViaLogin();
+          return;
+        }
+
+        if (selected.label === currentCtx) return;
 
         authProvider.switchContext(selected.label);
         vscode.window.showInformationMessage(
@@ -116,6 +124,43 @@ export function registerCommands(
       },
     ),
   );
+
+  async function createContextViaLogin(): Promise<void> {
+    const ctxName = await vscode.window.showInputBox({
+      prompt: 'Enter a name for the new context',
+      placeHolder: 'e.g., my-cluster',
+      validateInput: (value) => {
+        if (!value) return 'Name is required';
+        if (!/^[a-z0-9]([a-z0-9._-]*[a-z0-9])?$/.test(value)) {
+          return 'Must be lowercase alphanumeric (hyphens, dots, underscores allowed)';
+        }
+        if (authProvider.getAvailableContexts().includes(value)) {
+          return `Context '${value}' already exists`;
+        }
+        return undefined;
+      },
+    });
+    if (!ctxName) return;
+
+    const cpUrl = await vscode.window.showInputBox({
+      prompt: 'Enter the control plane URL',
+      placeHolder: 'e.g., https://api.openchoreo.example.com',
+      validateInput: (value) => {
+        if (!value) return 'URL is required';
+        try {
+          new URL(value);
+          return undefined;
+        } catch {
+          return 'Must be a valid URL';
+        }
+      },
+    });
+    if (!cpUrl) return;
+
+    const terminal = vscode.window.createTerminal(`OpenChoreo Login: ${ctxName}`);
+    terminal.show();
+    terminal.sendText(`occ login --context ${ctxName} --controlplane ${cpUrl}`);
+  }
 
   // Login prompt — reuse existing terminal to prevent multiple concurrent login flows
   let loginTerminal: vscode.Terminal | undefined;
