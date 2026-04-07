@@ -214,6 +214,8 @@ export function buildPostRequest(
       return { path: '/api/v1/namespaces/{namespaceName}/authzroles', params: { path: { namespaceName: ns } }, body: rest };
     case 'AuthzRoleBinding':
       return { path: '/api/v1/namespaces/{namespaceName}/authzrolebindings', params: { path: { namespaceName: ns } }, body: rest };
+    case 'WorkflowRun':
+      return { path: '/api/v1/namespaces/{namespaceName}/workflowruns', params: { path: { namespaceName: ns } }, body: rest };
     // Cluster-scoped
     case 'ClusterComponentType':
       return { path: '/api/v1/clustercomponenttypes', params: { path: {} }, body: rest };

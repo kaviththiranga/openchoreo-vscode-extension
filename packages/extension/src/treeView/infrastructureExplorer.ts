@@ -251,6 +251,10 @@ export class InfrastructureExplorerProvider
           return this.fetchComponentTypes(element.namespace!);
         case 'workflows':
           return this.fetchWorkflows(element.namespace!);
+        case 'workflow-runs-by-workflow':
+          return this.fetchWorkflowRunsByWorkflow(element.namespace!, element.resourceName!);
+        case 'workflow-run-steps':
+          return this.fetchWorkflowRunSteps(element.namespace!, element.resourceName!);
         case 'traits':
           return this.fetchTraits(element.namespace!);
         case 'secret-references':
@@ -475,6 +479,83 @@ export class InfrastructureExplorerProvider
         description: isDeleting ? '(deleting)' : undefined,
         namespace: ns,
         resourceName: item.metadata?.name as string,
+        childrenMode: 'lazy' as const,
+        lazyChildrenKey: 'workflow-runs-by-workflow',
+      };
+    });
+  }
+
+  /** Fetch workflow runs that reference a specific workflow by name. */
+  private async fetchWorkflowRunsByWorkflow(
+    ns: string,
+    workflowName: string,
+  ): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
+    const { data, error } = await client.GET(
+      '/api/v1/namespaces/{namespaceName}/workflowruns',
+      { params: { path: { namespaceName: ns } } },
+    );
+
+    if (error) return [];
+
+    const allRuns = (data as { items?: Array<{ metadata?: { name?: string; deletionTimestamp?: string }; spec?: { workflow?: { name?: string } }; status?: { phase?: string } }> })?.items ?? [];
+    const runs = allRuns.filter(r => r.spec?.workflow?.name === workflowName);
+
+    if (runs.length === 0) {
+      return [{ label: 'No workflow runs', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
+    }
+
+    return runs.map((item) => {
+      const isDeleting = !!item.metadata?.deletionTimestamp;
+      const phase = item.status?.phase;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'workflow-run' as const,
+        contextValue: 'workflow-run',
+        description: isDeleting ? (phase ? `(deleting) ${phase}` : '(deleting)') : phase,
+        statusPhase: phase,
+        namespace: ns,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'lazy' as const,
+        lazyChildrenKey: 'workflow-run-steps',
+      };
+    });
+  }
+
+  /** Fetch workflow run steps (replicates resourceExplorer logic). */
+  private async fetchWorkflowRunSteps(
+    ns: string,
+    runName: string,
+  ): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
+    const { data, error } = await client.GET(
+      '/api/v1/namespaces/{namespaceName}/workflowruns/{runName}/status' as never,
+      { params: { path: { namespaceName: ns, runName } } } as never,
+    );
+
+    if (error) return [];
+
+    const status = data as { steps?: Array<{ name: string; phase: string; startedAt?: string; finishedAt?: string }> } | null;
+    if (!status?.steps?.length) {
+      return [{ label: 'No steps available', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
+    }
+
+    return status.steps.map((step) => {
+      let desc = step.phase;
+      if (step.startedAt && step.finishedAt) {
+        const dur = new Date(step.finishedAt).getTime() - new Date(step.startedAt).getTime();
+        const secs = Math.round(dur / 1000);
+        desc = secs >= 60 ? `${step.phase} (${Math.floor(secs / 60)}m${secs % 60}s)` : `${step.phase} (${secs}s)`;
+      }
+      return {
+        label: step.name,
+        type: 'workflow-run-step' as const,
+        contextValue: 'workflow-run-step',
+        description: desc,
+        statusPhase: step.phase,
+        namespace: ns,
+        resourceName: runName,
+        extra: { taskName: step.name },
         childrenMode: 'none' as const,
       };
     });

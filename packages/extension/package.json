@@ -266,6 +266,18 @@
         "icon": "$(play)"
       },
       {
+        "command": "openchoreo.triggerBuildWithParams",
+        "title": "Trigger Build with Parameters",
+        "category": "OpenChoreo",
+        "icon": "$(play)"
+      },
+      {
+        "command": "openchoreo.runWorkflow",
+        "title": "Run Workflow",
+        "category": "OpenChoreo",
+        "icon": "$(play)"
+      },
+      {
         "command": "openchoreo.viewWorkflowRunLogs",
         "title": "View Logs",
         "category": "OpenChoreo",
@@ -330,6 +342,21 @@
         {
           "command": "openchoreo.triggerBuild",
           "when": "webviewId == openchoreo.sidebar && nodeType == component && isEditable",
+          "group": "1_actions"
+        },
+        {
+          "command": "openchoreo.triggerBuildWithParams",
+          "when": "webviewId == openchoreo.sidebar && nodeType == component && isEditable",
+          "group": "1_actions"
+        },
+        {
+          "command": "openchoreo.runWorkflow",
+          "when": "webviewId == openchoreo.sidebar && nodeType == workflow && isEditable",
+          "group": "1_actions"
+        },
+        {
+          "command": "openchoreo.runWorkflow",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'cluster-workflow' && isEditable",
           "group": "1_actions"
         },
         {

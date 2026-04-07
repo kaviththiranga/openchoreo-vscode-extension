@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import { parse as parseYaml } from 'yaml';
+import { parse as parseYaml, stringify } from 'yaml';
 import { OccConfigAuthProvider } from '../auth/authProvider';
 import { ResourceExplorerProvider } from '../treeView/resourceExplorer';
 import { InfrastructureExplorerProvider } from '../treeView/infrastructureExplorer';
@@ -348,7 +348,7 @@ export function registerCommands(
     ),
   );
 
-  // Trigger a workflow run for a component
+  // Trigger the component's configured workflow directly
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.triggerBuild',
@@ -364,36 +364,23 @@ export function registerCommands(
           }
 
           const ns = node.namespace;
-          const [nsWorkflows, clusterWorkflows] = await Promise.all([
-            client.GET('/api/v1/namespaces/{namespaceName}/workflows', {
-              params: { path: { namespaceName: ns } },
-            }),
-            client.GET('/api/v1/clusterworkflows'),
-          ]);
-
-          const items: Array<
-            vscode.QuickPickItem & { workflowKind: string }
-          > = [];
-          for (const w of nsWorkflows.data?.items ?? []) {
-            const name = w.metadata?.name as string;
-            if (name) items.push({ label: name, description: 'Workflow', workflowKind: 'Workflow' });
-          }
-          for (const w of clusterWorkflows.data?.items ?? []) {
-            const name = w.metadata?.name as string;
-            if (name) items.push({ label: name, description: 'ClusterWorkflow', workflowKind: 'ClusterWorkflow' });
-          }
-
-          if (items.length === 0) {
-            vscode.window.showWarningMessage('No workflows available.');
+          // Fetch the component to get its configured workflow
+          const { data: comp, error: compErr } = await client.GET(
+            '/api/v1/namespaces/{namespaceName}/components/{componentName}',
+            { params: { path: { namespaceName: ns, componentName: node.component } } },
+          );
+          if (compErr || !comp) {
+            vscode.window.showErrorMessage('Failed to fetch component.');
             return;
           }
 
-          const selected = await vscode.window.showQuickPick(items, {
-            placeHolder: 'Select workflow to trigger',
-          });
-          if (!selected) return;
+          const wf = (comp as { spec?: { workflow?: { kind?: string; name?: string; parameters?: unknown } } })?.spec?.workflow;
+          if (!wf?.name) {
+            vscode.window.showWarningMessage('No workflow configured on this component.');
+            return;
+          }
 
-          const runName = `${node.component}-${selected.label}-${Date.now()}`;
+          const runName = `${node.component}-${Date.now()}`;
           await workflowRunService.createWorkflowRun(ns, {
             metadata: {
               name: runName,
@@ -405,21 +392,114 @@ export function registerCommands(
             },
             spec: {
               workflow: {
-                kind: selected.workflowKind,
-                name: selected.label,
+                kind: wf.kind ?? 'ClusterWorkflow',
+                name: wf.name,
+                ...(wf.parameters ? { parameters: wf.parameters } : {}),
               },
             },
           });
 
           vscode.window.showInformationMessage(
-            `Workflow run '${runName}' triggered.`,
+            `Build triggered: '${runName}' using workflow '${wf.name}'.`,
           );
           resourceExplorer.refresh();
+          sidebarProvider?.refreshAll();
         } catch (error) {
           vscode.window.showErrorMessage(
             `Failed to trigger build: ${error instanceof Error ? error.message : 'Unknown error'}`,
           );
         }
+      },
+    ),
+  );
+
+  // Trigger build with custom parameters — opens WorkflowRun YAML editor
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.triggerBuildWithParams',
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
+        if (!node?.namespace || !node?.component) return;
+
+        try {
+          const client = await apiClientManager.getClient();
+          if (!client) {
+            vscode.window.showWarningMessage('Not authenticated.');
+            return;
+          }
+
+          const ns = node.namespace;
+          const { data: comp, error: compErr } = await client.GET(
+            '/api/v1/namespaces/{namespaceName}/components/{componentName}',
+            { params: { path: { namespaceName: ns, componentName: node.component } } },
+          );
+          if (compErr || !comp) {
+            vscode.window.showErrorMessage('Failed to fetch component.');
+            return;
+          }
+
+          const wf = (comp as { spec?: { workflow?: { kind?: string; name?: string; parameters?: unknown } } })?.spec?.workflow;
+          if (!wf?.name) {
+            vscode.window.showWarningMessage('No workflow configured on this component.');
+            return;
+          }
+
+          // Build the full WorkflowRun object and serialize to YAML
+          const runObj: Record<string, unknown> = {
+            apiVersion: 'openchoreo.dev/v1alpha1',
+            kind: 'WorkflowRun',
+            metadata: {
+              name: `${node.component}-${Date.now()}`,
+              namespace: ns,
+              labels: {
+                'openchoreo.dev/project': node.project ?? '',
+                'openchoreo.dev/component': node.component,
+              },
+            },
+            spec: {
+              workflow: {
+                kind: wf.kind ?? 'ClusterWorkflow',
+                name: wf.name,
+                ...(wf.parameters ? { parameters: wf.parameters } : {}),
+              },
+            },
+          };
+          const scaffold = stringify(runObj, { lineWidth: 0 });
+          openScaffold('WorkflowRun', fsProvider, ns, undefined, scaffold);
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to prepare build: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // Run a generic workflow (from Workflow/ClusterWorkflow tree items)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.runWorkflow',
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
+        if (!node?.resourceName) return;
+
+        const ctxInfo = authProvider.getContextInfo();
+        const ns = node.namespace ?? ctxInfo?.namespace ?? 'default';
+        const isCluster = node.type === 'cluster-workflow';
+        const kind = isCluster ? 'ClusterWorkflow' : 'Workflow';
+
+        const scaffold = `apiVersion: openchoreo.dev/v1alpha1
+kind: WorkflowRun
+metadata:
+  name: ${node.resourceName}-${Date.now()}
+  namespace: "${ns}"
+spec:
+  workflow:
+    kind: ${kind}
+    name: ${node.resourceName}
+    parameters: {}
+`;
+        openScaffold('WorkflowRun', fsProvider, ns, undefined, scaffold);
       },
     ),
   );
@@ -835,8 +915,9 @@ async function openScaffold(
   provider: OpenChoreoFileSystemProvider,
   namespace?: string,
   project?: string,
+  customScaffold?: string,
 ): Promise<void> {
-  let scaffold = CRD_KIND_TO_SCAFFOLD[kind];
+  let scaffold = customScaffold ?? CRD_KIND_TO_SCAFFOLD[kind];
   if (!scaffold) {
     return;
   }
@@ -902,6 +983,7 @@ function kindToNodeType(kind: string): string {
     ClusterObservabilityPlane: 'cluster-observability-plane',
     AuthzRole: 'namespace-role',
     AuthzRoleBinding: 'namespace-role-binding',
+    WorkflowRun: 'workflow-run',
     ClusterAuthzRole: 'cluster-role',
     ClusterAuthzRoleBinding: 'cluster-role-binding',
   };
