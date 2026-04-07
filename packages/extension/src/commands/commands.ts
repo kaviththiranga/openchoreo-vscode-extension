@@ -605,6 +605,7 @@ export function registerCommands(
           );
           resourceExplorer.refresh();
           infrastructureExplorer.refresh();
+          sidebarProvider?.refreshAll();
         } catch (error) {
           vscode.window.showErrorMessage(
             `Failed to delete ${node.type} '${displayName}': ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -796,6 +797,8 @@ export function registerCommands(
             'traits': 'Trait',
             'secret-references': 'SecretReference',
             'observability-planes': 'ObservabilityPlane',
+            'namespace-roles': 'AuthzRole',
+            'namespace-role-bindings': 'AuthzRoleBinding',
             // Cluster-scoped
             'cluster-component-types': 'ClusterComponentType',
             'cluster-workflows': 'ClusterWorkflow',
@@ -803,6 +806,8 @@ export function registerCommands(
             'cluster-data-planes': 'ClusterDataPlane',
             'cluster-workflow-planes': 'ClusterWorkflowPlane',
             'cluster-observability-planes': 'ClusterObservabilityPlane',
+            'cluster-roles': 'ClusterAuthzRole',
+            'cluster-role-bindings': 'ClusterAuthzRoleBinding',
           };
           const kind = kindMap[node.lazyChildrenKey];
           if (kind) {
@@ -895,6 +900,10 @@ function kindToNodeType(kind: string): string {
     ClusterDataPlane: 'cluster-data-plane',
     ClusterWorkflowPlane: 'cluster-workflow-plane',
     ClusterObservabilityPlane: 'cluster-observability-plane',
+    AuthzRole: 'namespace-role',
+    AuthzRoleBinding: 'namespace-role-binding',
+    ClusterAuthzRole: 'cluster-role',
+    ClusterAuthzRoleBinding: 'cluster-role-binding',
   };
   return map[kind] ?? kind.toLowerCase();
 }

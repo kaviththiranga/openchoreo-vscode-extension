@@ -19,10 +19,10 @@ const DELETE_ACTION_MAP: Partial<Record<ResourceNodeType, string>> = {
   'component-type': 'componenttype:delete',
   workflow: 'workflow:delete',
   trait: 'trait:delete',
-  'cluster-role': 'role:delete',
-  'namespace-role': 'role:delete',
-  'cluster-role-binding': 'rolemapping:delete',
-  'namespace-role-binding': 'rolemapping:delete',
+  'namespace-role': 'authzrole:delete',
+  'namespace-role-binding': 'authzrolebinding:delete',
+  'cluster-role': 'clusterauthzrole:delete',
+  'cluster-role-binding': 'clusterauthzrolebinding:delete',
 };
 
 /**

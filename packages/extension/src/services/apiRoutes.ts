@@ -103,25 +103,25 @@ export function buildPutRequest(
         params: { path: { namespaceName: ns, traitName: name } },
         body: rest,
       };
-    case 'NamespaceRole':
+    case 'AuthzRole':
       return {
         path: '/api/v1/namespaces/{namespaceName}/authzroles/{name}',
         params: { path: { namespaceName: ns, name } },
         body: rest,
       };
-    case 'NamespaceRoleBinding':
+    case 'AuthzRoleBinding':
       return {
         path: '/api/v1/namespaces/{namespaceName}/authzrolebindings/{name}',
         params: { path: { namespaceName: ns, name } },
         body: rest,
       };
-    case 'ClusterRole':
+    case 'ClusterAuthzRole':
       return {
         path: '/api/v1/clusterauthzroles/{name}',
         params: { path: { name } },
         body: rest,
       };
-    case 'ClusterRoleBinding':
+    case 'ClusterAuthzRoleBinding':
       return {
         path: '/api/v1/clusterauthzrolebindings/{name}',
         params: { path: { name } },
@@ -210,6 +210,10 @@ export function buildPostRequest(
       return { path: '/api/v1/namespaces/{namespaceName}/traits', params: { path: { namespaceName: ns } }, body: rest };
     case 'ReleaseBinding':
       return { path: '/api/v1/namespaces/{namespaceName}/releasebindings', params: { path: { namespaceName: ns } }, body: rest };
+    case 'AuthzRole':
+      return { path: '/api/v1/namespaces/{namespaceName}/authzroles', params: { path: { namespaceName: ns } }, body: rest };
+    case 'AuthzRoleBinding':
+      return { path: '/api/v1/namespaces/{namespaceName}/authzrolebindings', params: { path: { namespaceName: ns } }, body: rest };
     // Cluster-scoped
     case 'ClusterComponentType':
       return { path: '/api/v1/clustercomponenttypes', params: { path: {} }, body: rest };
@@ -223,6 +227,10 @@ export function buildPostRequest(
       return { path: '/api/v1/clusterworkflowplanes', params: { path: {} }, body: rest };
     case 'ClusterObservabilityPlane':
       return { path: '/api/v1/clusterobservabilityplanes', params: { path: {} }, body: rest };
+    case 'ClusterAuthzRole':
+      return { path: '/api/v1/clusterauthzroles', params: { path: {} }, body: rest };
+    case 'ClusterAuthzRoleBinding':
+      return { path: '/api/v1/clusterauthzrolebindings', params: { path: {} }, body: rest };
     default:
       return null;
   }

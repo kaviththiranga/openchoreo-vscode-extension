@@ -140,7 +140,7 @@ export class ClusterExplorerProvider
             label: 'Cluster Roles',
             type: 'infra-category',
             icon: 'cluster-role',
-            contextValue: 'infra-category',
+            contextValue: 'infra-category_creatable',
             childrenMode: 'lazy',
             lazyChildrenKey: 'cluster-roles',
           },
@@ -148,7 +148,7 @@ export class ClusterExplorerProvider
             label: 'Cluster Role Bindings',
             type: 'infra-category',
             icon: 'cluster-role-binding',
-            contextValue: 'infra-category',
+            contextValue: 'infra-category_creatable',
             childrenMode: 'lazy',
             lazyChildrenKey: 'cluster-role-bindings',
           },
@@ -184,6 +184,8 @@ export class ClusterExplorerProvider
     element: ResourceNodeData,
   ): Promise<ResourceNodeData[]> {
     try {
+      await this.capabilityService.ensureLoaded();
+
       switch (element.lazyChildrenKey) {
         case 'cluster-component-types':
           return this.fetchClusterList('/api/v1/clustercomponenttypes', 'cluster-component-type');

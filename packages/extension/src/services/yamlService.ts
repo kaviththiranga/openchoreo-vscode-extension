@@ -305,6 +305,34 @@ spec:
   observerURL: http://observer.observability-plane.svc:8080
 `,
 
+  AuthzRole: `apiVersion: openchoreo.dev/v1alpha1
+kind: AuthzRole
+metadata:
+  name: my-role
+  namespace: "{{namespace}}"
+spec:
+  actions:
+    - "project:view"
+    - "component:view"
+  description: My custom role
+`,
+
+  AuthzRoleBinding: `apiVersion: openchoreo.dev/v1alpha1
+kind: AuthzRoleBinding
+metadata:
+  name: my-role-binding
+  namespace: "{{namespace}}"
+spec:
+  entitlement:
+    claim: groups
+    value: my-team
+  roleMappings:
+    - roleRef:
+        kind: AuthzRole
+        name: my-role
+  effect: allow
+`,
+
   // Cluster-scoped scaffolds (no namespace)
   ClusterComponentType: `apiVersion: openchoreo.dev/v1alpha1
 kind: ClusterComponentType
@@ -424,5 +452,31 @@ metadata:
 spec:
   planeID: shared-obs
   observerURL: http://observer.observability-plane.svc:8080
+`,
+
+  ClusterAuthzRole: `apiVersion: openchoreo.dev/v1alpha1
+kind: ClusterAuthzRole
+metadata:
+  name: my-cluster-role
+spec:
+  actions:
+    - "project:view"
+    - "component:view"
+  description: My cluster role
+`,
+
+  ClusterAuthzRoleBinding: `apiVersion: openchoreo.dev/v1alpha1
+kind: ClusterAuthzRoleBinding
+metadata:
+  name: my-cluster-role-binding
+spec:
+  entitlement:
+    claim: groups
+    value: my-team
+  roleMappings:
+    - roleRef:
+        kind: ClusterAuthzRole
+        name: my-cluster-role
+  effect: allow
 `,
 };
