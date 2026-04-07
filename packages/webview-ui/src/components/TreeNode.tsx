@@ -10,23 +10,31 @@ interface TreeNodeProps {
   node: ResourceNodeData;
   section: TreeSection;
   depth: number;
+  parentPath: string;
   childrenMap: Record<string, ResourceNodeData[]>;
   expandedNodes: Set<string>;
+  selectedNodeId?: string;
   onToggleNode: (nodeId: string) => void;
   onRequestChildren: (section: TreeSection, nodeId: string, lazyChildrenKey: string) => void;
   onNodeClick: (section: TreeSection, node: ResourceNodeData) => void;
+  onSelectNode: (nodeId: string) => void;
 }
 
-/** Build a unique node ID for the webview node cache. */
-export function buildNodeId(node: ResourceNodeData): string {
+/** Build a local segment for this node. */
+export function buildLocalId(node: ResourceNodeData): string {
   const parts: string[] = [node.type];
   if (node.namespace) parts.push(node.namespace);
   if (node.project) parts.push(node.project);
   if (node.component) parts.push(node.component);
   if (node.resourceName) parts.push(node.resourceName);
-  // Always include label to ensure uniqueness (e.g., workflow-run-step, infra-category)
   parts.push(node.label);
   return parts.join(':');
+}
+
+/** Build a globally unique node ID by combining parent path with local ID. */
+export function buildNodeId(parentPath: string, node: ResourceNodeData): string {
+  const local = buildLocalId(node);
+  return parentPath ? `${parentPath}/${local}` : local;
 }
 
 const NON_CLICKABLE = new Set([
@@ -34,9 +42,10 @@ const NON_CLICKABLE = new Set([
   'workflow-run-step', 'k8s-rendered-release',
 ]);
 
-export function TreeNode({ node, section, depth, childrenMap, expandedNodes, onToggleNode, onRequestChildren, onNodeClick }: TreeNodeProps) {
-  const nodeId = buildNodeId(node);
+export function TreeNode({ node, section, depth, parentPath, childrenMap, expandedNodes, selectedNodeId, onToggleNode, onRequestChildren, onNodeClick, onSelectNode }: TreeNodeProps) {
+  const nodeId = buildNodeId(parentPath, node);
   const expanded = expandedNodes.has(nodeId);
+  const selected = selectedNodeId === nodeId;
 
   const hasChildren = node.childrenMode !== 'none';
   const isLeaf = !hasChildren ||
@@ -61,18 +70,17 @@ export function TreeNode({ node, section, depth, childrenMap, expandedNodes, onT
   }, [isLeaf, nodeId, onToggleNode]);
 
   const onClick = useCallback(() => {
+    onSelectNode(nodeId);
     if (NON_CLICKABLE.has(node.type)) {
       if (node.type === 'no-connection') {
         onNodeClick(section, node);
       } else {
-        // Categories: clicking the row toggles expand/collapse
         onToggle();
       }
       return;
     }
-    // Clickable node: open YAML regardless of whether it has children
     onNodeClick(section, node);
-  }, [node, section, onNodeClick, onToggle]);
+  }, [node, section, nodeId, onNodeClick, onToggle, onSelectNode]);
 
   const { codicon, colorClass } = resolveNodeIcon(node.type, node.statusPhase, node.healthStatus, node.icon);
   const spinning = node.statusPhase === 'Running' || node.healthStatus === 'Progressing';
@@ -93,15 +101,16 @@ export function TreeNode({ node, section, depth, childrenMap, expandedNodes, onT
   return (
     <div class="tree-node" role="treeitem" aria-expanded={hasChildren && !isLeaf ? expanded : undefined}>
       <div
-        class="tree-row"
+        class={`tree-row${selected ? ' selected' : ''}`}
         style={{ paddingLeft: `${depth * 16 + 12}px` }}
         data-vscode-context={contextData}
+        data-node-id={nodeId}
         onClick={(e) => { e.stopPropagation(); onClick(); }}
       >
         {/* Expand/collapse chevron */}
         <span
           class={`tree-chevron ${isLeaf ? 'hidden' : ''}`}
-          onClick={(e) => { e.stopPropagation(); onToggle(); }}
+          onClick={(e) => { e.stopPropagation(); onSelectNode(nodeId); onToggle(); }}
         >
           <i class={`codicon codicon-chevron-${expanded ? 'down' : 'right'}`} />
         </span>
@@ -129,15 +138,18 @@ export function TreeNode({ node, section, depth, childrenMap, expandedNodes, onT
           )}
           {resolvedChildren?.map(child => (
             <TreeNode
-              key={buildNodeId(child)}
+              key={buildLocalId(child)}
               node={child}
               section={section}
               depth={depth + 1}
+              parentPath={nodeId}
               childrenMap={childrenMap}
               expandedNodes={expandedNodes}
+              selectedNodeId={selectedNodeId}
               onToggleNode={onToggleNode}
               onRequestChildren={onRequestChildren}
               onNodeClick={onNodeClick}
+              onSelectNode={onSelectNode}
             />
           ))}
         </div>

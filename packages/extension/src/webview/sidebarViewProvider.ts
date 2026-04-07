@@ -14,8 +14,8 @@ import type {
 } from './protocol';
 import type { ResourceNodeData } from '../treeView/types';
 
-/** Build a unique node ID matching the webview's buildNodeId — always includes label. */
-function webviewNodeId(node: ResourceNodeData): string {
+/** Build a local ID segment for a node. */
+function localNodeId(node: ResourceNodeData): string {
   const parts: string[] = [node.type];
   if (node.namespace) parts.push(node.namespace);
   if (node.project) parts.push(node.project);
@@ -23,6 +23,12 @@ function webviewNodeId(node: ResourceNodeData): string {
   if (node.resourceName) parts.push(node.resourceName);
   parts.push(node.label);
   return parts.join(':');
+}
+
+/** Build a globally unique path-based node ID matching the webview's buildNodeId. */
+function webviewNodeId(node: ResourceNodeData, parentPath: string = ''): string {
+  const local = localNodeId(node);
+  return parentPath ? `${parentPath}/${local}` : local;
 }
 
 export class SidebarViewProvider implements vscode.WebviewViewProvider {
@@ -158,18 +164,22 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     lazyChildrenKey: string,
   ): Promise<void> {
     const provider = this.getProvider(section);
-    // Build a synthetic parent node to trigger lazy fetch
+    // Look up the parent node from the cache to get its context fields
+    const cached = this.nodeCache.get(nodeId);
     const syntheticParent: ResourceNodeData = {
-      label: '',
-      type: 'empty',
-      contextValue: '',
+      label: cached?.label ?? '',
+      type: cached?.type ?? 'empty',
+      contextValue: cached?.contextValue ?? '',
       childrenMode: 'lazy',
       lazyChildrenKey,
-      // Extract context from nodeId (format: type:namespace:project:component:resource)
-      ...this.parseNodeId(nodeId),
+      namespace: cached?.namespace,
+      project: cached?.project,
+      component: cached?.component,
+      resourceName: cached?.resourceName,
+      extra: cached?.extra,
     };
     const nodes = await provider.getChildren(syntheticParent);
-    this.cacheNodes(nodes);
+    this.cacheNodes(nodes, nodeId);
     this.postMessage({ type: 'setChildren', section, nodeId, nodes });
   }
 
@@ -200,12 +210,13 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     }
   }
 
-  /** Cache nodes by ID so context menu commands can look up full node data. */
-  private cacheNodes(nodes: ResourceNodeData[]): void {
+  /** Cache nodes by path-based ID so context menu commands can look up full node data. */
+  private cacheNodes(nodes: ResourceNodeData[], parentPath: string = ''): void {
     for (const node of nodes) {
-      this.nodeCache.set(webviewNodeId(node), node);
+      const id = webviewNodeId(node, parentPath);
+      this.nodeCache.set(id, node);
       if (node.children) {
-        this.cacheNodes(node.children);
+        this.cacheNodes(node.children, id);
       }
     }
   }
@@ -213,20 +224,6 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
   /** Look up a cached node by its ID. Used by context menu command handlers. */
   getNode(nodeId: string): ResourceNodeData | undefined {
     return this.nodeCache.get(nodeId);
-  }
-
-  /**
-   * Parse a nodeId back into contextual fields.
-   * nodeId format: type[:namespace[:project[:component[:resourceName]]]]
-   */
-  private parseNodeId(nodeId: string): Partial<ResourceNodeData> {
-    const parts = nodeId.split(':');
-    const result: Partial<ResourceNodeData> = {};
-    if (parts[1]) result.namespace = parts[1];
-    if (parts[2]) result.project = parts[2];
-    if (parts[3]) result.component = parts[3];
-    if (parts[4]) result.resourceName = parts[4];
-    return result;
   }
 
   private postMessage(msg: ExtToWebviewMessage): void {

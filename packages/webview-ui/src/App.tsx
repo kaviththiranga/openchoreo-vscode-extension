@@ -14,6 +14,7 @@ import './styles/sidebar.css';
 interface PersistedState {
   expandedNodes: string[];
   expandedSections: string[];
+  selectedNodeId?: string;
 }
 
 function loadPersistedState(): PersistedState {
@@ -35,12 +36,14 @@ export function App() {
   const persisted = loadPersistedState();
   const [expandedNodes, setExpandedNodes] = useState<Set<string>>(() => new Set(persisted.expandedNodes));
   const [expandedSections, setExpandedSections] = useState<Set<string>>(() => new Set(persisted.expandedSections));
+  const [selectedNodeId, setSelectedNodeId] = useState<string | undefined>(persisted.selectedNodeId);
 
   // Persist state whenever it changes
-  const persistState = useCallback((nodes: Set<string>, sections: Set<string>) => {
+  const persistState = useCallback((nodes: Set<string>, sections: Set<string>, selected?: string) => {
     vscode.setState<PersistedState>({
       expandedNodes: [...nodes],
       expandedSections: [...sections],
+      selectedNodeId: selected,
     });
   }, []);
 
@@ -64,11 +67,16 @@ export function App() {
     });
   }, [expandedNodes, persistState]);
 
+  const selectNode = useCallback((nodeId: string) => {
+    setSelectedNodeId(nodeId);
+    persistState(expandedNodes, expandedSections, nodeId);
+  }, [expandedNodes, expandedSections, persistState]);
+
   const collapseAll = useCallback(() => {
     const next = new Set<string>();
-    persistState(next, expandedSections);
+    persistState(next, expandedSections, selectedNodeId);
     setExpandedNodes(next);
-  }, [expandedSections, persistState]);
+  }, [expandedSections, selectedNodeId, persistState]);
 
   // Handle messages from extension host
   useEffect(() => {
@@ -168,6 +176,8 @@ export function App() {
         onNodeClick={onNodeClick}
         onRefresh={onRefresh}
         onCollapseAll={collapseAll}
+        selectedNodeId={selectedNodeId}
+        onSelectNode={selectNode}
       />
       <TreeSection
         title="Namespace Resources"
@@ -183,6 +193,8 @@ export function App() {
         onNodeClick={onNodeClick}
         onRefresh={onRefresh}
         onCollapseAll={collapseAll}
+        selectedNodeId={selectedNodeId}
+        onSelectNode={selectNode}
       />
       <TreeSection
         title="Cluster Resources"
@@ -198,6 +210,8 @@ export function App() {
         onNodeClick={onNodeClick}
         onRefresh={onRefresh}
         onCollapseAll={collapseAll}
+        selectedNodeId={selectedNodeId}
+        onSelectNode={selectNode}
       />
     </div>
   );

@@ -158,6 +158,23 @@ body {
   background: var(--vscode-list-hoverBackground);
 }
 
+.tree-row.selected {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+  outline: 1px solid var(--vscode-list-focusOutline, var(--vscode-focusBorder));
+  outline-offset: -1px;
+}
+
+.section-body:not(:focus) .tree-row.selected {
+  background: var(--vscode-list-inactiveSelectionBackground);
+  color: var(--vscode-list-inactiveSelectionForeground, inherit);
+  outline: none;
+}
+
+.section-body:focus {
+  outline: none;
+}
+
 .tree-chevron {
   display: inline-flex;
   align-items: center;
