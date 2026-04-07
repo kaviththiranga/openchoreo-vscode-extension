@@ -20,6 +20,7 @@ interface TreeSectionProps {
   onRequestChildren: (section: Section, nodeId: string, lazyChildrenKey: string) => void;
   onNodeClick: (section: Section, node: ResourceNodeData) => void;
   onRefresh: (section: Section) => void;
+  onCollapseAll: () => void;
 }
 
 export function TreeSection({
@@ -35,6 +36,7 @@ export function TreeSection({
   onRequestChildren,
   onNodeClick,
   onRefresh,
+  onCollapseAll,
 }: TreeSectionProps) {
   // Request roots when section is first expanded
   useEffect(() => {
@@ -64,6 +66,13 @@ export function TreeSection({
             onClick={(e) => { e.stopPropagation(); onRefresh(section); }}
           >
             <i class="codicon codicon-refresh" />
+          </button>
+          <button
+            class="icon-button"
+            title="Collapse All"
+            onClick={(e) => { e.stopPropagation(); onCollapseAll(); }}
+          >
+            <i class="codicon codicon-collapse-all" />
           </button>
         </div>
       </div>

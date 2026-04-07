@@ -64,6 +64,12 @@ export function App() {
     });
   }, [expandedNodes, persistState]);
 
+  const collapseAll = useCallback(() => {
+    const next = new Set<string>();
+    persistState(next, expandedSections);
+    setExpandedNodes(next);
+  }, [expandedSections, persistState]);
+
   // Handle messages from extension host
   useEffect(() => {
     const handler = (event: MessageEvent<ExtToWebviewMessage>) => {
@@ -161,6 +167,7 @@ export function App() {
         onRequestChildren={onRequestChildren}
         onNodeClick={onNodeClick}
         onRefresh={onRefresh}
+        onCollapseAll={collapseAll}
       />
       <TreeSection
         title="Namespace Resources"
@@ -175,6 +182,7 @@ export function App() {
         onRequestChildren={onRequestChildren}
         onNodeClick={onNodeClick}
         onRefresh={onRefresh}
+        onCollapseAll={collapseAll}
       />
       <TreeSection
         title="Cluster Resources"
@@ -189,6 +197,7 @@ export function App() {
         onRequestChildren={onRequestChildren}
         onNodeClick={onNodeClick}
         onRefresh={onRefresh}
+        onCollapseAll={collapseAll}
       />
     </div>
   );
