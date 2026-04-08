@@ -200,7 +200,6 @@ export function App() {
 
   const onRefresh = useCallback(
     (section: Section) => {
-      setChildrenMap({});
       setSectionRoots(prev => ({ ...prev, [section]: [] }));
       vscode.postMessage({ type: 'refresh', section });
     },
