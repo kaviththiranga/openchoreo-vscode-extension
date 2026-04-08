@@ -317,44 +317,70 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
       vscode.window.showInformationMessage(`${kind} '${name}' created on cluster.`);
 
       // Reopen with the correct URI based on the actual resource name
-      const parsed = parseResourceUri(uri);
-      const correctPath = parsed.namespace
-        ? `/namespaces/${parsed.namespace}/${parsed.type}/${name}.yaml`
-        : `/${parsed.type}/${name}.yaml`;
+      const parsedUri = parseResourceUri(uri);
+      const correctPath = parsedUri.namespace
+        ? `/namespaces/${parsedUri.namespace}/${parsedUri.type}/${name}.yaml`
+        : `/${parsedUri.type}/${name}.yaml`;
       const correctUri = vscode.Uri.from({
         scheme: FS_SCHEME,
         path: correctPath,
         query: uri.query,
       });
 
-      // Close old tab and open the correct one (async, non-blocking)
+      // Close scaffold tab, then open the created resource
+      const scaffoldUriStr = uri.toString();
       setTimeout(async () => {
         try {
-          // Close the current editor with the placeholder name
-          await vscode.commands.executeCommand('workbench.action.closeActiveEditor');
-          // Open the created resource from the cluster
-          const doc = await vscode.workspace.openTextDocument(correctUri);
-          if (doc.languageId !== 'yaml') {
-            await vscode.languages.setTextDocumentLanguage(doc, 'yaml');
+          // Close the scaffold tab
+          const tabs = vscode.window.tabGroups.all.flatMap(g => g.tabs);
+          const scaffoldTab = tabs.find(t =>
+            (t.input as { uri?: vscode.Uri })?.uri?.toString() === scaffoldUriStr,
+          );
+          if (scaffoldTab) {
+            await vscode.window.tabGroups.close(scaffoldTab);
           }
-          await vscode.window.showTextDocument(doc);
+        } catch {
+          // Non-fatal — scaffold tab may already be closed
+        }
+
+        // Fetch the resource from the cluster and open it
+        try {
+          await new Promise(resolve => setTimeout(resolve, 500));
+          const apiClient = await this.apiClientManager.getClient();
+          if (apiClient) {
+            const parsedCorrect = parseResourceUri(correctUri);
+            const crd = await fetchResource(
+              apiClient,
+              parsedCorrect.type,
+              parsedCorrect.namespace,
+              parsedCorrect.name,
+            ) as Record<string, unknown>;
+            if (crd) {
+              // Store content so readFile returns it immediately
+              const yamlContent = crdToYaml(crd);
+              this.pendingContent.set(correctUri.toString(), new TextEncoder().encode(yamlContent));
+              const doc = await vscode.workspace.openTextDocument(correctUri);
+              if (doc.languageId !== 'yaml') {
+                await vscode.languages.setTextDocumentLanguage(doc, 'yaml');
+              }
+              await vscode.window.showTextDocument(doc, { preview: false });
+            }
+          }
         } catch (err) {
           log.error('Failed to reopen resource after create', err);
         }
-      }, 100);
+      }, 50);
     } else {
       vscode.window.showInformationMessage(`${kind} '${name}' updated on cluster.`);
-    }
 
-    // Notify VSCode that the file changed — triggers readFile() which
-    // re-fetches from the API, reflecting any server-side normalization
-    // (e.g., removed default values, added status fields).
-    // Small delay to let the backend finish processing the write.
-    setTimeout(() => {
-      this._onDidChangeFile.fire([
-        { type: vscode.FileChangeType.Changed, uri },
-      ]);
-    }, 300);
+      // Notify VSCode that the file changed — triggers readFile() which
+      // re-fetches from the API, reflecting any server-side normalization.
+      setTimeout(() => {
+        this._onDidChangeFile.fire([
+          { type: vscode.FileChangeType.Changed, uri },
+        ]);
+      }, 300);
+    }
 
     // Refresh tree views
     this.onResourceSaved?.();

@@ -348,6 +348,210 @@ export function registerCommands(
     ),
   );
 
+  // Promote a release binding to the next environment in the pipeline
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.promoteBinding',
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
+        if (!node?.namespace || !node?.component || !node?.extra?.environment) return;
+
+        try {
+          const client = await apiClientManager.getClient();
+          if (!client) { vscode.window.showWarningMessage('Not authenticated.'); return; }
+
+          const targets = (node.extra.promotionTargets ?? '').split(',').filter(Boolean);
+          if (targets.length === 0) {
+            vscode.window.showWarningMessage('No promotion targets available for this environment.');
+            return;
+          }
+
+          let targetEnv: string;
+          if (targets.length === 1) {
+            targetEnv = targets[0];
+          } else {
+            const picked = await vscode.window.showQuickPick(
+              targets.map(t => ({ label: t })),
+              { placeHolder: 'Select target environment' },
+            );
+            if (!picked) return;
+            targetEnv = picked.label;
+          }
+
+          // Create/update ReleaseBinding for the target environment
+          const releaseName = node.extra.releaseName;
+          if (!releaseName) {
+            vscode.window.showWarningMessage('No release deployed in this environment to promote.');
+            return;
+          }
+
+          const scaffold = stringify({
+            apiVersion: 'openchoreo.dev/v1alpha1',
+            kind: 'ReleaseBinding',
+            metadata: {
+              name: `${node.component}-${targetEnv}`,
+              namespace: node.namespace,
+            },
+            spec: {
+              owner: {
+                projectName: node.project ?? '',
+                componentName: node.component,
+              },
+              environment: targetEnv,
+              releaseName,
+            },
+          }, { lineWidth: 0 });
+
+          openScaffold('ReleaseBinding', fsProvider, node.namespace, node.project, scaffold);
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to promote: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // Deploy a release to an inactive environment (from placeholder node)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.deployToEnv',
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
+        if (!node?.namespace || !node?.component || !node?.extra?.environment) return;
+
+        try {
+          const client = await apiClientManager.getClient();
+          if (!client) { vscode.window.showWarningMessage('Not authenticated.'); return; }
+
+          // Fetch available releases for this component
+          const { data } = await client.GET(
+            '/api/v1/namespaces/{namespaceName}/componentreleases',
+            {
+              params: {
+                path: { namespaceName: node.namespace },
+                query: { component: node.component },
+              },
+            },
+          );
+          const releases = (data?.items ?? [])
+            .map(r => (r.metadata?.name as string))
+            .filter(Boolean);
+
+          if (releases.length === 0) {
+            vscode.window.showWarningMessage('No releases available. Generate a release first.');
+            return;
+          }
+
+          const picked = await vscode.window.showQuickPick(
+            releases.map(r => ({ label: r })),
+            { placeHolder: 'Select release to deploy' },
+          );
+          if (!picked) return;
+
+          const scaffold = stringify({
+            apiVersion: 'openchoreo.dev/v1alpha1',
+            kind: 'ReleaseBinding',
+            metadata: {
+              name: `${node.component}-${node.extra.environment}`,
+              namespace: node.namespace,
+            },
+            spec: {
+              owner: {
+                projectName: node.project ?? '',
+                componentName: node.component,
+              },
+              environment: node.extra.environment,
+              releaseName: picked.label,
+            },
+          }, { lineWidth: 0 });
+
+          openScaffold('ReleaseBinding', fsProvider, node.namespace, node.project, scaffold);
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to prepare deployment: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // Deploy a release to a chosen environment (from release node context menu)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.deployRelease',
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
+        if (!node?.namespace || !node?.resourceName) return;
+
+        try {
+          const client = await apiClientManager.getClient();
+          if (!client) { vscode.window.showWarningMessage('Not authenticated.'); return; }
+
+          // Fetch environments from pipeline
+          const { data: projectData } = await client.GET(
+            '/api/v1/namespaces/{namespaceName}/projects/{projectName}',
+            { params: { path: { namespaceName: node.namespace, projectName: node.project! } } },
+          );
+          const pipelineName = (projectData as { spec?: { deploymentPipelineRef?: { name?: string } } })
+            ?.spec?.deploymentPipelineRef?.name;
+
+          if (!pipelineName) {
+            vscode.window.showWarningMessage('No deployment pipeline configured.');
+            return;
+          }
+
+          const { data: pipelineData } = await client.GET(
+            '/api/v1/namespaces/{namespaceName}/deploymentpipelines/{deploymentPipelineName}',
+            { params: { path: { namespaceName: node.namespace, deploymentPipelineName: pipelineName } } },
+          );
+          const paths = (pipelineData as { spec?: { promotionPaths?: Array<{ sourceEnvironmentRef: { name: string }; targetEnvironmentRefs: Array<{ name: string }> }> } })
+            ?.spec?.promotionPaths ?? [];
+
+          const allEnvs = new Set<string>();
+          for (const p of paths) {
+            allEnvs.add(p.sourceEnvironmentRef.name);
+            for (const t of p.targetEnvironmentRefs) allEnvs.add(t.name);
+          }
+
+          if (allEnvs.size === 0) {
+            vscode.window.showWarningMessage('No environments found in pipeline.');
+            return;
+          }
+
+          const picked = await vscode.window.showQuickPick(
+            [...allEnvs].map(e => ({ label: e })),
+            { placeHolder: 'Select environment to deploy to' },
+          );
+          if (!picked) return;
+
+          const scaffold = stringify({
+            apiVersion: 'openchoreo.dev/v1alpha1',
+            kind: 'ReleaseBinding',
+            metadata: {
+              name: `${node.component}-${picked.label}`,
+              namespace: node.namespace,
+            },
+            spec: {
+              owner: {
+                projectName: node.project ?? '',
+                componentName: node.component ?? '',
+              },
+              environment: picked.label,
+              releaseName: node.resourceName,
+            },
+          }, { lineWidth: 0 });
+
+          openScaffold('ReleaseBinding', fsProvider, node.namespace, node.project, scaffold);
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to prepare deployment: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
   // Trigger the component's configured workflow directly
   context.subscriptions.push(
     vscode.commands.registerCommand(
@@ -983,6 +1187,7 @@ function kindToNodeType(kind: string): string {
     ClusterObservabilityPlane: 'cluster-observability-plane',
     AuthzRole: 'namespace-role',
     AuthzRoleBinding: 'namespace-role-binding',
+    ReleaseBinding: 'release-binding',
     WorkflowRun: 'workflow-run',
     ClusterAuthzRole: 'cluster-role',
     ClusterAuthzRoleBinding: 'cluster-role-binding',

@@ -278,6 +278,24 @@
         "icon": "$(play)"
       },
       {
+        "command": "openchoreo.promoteBinding",
+        "title": "Promote",
+        "category": "OpenChoreo",
+        "icon": "$(arrow-right)"
+      },
+      {
+        "command": "openchoreo.deployToEnv",
+        "title": "Deploy Release...",
+        "category": "OpenChoreo",
+        "icon": "$(cloud-upload)"
+      },
+      {
+        "command": "openchoreo.deployRelease",
+        "title": "Deploy to Environment...",
+        "category": "OpenChoreo",
+        "icon": "$(cloud-upload)"
+      },
+      {
         "command": "openchoreo.viewWorkflowRunLogs",
         "title": "View Logs",
         "category": "OpenChoreo",
@@ -398,6 +416,21 @@
           "command": "openchoreo.viewK8sResourceEvents",
           "when": "webviewId == openchoreo.sidebar && nodeType == 'k8s-resource' || webviewId == openchoreo.sidebar && nodeType == 'k8s-pod'",
           "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.promoteBinding",
+          "when": "webviewId == openchoreo.sidebar && isPromotable",
+          "group": "1_actions"
+        },
+        {
+          "command": "openchoreo.deployToEnv",
+          "when": "webviewId == openchoreo.sidebar && isDeployable",
+          "group": "1_actions"
+        },
+        {
+          "command": "openchoreo.deployRelease",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'component-release'",
+          "group": "1_actions"
         },
         {
           "command": "openchoreo.deleteResource",

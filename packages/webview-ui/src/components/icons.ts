@@ -77,6 +77,7 @@ const CODICON_MAP: Record<ResourceNodeType, string> = {
   'k8s-resource': 'symbol-object',
   'k8s-pod': 'server-process',
   'k8s-rendered-release': 'layers',
+  'release-binding-placeholder': 'circle-outline',
   'no-connection': 'warning',
   empty: 'info',
 };

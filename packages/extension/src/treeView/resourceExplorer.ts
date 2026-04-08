@@ -417,42 +417,152 @@ export class ResourceExplorerProvider
     client: Client,
     element: ResourceNodeData,
   ): Promise<ResourceNodeData[]> {
-    const { data, error } = await client.GET(
-      '/api/v1/namespaces/{namespaceName}/releasebindings',
-      {
-        params: {
-          path: { namespaceName: element.namespace! },
-          query: {
-            component: element.component!,
+    const ns = element.namespace!;
+    const project = element.project!;
+    const component = element.component!;
+
+    // Fetch bindings, project, and pipeline in parallel
+    const [bindingsRes, projectRes] = await Promise.all([
+      client.GET('/api/v1/namespaces/{namespaceName}/releasebindings', {
+        params: { path: { namespaceName: ns }, query: { component } },
+      }),
+      client.GET('/api/v1/namespaces/{namespaceName}/projects/{projectName}', {
+        params: { path: { namespaceName: ns, projectName: project } },
+      }),
+    ]);
+
+    const bindings = bindingsRes.data?.items ?? [];
+    const pipelineName = (projectRes.data as { spec?: { deploymentPipelineRef?: { name?: string } } })
+      ?.spec?.deploymentPipelineRef?.name;
+
+    // Get pipeline environments in topological order
+    let envOrder: string[] = [];
+    let promotionTargets: Record<string, string[]> = {};
+    if (pipelineName) {
+      const pipelineRes = await client.GET(
+        '/api/v1/namespaces/{namespaceName}/deploymentpipelines/{deploymentPipelineName}',
+        { params: { path: { namespaceName: ns, deploymentPipelineName: pipelineName } } },
+      );
+      const paths = (pipelineRes.data as { spec?: { promotionPaths?: Array<{ sourceEnvironmentRef: { name: string }; targetEnvironmentRefs: Array<{ name: string }> }> } })
+        ?.spec?.promotionPaths ?? [];
+
+      // Build adjacency list and compute topological order
+      const targets = new Set<string>();
+      for (const p of paths) {
+        const tNames = p.targetEnvironmentRefs.map(t => t.name);
+        promotionTargets[p.sourceEnvironmentRef.name] = tNames;
+        for (const t of tNames) targets.add(t);
+      }
+      // Kahn's algorithm
+      const sources = new Set(paths.map(p => p.sourceEnvironmentRef.name));
+      const allEnvs = new Set([...sources, ...targets]);
+      const inDegree: Record<string, number> = {};
+      for (const e of allEnvs) inDegree[e] = 0;
+      for (const p of paths) {
+        for (const t of p.targetEnvironmentRefs) inDegree[t.name] = (inDegree[t.name] ?? 0) + 1;
+      }
+      const queue = [...allEnvs].filter(e => inDegree[e] === 0);
+      while (queue.length > 0) {
+        const env = queue.shift()!;
+        envOrder.push(env);
+        for (const t of (promotionTargets[env] ?? [])) {
+          inDegree[t]--;
+          if (inDegree[t] === 0) queue.push(t);
+        }
+      }
+    }
+
+    // Build a map of environment → binding
+    const bindingByEnv: Record<string, typeof bindings[0]> = {};
+    for (const b of bindings) {
+      const env = (b as { spec?: { environment?: string } }).spec?.environment;
+      if (env) bindingByEnv[env] = b;
+    }
+
+    // If no pipeline, fall back to showing only existing bindings
+    if (envOrder.length === 0) {
+      if (bindings.length === 0) {
+        return [{ label: 'No release bindings', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
+      }
+      return bindings.map((item) => {
+        const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+        return {
+          label: (item.metadata?.name as string) ?? 'unknown',
+          type: 'release-binding' as const,
+          contextValue: isDeleting ? 'release-binding' : this.resolveContextValue('release-binding'),
+          description: isDeleting ? '(deleting)' : undefined,
+          namespace: ns,
+          project,
+          component,
+          resourceName: item.metadata?.name as string,
+          childrenMode: 'lazy' as const,
+          lazyChildrenKey: 'k8s-resource-tree',
+        };
+      });
+    }
+
+    // Merge pipeline environments with bindings
+    const nodes: ResourceNodeData[] = [];
+    for (const env of envOrder) {
+      const binding = bindingByEnv[env];
+      if (binding) {
+        const isDeleting = !!(binding as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+        const releaseName = (binding as { spec?: { releaseName?: string } }).spec?.releaseName;
+        const targets = promotionTargets[env] ?? [];
+        nodes.push({
+          label: env,
+          type: 'release-binding',
+          contextValue: isDeleting ? 'release-binding' : this.resolveContextValue('release-binding') + '_promotable',
+          description: isDeleting ? '(deleting)' : releaseName ?? undefined,
+          namespace: ns,
+          project,
+          component,
+          resourceName: (binding.metadata?.name as string) ?? 'unknown',
+          extra: {
+            environment: env,
+            releaseName: releaseName ?? '',
+            ...(targets.length > 0 ? { promotionTargets: targets.join(',') } : {}),
           },
-        },
-      },
-    );
-
-    if (error) {
-      return [];
+          childrenMode: 'lazy' as const,
+          lazyChildrenKey: 'k8s-resource-tree',
+        });
+      } else {
+        // Inactive environment — no binding yet
+        nodes.push({
+          label: env,
+          type: 'release-binding-placeholder',
+          contextValue: 'release-binding-placeholder_deployable',
+          description: '(not deployed)',
+          namespace: ns,
+          project,
+          component,
+          extra: { environment: env },
+          childrenMode: 'none',
+        });
+      }
     }
 
-    const items = data?.items ?? [];
-    if (items.length === 0) {
-      return [{ label: 'No release bindings', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
+    // Add any bindings for environments not in the pipeline (edge case)
+    for (const b of bindings) {
+      const env = (b as { spec?: { environment?: string } }).spec?.environment;
+      if (env && !envOrder.includes(env)) {
+        const isDeleting = !!(b as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+        nodes.push({
+          label: (b.metadata?.name as string) ?? 'unknown',
+          type: 'release-binding',
+          contextValue: isDeleting ? 'release-binding' : this.resolveContextValue('release-binding'),
+          description: isDeleting ? '(deleting)' : undefined,
+          namespace: ns,
+          project,
+          component,
+          resourceName: (b.metadata?.name as string) ?? 'unknown',
+          childrenMode: 'lazy' as const,
+          lazyChildrenKey: 'k8s-resource-tree',
+        });
+      }
     }
 
-    return items.map((item) => {
-      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
-        label: (item.metadata?.name as string) ?? 'unknown',
-        type: 'release-binding' as const,
-        contextValue: isDeleting ? 'release-binding' : this.resolveContextValue('release-binding'),
-        description: isDeleting ? '(deleting)' : undefined,
-        namespace: element.namespace,
-        project: element.project,
-        component: element.component,
-        resourceName: item.metadata?.name as string,
-        childrenMode: 'lazy' as const,
-        lazyChildrenKey: 'k8s-resource-tree',
-      };
-    });
+    return nodes;
   }
 
   private async fetchWorkloads(

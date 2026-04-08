@@ -140,12 +140,28 @@ Right-click a Component → "Generate Release" to create an immutable release sn
 
 ### Trigger Build
 
-Right-click a Component → "Trigger Build" to create a new Workflow Run:
+Right-click a Component to trigger its configured workflow:
 
-1. A quick pick shows all available Workflows and ClusterWorkflows
-2. Select a workflow to trigger
-3. The run is created with labels linking it to the component and project
-4. The Workflow Runs category refreshes to show the new run
+- **Trigger Build** — immediately creates a Workflow Run using the component's configured workflow and parameters. No picker needed.
+- **Trigger Build with Parameters** — opens a pre-filled WorkflowRun YAML editor with the component's workflow configuration. Edit parameters, then Cmd+S to create the run.
+
+### Run Generic Workflows
+
+Workflows and ClusterWorkflows in Namespace/Cluster Resources can be triggered directly:
+
+- **Run Workflow** — right-click any Workflow or ClusterWorkflow → opens a WorkflowRun YAML editor pre-filled with that workflow reference. Fill in parameters and Cmd+S to create.
+- Namespace-scoped workflows show their runs as expandable children (with step status and timing).
+
+### Deployment Pipeline
+
+The Release Bindings section under each component shows the full deployment pipeline:
+
+- **Pipeline visualization** — all environments from the project's DeploymentPipeline are shown in topological order
+- **Active bindings** — environments with deployed releases show the release name, are expandable to show K8s resources, and have a "Promote" action
+- **Inactive environments** — environments without a deployment show as "(not deployed)" with a "Deploy Release..." action
+- **Promote** — right-click an active binding to promote its release to the next environment(s) in the pipeline. Opens a ReleaseBinding YAML with the release pre-filled for the target environment.
+- **Deploy to Environment** — right-click a ComponentRelease to deploy it to a chosen environment from the pipeline
+- **Deploy Release** — right-click an inactive environment to pick a release and create a new ReleaseBinding
 
 ### Intelligent Completions
 
@@ -322,7 +338,12 @@ AuthzRole, AuthzRoleBinding (in Namespace Resources), ClusterAuthzRole, ClusterA
 | `OpenChoreo: Create New Resource` | Create from scaffold template (command palette) |
 | `OpenChoreo: Delete` | Delete resource (tree context menu) |
 | `OpenChoreo: Generate Release` | Create immutable release snapshot from component (tree context menu) |
-| `OpenChoreo: Trigger Build` | Trigger a workflow run for a component (tree context menu) |
+| `OpenChoreo: Trigger Build` | Trigger the component's configured workflow directly (tree context menu) |
+| `OpenChoreo: Trigger Build with Parameters` | Open pre-filled WorkflowRun YAML for the component's workflow (tree context menu) |
+| `OpenChoreo: Run Workflow` | Run a generic Workflow/ClusterWorkflow (tree context menu) |
+| `OpenChoreo: Promote` | Promote a release binding to the next pipeline environment (tree context menu) |
+| `OpenChoreo: Deploy Release...` | Deploy a release to an inactive pipeline environment (tree context menu) |
+| `OpenChoreo: Deploy to Environment...` | Deploy a ComponentRelease to a chosen environment (tree context menu) |
 | `OpenChoreo: View Logs` | View all workflow run logs (tree context menu) |
 | `OpenChoreo: View Events` | View all workflow run Kubernetes events (tree context menu) |
 | `OpenChoreo: View Step Logs` | View logs for a specific workflow run step (tree context menu) |

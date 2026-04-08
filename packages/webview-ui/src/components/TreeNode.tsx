@@ -97,6 +97,8 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
     isEditable: cv.includes('_editable'),
     isDeletable: cv.includes('_deletable'),
     isCreatable: cv.includes('_creatable'),
+    isPromotable: cv.includes('_promotable'),
+    isDeployable: cv.includes('_deployable'),
     preventDefaultContextMenuItems: true,
   });
 

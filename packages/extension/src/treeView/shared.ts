@@ -83,6 +83,8 @@ const THEME_ICON_MAP: Record<ResourceNodeType, string> = {
   'k8s-resource': 'symbol-object',
   'k8s-pod': 'server-process',
   'k8s-rendered-release': 'layers',
+  // Deployment pipeline
+  'release-binding-placeholder': 'circle-outline',
   // Status
   'no-connection': 'warning',
   empty: 'info',

@@ -18,6 +18,7 @@ export type ResourceNodeType =
   | 'cluster-data-plane' | 'cluster-workflow-plane' | 'cluster-observability-plane'
   | 'workflow-run-step'
   | 'k8s-resource' | 'k8s-pod' | 'k8s-rendered-release'
+  | 'release-binding-placeholder'
   | 'no-connection' | 'empty';
 
 export type ChildrenMode = 'none' | 'preloaded' | 'lazy';

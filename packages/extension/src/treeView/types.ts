@@ -39,6 +39,8 @@ export type ResourceNodeType =
   | 'k8s-resource'
   | 'k8s-pod'
   | 'k8s-rendered-release'
+  // Deployment pipeline placeholders
+  | 'release-binding-placeholder'
   // Status nodes
   | 'no-connection'
   | 'empty';
