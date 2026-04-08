@@ -378,31 +378,19 @@ export function registerCommands(
             targetEnv = picked.label;
           }
 
-          // Create/update ReleaseBinding for the target environment
           const releaseName = node.extra.releaseName;
           if (!releaseName) {
             vscode.window.showWarningMessage('No release deployed in this environment to promote.');
             return;
           }
 
-          const scaffold = stringify({
-            apiVersion: 'openchoreo.dev/v1alpha1',
-            kind: 'ReleaseBinding',
-            metadata: {
-              name: `${node.component}-${targetEnv}`,
-              namespace: node.namespace,
-            },
-            spec: {
-              owner: {
-                projectName: node.project ?? '',
-                componentName: node.component,
-              },
-              environment: targetEnv,
-              releaseName,
-            },
-          }, { lineWidth: 0 });
-
-          openScaffold('ReleaseBinding', fsProvider, node.namespace, node.project, scaffold);
+          await openOrUpdateReleaseBinding(client, fsProvider, {
+            namespace: node.namespace,
+            project: node.project ?? '',
+            component: node.component,
+            environment: targetEnv,
+            releaseName,
+          });
         } catch (error) {
           vscode.window.showErrorMessage(
             `Failed to promote: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -449,24 +437,13 @@ export function registerCommands(
           );
           if (!picked) return;
 
-          const scaffold = stringify({
-            apiVersion: 'openchoreo.dev/v1alpha1',
-            kind: 'ReleaseBinding',
-            metadata: {
-              name: `${node.component}-${node.extra.environment}`,
-              namespace: node.namespace,
-            },
-            spec: {
-              owner: {
-                projectName: node.project ?? '',
-                componentName: node.component,
-              },
-              environment: node.extra.environment,
-              releaseName: picked.label,
-            },
-          }, { lineWidth: 0 });
-
-          openScaffold('ReleaseBinding', fsProvider, node.namespace, node.project, scaffold);
+          await openOrUpdateReleaseBinding(client, fsProvider, {
+            namespace: node.namespace,
+            project: node.project ?? '',
+            component: node.component,
+            environment: node.extra.environment,
+            releaseName: picked.label,
+          });
         } catch (error) {
           vscode.window.showErrorMessage(
             `Failed to prepare deployment: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -525,24 +502,13 @@ export function registerCommands(
           );
           if (!picked) return;
 
-          const scaffold = stringify({
-            apiVersion: 'openchoreo.dev/v1alpha1',
-            kind: 'ReleaseBinding',
-            metadata: {
-              name: `${node.component}-${picked.label}`,
-              namespace: node.namespace,
-            },
-            spec: {
-              owner: {
-                projectName: node.project ?? '',
-                componentName: node.component ?? '',
-              },
-              environment: picked.label,
-              releaseName: node.resourceName,
-            },
-          }, { lineWidth: 0 });
-
-          openScaffold('ReleaseBinding', fsProvider, node.namespace, node.project, scaffold);
+          await openOrUpdateReleaseBinding(client, fsProvider, {
+            namespace: node.namespace,
+            project: node.project ?? '',
+            component: node.component ?? '',
+            environment: picked.label,
+            releaseName: node.resourceName,
+          });
         } catch (error) {
           vscode.window.showErrorMessage(
             `Failed to prepare deployment: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -1193,4 +1159,89 @@ function kindToNodeType(kind: string): string {
     ClusterAuthzRoleBinding: 'cluster-role-binding',
   };
   return map[kind] ?? kind.toLowerCase();
+}
+
+type ApiClient = NonNullable<Awaited<ReturnType<ApiClientManager['getClient']>>>;
+
+/**
+ * Open or create a ReleaseBinding for a component+environment.
+ * If a binding already exists, opens it with the releaseName updated.
+ * If not, opens a new scaffold.
+ */
+async function openOrUpdateReleaseBinding(
+  client: ApiClient,
+  fsProvider: OpenChoreoFileSystemProvider,
+  opts: {
+    namespace: string;
+    project: string;
+    component: string;
+    environment: string;
+    releaseName: string;
+  },
+): Promise<void> {
+  const { namespace: ns, project, component, environment, releaseName } = opts;
+
+  // Check if a binding already exists for this component+environment
+  const { data } = await client.GET(
+    '/api/v1/namespaces/{namespaceName}/releasebindings',
+    { params: { path: { namespaceName: ns }, query: { component } } },
+  );
+  const existing = (data?.items ?? []).find(
+    (b) => (b as { spec?: { environment?: string } }).spec?.environment === environment,
+  );
+
+  if (existing) {
+    // Open the existing binding with updated releaseName
+    const existingName = (existing.metadata?.name as string) ?? '';
+    const crd = existing as Record<string, unknown>;
+    // Update the releaseName in the spec
+    if (crd.spec && typeof crd.spec === 'object') {
+      (crd.spec as Record<string, unknown>).releaseName = releaseName;
+    }
+    // Open via the virtual filesystem — this fetches from API, but we want the modified version
+    const uri = vscode.Uri.from({
+      scheme: FS_SCHEME,
+      path: `/namespaces/${ns}/release-binding/${existingName}.yaml`,
+    });
+    // Inject apiVersion/kind if missing
+    if (!crd.apiVersion) {
+      crd.apiVersion = 'openchoreo.dev/v1alpha1';
+      crd.kind = 'ReleaseBinding';
+    }
+    const yamlContent = stringify(crd, { lineWidth: 0 });
+    // Use setReadonlyContent (not setPendingContent) to avoid marking as new — Cmd+S will use PUT
+    fsProvider.setReadonlyContent(uri, yamlContent);
+    const doc = await vscode.workspace.openTextDocument(uri);
+    if (doc.languageId !== 'yaml') {
+      await vscode.languages.setTextDocumentLanguage(doc, 'yaml');
+    }
+    const editor = await vscode.window.showTextDocument(doc, { preview: false });
+    // Mark as dirty by replacing content via edit
+    const fullRange = new vscode.Range(
+      new vscode.Position(0, 0),
+      doc.lineAt(doc.lineCount - 1).range.end,
+    );
+    await editor.edit((eb) => {
+      eb.replace(fullRange, yamlContent);
+    });
+  } else {
+    // Create a new scaffold
+    const scaffold = stringify({
+      apiVersion: 'openchoreo.dev/v1alpha1',
+      kind: 'ReleaseBinding',
+      metadata: {
+        name: `${component}-${environment}`,
+        namespace: ns,
+      },
+      spec: {
+        owner: {
+          projectName: project,
+          componentName: component,
+        },
+        environment,
+        releaseName,
+      },
+    }, { lineWidth: 0 });
+    openScaffold('ReleaseBinding', fsProvider, ns, project, scaffold);
+  }
 }
