@@ -162,15 +162,13 @@ export class ResourceExplorerProvider
         case 'project-children':
           return this.fetchProjectChildren(client, element);
         case 'component-children':
-          return this.buildComponentCategories(element);
+          return this.buildComponentChildren(client, element);
         case 'workflow-runs':
           return this.fetchWorkflowRuns(client, element);
         case 'component-releases':
           return this.fetchComponentReleases(client, element);
         case 'release-bindings':
           return this.fetchReleaseBindings(client, element);
-        case 'workloads':
-          return this.fetchWorkloads(client, element);
         case 'workflow-run-steps':
           return this.fetchWorkflowRunSteps(element);
         case 'k8s-resource-tree':
@@ -251,10 +249,13 @@ export class ResourceExplorerProvider
     for (const comp of componentItems) {
       const compName = comp.metadata?.name as string;
       const isDeleting = !!(comp as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      const hasWorkflow = !!(comp as { spec?: { workflow?: { name?: string } } })?.spec?.workflow?.name;
+      let cv = isDeleting ? 'component' : this.resolveContextValue('component');
+      if (hasWorkflow) cv += '_buildable';
       children.push({
         label: compName,
         type: 'component',
-        contextValue: isDeleting ? 'component' : this.resolveContextValue('component'),
+        contextValue: cv,
         description: isDeleting ? '(deleting)' : undefined,
         namespace: ns,
         project: proj,
@@ -279,17 +280,62 @@ export class ResourceExplorerProvider
     return children;
   }
 
-  private buildComponentCategories(
+  private async buildComponentChildren(
+    client: Client,
     element: ResourceNodeData,
-  ): ResourceNodeData[] {
+  ): Promise<ResourceNodeData[]> {
     const base = {
       namespace: element.namespace,
       project: element.project,
       component: element.component,
     };
+    const ns = element.namespace!;
+    const compName = element.component!;
 
-    return [
-      {
+    // Fetch component to check if it has a CI workflow
+    const { data: compData } = await client.GET(
+      '/api/v1/namespaces/{namespaceName}/components/{componentName}',
+      { params: { path: { namespaceName: ns, componentName: compName } } },
+    );
+    const hasWorkflow = !!(compData as { spec?: { workflow?: { name?: string } } })?.spec?.workflow?.name;
+
+    // Fetch workload for this component
+    const { data: workloadData } = await client.GET(
+      '/api/v1/namespaces/{namespaceName}/workloads',
+      { params: { path: { namespaceName: ns }, query: { component: compName } } },
+    );
+    const workloads = workloadData?.items ?? [];
+    const workload = workloads[0];
+
+    const children: ResourceNodeData[] = [];
+
+    // 1. Workload — direct child (first, most important)
+    if (workload) {
+      const wlName = (workload.metadata?.name as string) ?? 'unknown';
+      const isDeleting = !!(workload as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      children.push({
+        label: 'Workload',
+        type: 'workload',
+        contextValue: isDeleting ? 'workload' : this.resolveContextValue('workload'),
+        description: isDeleting ? `${wlName} (deleting)` : wlName,
+        ...base,
+        resourceName: wlName,
+        childrenMode: 'none',
+      });
+    } else {
+      children.push({
+        label: 'Workload',
+        type: 'workload',
+        contextValue: 'workload_placeholder',
+        description: hasWorkflow ? '(pending build)' : '(not created)',
+        ...base,
+        childrenMode: 'none',
+      });
+    }
+
+    // 2. Workflow Runs (only if component has a CI workflow)
+    if (hasWorkflow) {
+      children.push({
         label: 'Workflow Runs',
         type: 'component-category',
         icon: 'workflow-run',
@@ -297,35 +343,32 @@ export class ResourceExplorerProvider
         ...base,
         childrenMode: 'lazy',
         lazyChildrenKey: 'workflow-runs',
-      },
-      {
-        label: 'Releases',
-        type: 'component-category',
-        icon: 'component-release',
-        contextValue: 'component-category',
-        ...base,
-        childrenMode: 'lazy',
-        lazyChildrenKey: 'component-releases',
-      },
-      {
-        label: 'Release Bindings',
-        icon: 'release-binding',
-        type: 'component-category',
-        contextValue: 'component-category',
-        ...base,
-        childrenMode: 'lazy',
-        lazyChildrenKey: 'release-bindings',
-      },
-      {
-        label: 'Workloads',
-        type: 'component-category',
-        icon: 'workload',
-        contextValue: 'component-category',
-        ...base,
-        childrenMode: 'lazy',
-        lazyChildrenKey: 'workloads',
-      },
-    ];
+      });
+    }
+
+    // 3. Releases
+    children.push({
+      label: 'Releases',
+      type: 'component-category',
+      icon: 'component-release',
+      contextValue: 'component-category',
+      ...base,
+      childrenMode: 'lazy',
+      lazyChildrenKey: 'component-releases',
+    });
+
+    // 4. Release Bindings
+    children.push({
+      label: 'Release Bindings',
+      icon: 'release-binding',
+      type: 'component-category',
+      contextValue: 'component-category',
+      ...base,
+      childrenMode: 'lazy',
+      lazyChildrenKey: 'release-bindings',
+    });
+
+    return children;
   }
 
   private async fetchWorkflowRuns(
@@ -565,47 +608,6 @@ export class ResourceExplorerProvider
     return nodes;
   }
 
-  private async fetchWorkloads(
-    client: Client,
-    element: ResourceNodeData,
-  ): Promise<ResourceNodeData[]> {
-    const { data, error } = await client.GET(
-      '/api/v1/namespaces/{namespaceName}/workloads',
-      {
-        params: {
-          path: { namespaceName: element.namespace! },
-          query: {
-            component: element.component!,
-          },
-        },
-      },
-    );
-
-    if (error) {
-      return [];
-    }
-
-    const items = data?.items ?? [];
-    if (items.length === 0) {
-      return [{ label: 'No workloads', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
-    }
-
-    return items.map((item) => {
-      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
-        label: (item.metadata?.name as string) ?? 'unknown',
-        type: 'workload' as const,
-        contextValue: isDeleting ? 'workload' : this.resolveContextValue('workload'),
-        description: isDeleting ? '(deleting)' : undefined,
-        namespace: element.namespace,
-        project: element.project,
-        component: element.component,
-        resourceName: item.metadata?.name as string,
-        childrenMode: 'none' as const,
-      };
-    });
-  }
-
   private async fetchWorkflowRunSteps(
     element: ResourceNodeData,
   ): Promise<ResourceNodeData[]> {
@@ -709,11 +711,12 @@ export class ResourceExplorerProvider
     const toNodeData = (n: ResourceNode): ResourceNodeData => {
       const children = childMap.get(n.uid) ?? [];
       const isPod = n.kind === 'Pod';
+      const healthDesc = n.health?.status;
       return {
-        label: `${n.kind}/${n.name}`,
+        label: n.kind,
         type: isPod ? 'k8s-pod' : 'k8s-resource',
         contextValue: isPod ? 'k8s-pod' : 'k8s-resource',
-        description: n.health?.message ?? n.health?.status,
+        description: healthDesc ? `${n.name}  ${healthDesc}` : n.name,
         healthStatus: n.health?.status,
         namespace: ns,
         resourceName: n.name,

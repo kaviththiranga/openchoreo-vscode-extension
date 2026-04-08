@@ -99,6 +99,7 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
     isCreatable: cv.includes('_creatable'),
     isPromotable: cv.includes('_promotable'),
     isDeployable: cv.includes('_deployable'),
+    isBuildable: cv.includes('_buildable'),
     preventDefaultContextMenuItems: true,
   });
 
