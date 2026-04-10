@@ -4,6 +4,7 @@
 import * as vscode from 'vscode';
 import { parse as parseYaml, stringify } from 'yaml';
 import { OccConfigAuthProvider } from '../auth/authProvider';
+import type { LoginRunner } from '../auth/loginRunner';
 import { ResourceExplorerProvider } from '../treeView/resourceExplorer';
 import { InfrastructureExplorerProvider } from '../treeView/infrastructureExplorer';
 import type { ApiClientManager } from '../api/apiClient';
@@ -56,6 +57,7 @@ export function registerCommands(
   workflowRunService: WorkflowRunService,
   releaseBindingService: ReleaseBindingService,
   logOutputService: LogOutputService,
+  loginRunner: LoginRunner,
   sidebarProvider?: SidebarViewProvider,
 ): void {
   // Refresh resources
@@ -157,27 +159,23 @@ export function registerCommands(
     });
     if (!cpUrl) return;
 
-    const terminal = vscode.window.createTerminal(`OpenChoreo Login: ${ctxName}`);
-    terminal.show();
-    terminal.sendText(`occ login --context ${ctxName} --controlplane ${cpUrl}`);
+    loginRunner.start(['--context', ctxName, '--controlplane', cpUrl]);
   }
 
-  // Login prompt — reuse existing terminal to prevent multiple concurrent login flows
-  let loginTerminal: vscode.Terminal | undefined;
+  // Login — spawns `occ login` as a managed child process and streams
+  // output to the "OpenChoreo Login" Output Channel. The sidebar shows
+  // "Waiting for browser…" while this runs.
   context.subscriptions.push(
     vscode.commands.registerCommand('openchoreo.login', () => {
-      if (loginTerminal && vscode.window.terminals.includes(loginTerminal)) {
-        loginTerminal.show();
-        return;
-      }
-      loginTerminal = vscode.window.createTerminal('OpenChoreo Login');
-      loginTerminal.show();
-      loginTerminal.sendText('occ login');
+      loginRunner.start();
     }),
   );
+
+  // Reveal the login Output Channel — used by the "Open Output" link in
+  // the sidebar's "logging in" view.
   context.subscriptions.push(
-    vscode.window.onDidCloseTerminal((t) => {
-      if (t === loginTerminal) loginTerminal = undefined;
+    vscode.commands.registerCommand('openchoreo.showLoginOutput', () => {
+      loginRunner.showOutput();
     }),
   );
 

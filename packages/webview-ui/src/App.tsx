@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'preact/hooks';
 import { NamespaceHeader } from './components/NamespaceHeader';
+import { NotConnectedView } from './components/NotConnectedView';
 import { TreeSection } from './components/TreeSection';
 import { vscode } from './hooks/useVscodeApi';
 import type { AuthState, ExtToWebviewMessage, TreeSection as Section } from './types/protocol';
@@ -39,6 +40,7 @@ function loadPersistedState(): PersistedState {
 export function App() {
   const [authState, setAuthState] = useState<AuthState>({
     connected: false,
+    status: 'no-session',
   });
   const [sectionRoots, setSectionRoots] = useState<Record<Section, ResourceNodeData[]>>({
     projects: [],
@@ -208,18 +210,12 @@ export function App() {
 
   if (!authState.connected) {
     return (
-      <div class="sidebar">
-        <div class="not-connected">
-          <i class="codicon codicon-warning" />
-          <span>Not connected to OpenChoreo</span>
-          <button
-            class="vscode-button"
-            onClick={() => vscode.postMessage({ type: 'executeCommand', command: 'openchoreo.login' })}
-          >
-            Login
-          </button>
-        </div>
-      </div>
+      <NotConnectedView
+        status={authState.status}
+        cliVersion={authState.cliVersion}
+        cliVersionDetails={authState.cliVersionDetails}
+        loginError={authState.loginError}
+      />
     );
   }
 

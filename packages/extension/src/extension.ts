@@ -10,6 +10,8 @@ import {
   TransportKind,
 } from 'vscode-languageclient/node';
 import { OccConfigAuthProvider } from './auth/authProvider';
+import { OccCliDetector } from './auth/occCliDetector';
+import { LoginRunner } from './auth/loginRunner';
 import { ApiClientManager } from './api/apiClient';
 import { ResourceExplorerProvider } from './treeView/resourceExplorer';
 import { InfrastructureExplorerProvider } from './treeView/infrastructureExplorer';
@@ -47,11 +49,18 @@ export async function activate(
   const authProvider = new OccConfigAuthProvider(context);
   context.subscriptions.push(authProvider);
 
+  // Detect whether the occ CLI is installed (drives the "no-cli" sidebar state)
+  const occCliDetector = new OccCliDetector();
+
+  // Programmatic `occ login` runner — replaces the old terminal-based login
+  const loginRunner = new LoginRunner();
+  context.subscriptions.push(loginRunner);
+
   // Initialize typed API client manager
   const apiClientManager = new ApiClientManager(authProvider);
 
   // Initialize status bar
-  const statusBar = new StatusBarManager(authProvider);
+  const statusBar = new StatusBarManager(authProvider, occCliDetector, loginRunner);
   context.subscriptions.push(statusBar);
 
   // Initialize RBAC capability service
@@ -93,6 +102,8 @@ export async function activate(
     resourceExplorer,
     infrastructureExplorer,
     clusterExplorer,
+    occCliDetector,
+    loginRunner,
   );
   context.subscriptions.push(
     vscode.window.registerWebviewViewProvider(
@@ -139,6 +150,7 @@ export async function activate(
     workflowRunService,
     releaseBindingService,
     logOutputService,
+    loginRunner,
     sidebarProvider,
   );
 

@@ -3,6 +3,8 @@
 
 import * as vscode from 'vscode';
 import type { OccConfigAuthProvider } from '../auth/authProvider';
+import type { OccCliDetector } from '../auth/occCliDetector';
+import type { LoginRunner } from '../auth/loginRunner';
 import type { ResourceExplorerProvider } from '../treeView/resourceExplorer';
 import type { InfrastructureExplorerProvider } from '../treeView/infrastructureExplorer';
 import type { ClusterExplorerProvider } from '../treeView/clusterExplorer';
@@ -11,8 +13,15 @@ import type {
   ExtToWebviewMessage,
   TreeSection,
   AuthState,
+  ConnectionStatus,
 } from './protocol';
 import type { ResourceNodeData } from '../treeView/types';
+
+/**
+ * Hosts allowed in `openExternal` messages from the webview.
+ * Prevents the webview from asking us to open arbitrary URLs.
+ */
+const ALLOWED_EXTERNAL_HOSTS = new Set(['openchoreo.dev', 'github.com']);
 
 /** Build a local ID segment for a node. */
 function localNodeId(node: ResourceNodeData): string {
@@ -45,12 +54,29 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     private readonly resourceExplorer: ResourceExplorerProvider,
     private readonly infrastructureExplorer: InfrastructureExplorerProvider,
     private readonly clusterExplorer: ClusterExplorerProvider,
+    private readonly occCliDetector: OccCliDetector,
+    private readonly loginRunner: LoginRunner,
   ) {
     // Re-send auth state + refresh when session changes
     this.disposables.push(
       authProvider.onDidChangeSession(() => {
         this.sendAuthState();
         this.postMessage({ type: 'refreshAll' });
+      }),
+    );
+    // Re-send auth state when the login runner starts/stops/errors so the
+    // sidebar can switch between no-session / logging-in / login-failed
+    // without the 5s config-file-watcher lag. On exit (runner no longer
+    // running), force an immediate config reload so a successful login
+    // flips to the tree view within one tick instead of waiting up to 5s
+    // for the file watcher to notice.
+    this.disposables.push(
+      loginRunner.onStateChange(() => {
+        if (!loginRunner.isRunning()) {
+          authProvider.reload();
+        } else {
+          this.sendAuthState();
+        }
       }),
     );
   }
@@ -138,6 +164,32 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
       case 'selectNamespace':
         vscode.commands.executeCommand('openchoreo.selectNamespace');
         break;
+
+      case 'startLogin':
+        this.loginRunner.start();
+        break;
+
+      case 'cancelLogin':
+        this.loginRunner.cancel();
+        break;
+
+      case 'recheckCli':
+        await this.occCliDetector.recheck();
+        this.sendAuthState();
+        break;
+
+      case 'openExternal': {
+        try {
+          const url = new URL(msg.url);
+          if (!ALLOWED_EXTERNAL_HOSTS.has(url.hostname)) {
+            return;
+          }
+          vscode.env.openExternal(vscode.Uri.parse(msg.url));
+        } catch {
+          // Malformed URL — ignore.
+        }
+        break;
+      }
     }
   }
 
@@ -152,13 +204,34 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     this.postMessage({ type: 'setIconsBaseUri', uri: iconsUri.toString(), fontUri: fontUri.toString() });
   }
 
-  private sendAuthState(): void {
+  private async sendAuthState(): Promise<void> {
     const contextInfo = this.authProvider.getContextInfo();
     const session = this.authProvider.getSession();
+    const cliInfo = await this.occCliDetector.get();
+
+    let status: ConnectionStatus;
+    let loginError: string | undefined;
+
+    if (!cliInfo.installed) {
+      status = 'no-cli';
+    } else if (this.loginRunner.isRunning()) {
+      status = 'logging-in';
+    } else if ((loginError = this.loginRunner.consumeLastError())) {
+      status = 'login-failed';
+    } else if (!session) {
+      status = 'no-session';
+    } else {
+      status = 'connected';
+    }
+
     const state: AuthState = {
       connected: !!session,
+      status,
       namespace: contextInfo?.namespace,
       contextName: contextInfo?.contextName,
+      cliVersion: cliInfo.version,
+      cliVersionDetails: cliInfo.versionDetails,
+      loginError,
     };
     this.postMessage({ type: 'setAuthState', state });
   }

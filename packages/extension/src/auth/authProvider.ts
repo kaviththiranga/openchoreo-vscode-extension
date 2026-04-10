@@ -125,6 +125,16 @@ export class OccConfigAuthProvider implements vscode.Disposable {
   }
 
   /**
+   * Force an immediate config reload and fire the session change event.
+   * Used right after `occ login` exits so the sidebar switches to the tree
+   * view without waiting for the 5s file-watcher poll.
+   */
+  reload(): void {
+    this.loadConfig();
+    this.onDidChangeSessionEmitter.fire();
+  }
+
+  /**
    * Get the current authentication session from the occ CLI config.
    * Returns undefined if not logged in or config doesn't exist.
    */

@@ -16,10 +16,26 @@ export type TreeSection = 'projects' | 'infrastructure' | 'cluster';
 
 // ── Auth state ────────────────────────────────────────────────────────
 
+/**
+ * Connection status drives the sidebar's "not connected" onboarding view.
+ * Kept in sync with packages/webview-ui/src/types/protocol.ts.
+ */
+export type ConnectionStatus =
+  | 'connected'
+  | 'no-cli'
+  | 'no-session'
+  | 'logging-in'
+  | 'login-failed';
+
 export interface AuthState {
   connected: boolean;
+  status: ConnectionStatus;
   namespace?: string;
   contextName?: string;
+  cliVersion?: string;
+  /** Full `occ version` output — shown as a tooltip on the cliVersion footnote. */
+  cliVersionDetails?: string;
+  loginError?: string;
 }
 
 // ── Webview → Extension ──────────────────────────────────────────────
@@ -31,7 +47,11 @@ export type WebviewToExtMessage =
   | { type: 'nodeClicked'; section: TreeSection; node: ResourceNodeData }
   | { type: 'executeCommand'; command: string; args?: unknown[] }
   | { type: 'refresh'; section?: TreeSection }
-  | { type: 'selectNamespace' };
+  | { type: 'selectNamespace' }
+  | { type: 'startLogin' }
+  | { type: 'cancelLogin' }
+  | { type: 'recheckCli' }
+  | { type: 'openExternal'; url: string };
 
 // ── Extension → Webview ──────────────────────────────────────────────
 

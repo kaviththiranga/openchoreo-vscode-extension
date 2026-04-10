@@ -336,22 +336,198 @@ body {
   background: var(--vscode-button-hoverBackground);
 }
 
-/* ── Not Connected ────────────────────────────────────────────────── */
+/* ── Onboarding (not connected) ───────────────────────────────────── */
 
-.not-connected {
+.onboarding {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 24px 16px 12px;
+  color: var(--vscode-foreground);
+}
+
+.onboarding-panel {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 24px 16px;
   text-align: center;
-  color: var(--vscode-descriptionForeground);
+  gap: 10px;
+  flex: 1;
 }
 
-.not-connected .codicon {
-  font-size: 24px;
-  color: var(--vscode-problemsWarningIcon-foreground, #cca700);
+.onboarding-icon {
+  font-size: 32px;
+  color: var(--vscode-descriptionForeground);
+  margin-bottom: 4px;
+}
+
+.onboarding-icon-error {
+  color: var(--vscode-errorForeground, #f48771);
+}
+
+.onboarding-icon-spinning {
+  animation: onboarding-spin 2s linear infinite;
+}
+
+@keyframes onboarding-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.onboarding-title {
+  margin: 0;
+  font-size: var(--vscode-font-size);
+  font-weight: 600;
+  color: var(--vscode-foreground);
+}
+
+.onboarding-body {
+  margin: 0;
+  font-size: var(--vscode-font-size);
+  line-height: 1.5;
+  color: var(--vscode-descriptionForeground);
+  max-width: 260px;
+}
+
+.onboarding-body code {
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.92em;
+  padding: 1px 4px;
+  background: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.1));
+  border-radius: 2px;
+}
+
+.onboarding-footnote {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0 0;
+  font-size: 0.9em;
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.75;
+}
+
+.onboarding-info-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  color: var(--vscode-descriptionForeground);
+  cursor: default;
+  line-height: 1;
+}
+
+.onboarding-info-icon:hover {
+  color: var(--vscode-foreground);
+}
+
+.onboarding-info-icon .codicon {
+  font-size: 13px;
+}
+
+/* Instant custom tooltip — no browser delay, unlike native `title`. */
+.onboarding-info-icon::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 8px;
+  min-width: 200px;
+  max-width: 280px;
+  background: var(--vscode-editorHoverWidget-background, #252526);
+  color: var(--vscode-editorHoverWidget-foreground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-editorHoverWidget-border, var(--vscode-widget-border, #454545));
+  border-radius: 3px;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.85em;
+  line-height: 1.4;
+  white-space: pre;
+  text-align: left;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  z-index: 10;
+}
+
+.onboarding-info-icon:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+.onboarding-error {
+  width: 100%;
+  max-width: 280px;
+  max-height: 140px;
+  margin: 4px 0;
+  padding: 8px;
+  overflow: auto;
+  background: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.1));
+  border-left: 2px solid var(--vscode-errorForeground, #f48771);
+  color: var(--vscode-errorForeground, #f48771);
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: 0.85em;
+  text-align: left;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.onboarding-panel .vscode-button {
+  width: 100%;
+  max-width: 220px;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.vscode-button-primary {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+
+.vscode-button-secondary {
+  background: var(--vscode-button-secondaryBackground, transparent);
+  color: var(--vscode-button-secondaryForeground, var(--vscode-foreground));
+  border: 1px solid var(--vscode-button-border, var(--vscode-contrastBorder, transparent));
+}
+
+.vscode-button-secondary:hover {
+  background: var(--vscode-button-secondaryHoverBackground, var(--vscode-list-hoverBackground));
+}
+
+.onboarding-panel .progress-bar {
+  width: 100%;
+  max-width: 220px;
+  margin: 4px 0;
+}
+
+.onboarding-link-button {
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  color: var(--vscode-textLink-foreground);
+  font-size: var(--vscode-font-size);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.onboarding-link-button:hover {
+  color: var(--vscode-textLink-activeForeground);
+  text-decoration: underline;
+}
+
+.onboarding-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding-top: 12px;
+  margin-top: 16px;
+  border-top: 1px solid var(--vscode-panel-border, transparent);
+}
+
+.onboarding-footer-sep {
+  color: var(--vscode-descriptionForeground);
+  opacity: 0.5;
 }
 
 /* ── Progress Bar ─────────────────────────────────────────────────── */
