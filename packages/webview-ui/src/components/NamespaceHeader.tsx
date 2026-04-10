@@ -27,20 +27,22 @@ export function NamespaceHeader({
 
   return (
     <div class="context-header-wrapper">
-      {userDisplayName && (
-        <div class="user-row">
-          <i class="codicon codicon-account" />
-          <span class="user-name" title={userDisplayName}>{userDisplayName}</span>
-          <button
-            class="header-icon-button"
-            title={logoutTitle}
-            aria-label={logoutTitle}
-            onClick={onLogout}
-          >
-            <i class="codicon codicon-sign-out" />
-          </button>
+      {userDisplayName ? (
+        <div class="user-chip-row">
+          <div class="user-chip" title={userDisplayName}>
+            <i class="codicon codicon-account chip-leading-icon" />
+            <span class="chip-text">{userDisplayName}</span>
+            <button
+              class="chip-action"
+              title={logoutTitle}
+              aria-label={logoutTitle}
+              onClick={onLogout}
+            >
+              <i class="codicon codicon-log-out" />
+            </button>
+          </div>
         </div>
-      )}
+      ) : null}
       <div class="context-header">
         <button class="context-chip" title="Switch Context" onClick={onSwitchContext}>
           {ocChar
@@ -66,7 +68,7 @@ export function NamespaceHeader({
             aria-label={logoutTitle}
             onClick={onLogout}
           >
-            <i class="codicon codicon-sign-out" />
+            <i class="codicon codicon-log-out" />
           </button>
         )}
       </div>
