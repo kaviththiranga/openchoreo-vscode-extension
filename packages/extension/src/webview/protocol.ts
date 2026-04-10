@@ -32,6 +32,8 @@ export interface AuthState {
   status: ConnectionStatus;
   namespace?: string;
   contextName?: string;
+  /** Human-readable display name from the JWT access token, if available. */
+  userDisplayName?: string;
   cliVersion?: string;
   /** Full `occ version` output — shown as a tooltip on the cliVersion footnote. */
   cliVersionDetails?: string;

@@ -51,6 +51,19 @@ export interface AuthSession {
   context: OccContext;
 }
 
+/**
+ * Identity claims extracted from the decoded JWT access token.
+ * OpenChoreo does not expose a /userinfo endpoint, so all fields come
+ * directly from JWT payload claims set by the auth server.
+ */
+export interface UserIdentity {
+  /** Preferred human-readable display name. */
+  displayName?: string;
+  email?: string;
+  /** JWT `sub` claim — stable unique identifier. */
+  subject?: string;
+}
+
 /** RFC 9728 OAuth Protected Resource Metadata */
 interface OAuthProtectedResourceMetadata {
   authorization_servers: string[];
@@ -221,6 +234,45 @@ export class OccConfigAuthProvider implements vscode.Disposable {
   }
 
   /**
+   * Extract the signed-in user's identity from the JWT access token.
+   *
+   * OpenChoreo's auth server doesn't expose a /userinfo endpoint, so we
+   * decode the access token payload directly — same pattern as the
+   * Backstage OIDC authenticator at
+   * `backstage-plugins/plugins/auth-backend-module-openchoreo-auth/src/oidcAuthenticator.ts`.
+   *
+   * Returns undefined if there's no session or the token isn't a valid JWT.
+   */
+  getUserIdentity(): UserIdentity | undefined {
+    const session = this.getSession();
+    if (!session?.token) return undefined;
+
+    const payload = decodeJwtPayload(session.token);
+    if (!payload) return undefined;
+
+    // Display name fallback chain matches Backstage's extractProfileFromPayload:
+    // name → given_name + family_name → email → preferred_username → username → sub
+    const given = typeof payload.given_name === 'string' ? payload.given_name : undefined;
+    const family = typeof payload.family_name === 'string' ? payload.family_name : undefined;
+    const fullName = given && family ? `${given} ${family}` : given || family;
+
+    const displayName =
+      (typeof payload.name === 'string' && payload.name) ||
+      fullName ||
+      (typeof payload.email === 'string' && payload.email) ||
+      (typeof payload.preferred_username === 'string' && payload.preferred_username) ||
+      (typeof payload.username === 'string' && payload.username) ||
+      (typeof payload.unique_name === 'string' && payload.unique_name) ||
+      undefined;
+
+    return {
+      displayName: displayName || undefined,
+      email: typeof payload.email === 'string' ? payload.email : undefined,
+      subject: typeof payload.sub === 'string' ? payload.sub : undefined,
+    };
+  }
+
+  /**
    * Get all available context names for context switching.
    */
   getAvailableContexts(): string[] {
@@ -285,23 +337,10 @@ export class OccConfigAuthProvider implements vscode.Disposable {
    * Check if a JWT token is expired (with 60s buffer).
    */
   private isTokenExpired(token: string): boolean {
-    try {
-      const parts = token.split('.');
-      if (parts.length !== 3) {
-        return true;
-      }
-      const payload = JSON.parse(
-        Buffer.from(parts[1], 'base64url').toString('utf-8'),
-      );
-      const exp = payload.exp;
-      if (!exp) {
-        return true;
-      }
-      // Consider expired if within 60 seconds of expiration
-      return Date.now() / 1000 >= exp - 60;
-    } catch {
-      return true;
-    }
+    const payload = decodeJwtPayload(token);
+    if (!payload || typeof payload.exp !== 'number') return true;
+    // Consider expired if within 60 seconds of expiration
+    return Date.now() / 1000 >= payload.exp - 60;
   }
 
   /**
@@ -456,5 +495,22 @@ export class OccConfigAuthProvider implements vscode.Disposable {
   dispose(): void {
     this.fileWatcher?.dispose();
     this.onDidChangeSessionEmitter.dispose();
+  }
+}
+
+/**
+ * Decode a JWT payload without signature verification. Used for reading
+ * expiration and identity claims from access tokens already trusted by
+ * the occ CLI login flow.
+ */
+function decodeJwtPayload(token: string): Record<string, unknown> | undefined {
+  try {
+    const parts = token.split('.');
+    if (parts.length !== 3) return undefined;
+    const json = Buffer.from(parts[1], 'base64url').toString('utf-8');
+    const payload = JSON.parse(json);
+    return typeof payload === 'object' && payload !== null ? payload : undefined;
+  } catch {
+    return undefined;
   }
 }

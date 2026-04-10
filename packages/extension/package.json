@@ -177,6 +177,11 @@
         "category": "OpenChoreo"
       },
       {
+        "command": "openchoreo.logout",
+        "title": "Logout (via occ CLI)",
+        "category": "OpenChoreo"
+      },
+      {
         "command": "openchoreo.openResource",
         "title": "Open Resource YAML",
         "category": "OpenChoreo"

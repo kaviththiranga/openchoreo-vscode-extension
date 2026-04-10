@@ -224,8 +224,10 @@ export function App() {
       <NamespaceHeader
         namespace={authState.namespace}
         contextName={authState.contextName}
+        userDisplayName={authState.userDisplayName}
         onSelectNamespace={() => vscode.postMessage({ type: 'selectNamespace' })}
         onSwitchContext={() => vscode.postMessage({ type: 'executeCommand', command: 'openchoreo.switchContext' })}
+        onLogout={() => vscode.postMessage({ type: 'executeCommand', command: 'openchoreo.logout' })}
       />
       <TreeSection
         title="Projects"

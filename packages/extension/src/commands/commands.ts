@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
+import { spawn } from 'child_process';
 import { parse as parseYaml, stringify } from 'yaml';
 import { OccConfigAuthProvider } from '../auth/authProvider';
 import type { LoginRunner } from '../auth/loginRunner';
@@ -24,6 +25,53 @@ import {
   FS_SCHEME,
   type OpenChoreoFileSystemProvider,
 } from '../filesystem/fileSystemProvider';
+
+/**
+ * Run `occ logout` as a one-shot child process. Resolves on exit code 0,
+ * rejects with the stderr tail (or a spawn error message) otherwise.
+ * Includes a 5s safety-net timeout since `occ logout` is a synchronous
+ * file rewrite and should complete almost instantly.
+ */
+function runOccLogout(): Promise<void> {
+  return new Promise((resolve, reject) => {
+    let child;
+    try {
+      child = spawn('occ', ['logout'], { stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (err) {
+      reject(new Error(`Failed to run occ: ${String(err)}`));
+      return;
+    }
+
+    let stderr = '';
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+    });
+
+    const timer = setTimeout(() => {
+      child.kill();
+      reject(new Error('occ logout timed out after 5s'));
+    }, 5000);
+
+    child.on('error', (err: NodeJS.ErrnoException) => {
+      clearTimeout(timer);
+      if (err.code === 'ENOENT') {
+        reject(new Error('occ CLI not found on PATH'));
+      } else {
+        reject(new Error(err.message));
+      }
+    });
+
+    child.on('exit', (code) => {
+      clearTimeout(timer);
+      if (code === 0) {
+        resolve();
+      } else {
+        const tail = stderr.trim() || `occ logout exited with code ${code ?? 'unknown'}`;
+        reject(new Error(tail));
+      }
+    });
+  });
+}
 
 /**
  * Resolve a command argument into a ResourceNodeData.
@@ -176,6 +224,45 @@ export function registerCommands(
   context.subscriptions.push(
     vscode.commands.registerCommand('openchoreo.showLoginOutput', () => {
       loginRunner.showOutput();
+    }),
+  );
+
+  // Logout — runs `occ logout` after a modal confirmation. Because this
+  // extension shares its session with the occ CLI (both read
+  // ~/.openchoreo/config), logging out from here also logs out the CLI.
+  // `occ logout` is synchronous and non-interactive: it clears the
+  // token/refreshToken in the current credential and exits. On success
+  // we force an immediate config reload so the sidebar flips to the
+  // no-session state without waiting for the 5s file-watcher poll.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('openchoreo.logout', async () => {
+      const ctxInfo = authProvider.getContextInfo();
+      if (!ctxInfo) {
+        vscode.window.showInformationMessage('Not logged in to OpenChoreo.');
+        return;
+      }
+
+      const confirm = await vscode.window.showWarningMessage(
+        `Logout from OpenChoreo context "${ctxInfo.contextName}"?`,
+        {
+          modal: true,
+          detail:
+            'This runs `occ logout` and clears cached credentials for the current context. ' +
+            'Your occ CLI session will also be logged out — any terminal commands using the ' +
+            'CLI will need to re-authenticate. You can log back in at any time.',
+        },
+        'Logout',
+      );
+      if (confirm !== 'Logout') return;
+
+      try {
+        await runOccLogout();
+        authProvider.reload();
+        vscode.window.showInformationMessage('Logged out of OpenChoreo.');
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        vscode.window.showErrorMessage(`Logout failed: ${msg}`);
+      }
     }),
   );
 

@@ -26,13 +26,51 @@ body {
 
 /* ── Context Header ───────────────────────────────────────────────── */
 
+.context-header-wrapper {
+  display: flex;
+  flex-direction: column;
+  border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border));
+  flex-shrink: 0;
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px 2px 12px;
+  font-size: 11px;
+  color: var(--vscode-descriptionForeground);
+  min-width: 0;
+}
+
+.user-row > .codicon {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.user-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-row .header-icon-button {
+  margin-left: 0;
+  padding: 0 4px;
+  height: 18px;
+}
+
+.user-row .header-icon-button .codicon {
+  font-size: 12px;
+}
+
 .context-header {
   display: flex;
   align-items: center;
-  padding: 6px 8px 6px 12px;
+  padding: 4px 8px 6px 12px;
   gap: 4px;
-  border-bottom: 1px solid var(--vscode-sideBarSectionHeader-border, var(--vscode-panel-border));
-  flex-shrink: 0;
   min-width: 0;
 }
 
@@ -54,6 +92,30 @@ body {
 
 .context-chip:hover {
   background: var(--vscode-toolbar-hoverBackground);
+}
+
+.header-icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: auto;
+  padding: 0 6px;
+  height: 22px;
+  background: transparent;
+  border: none;
+  color: var(--vscode-descriptionForeground);
+  cursor: pointer;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.header-icon-button:hover {
+  background: var(--vscode-toolbar-hoverBackground);
+  color: var(--vscode-foreground);
+}
+
+.header-icon-button .codicon {
+  font-size: 14px;
 }
 
 .context-chip .codicon {

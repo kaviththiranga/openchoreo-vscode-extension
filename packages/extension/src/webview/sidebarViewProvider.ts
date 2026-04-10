@@ -229,6 +229,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
       status,
       namespace: contextInfo?.namespace,
       contextName: contextInfo?.contextName,
+      userDisplayName: this.authProvider.getUserIdentity()?.displayName,
       cliVersion: cliInfo.version,
       cliVersionDetails: cliInfo.versionDetails,
       loginError,
