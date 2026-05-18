@@ -1,11 +1,19 @@
 {
-  "name": "openchoreo",
-  "displayName": "OpenChoreo",
-  "description": "IDE-native tooling for the OpenChoreo developer platform — CRD editing, resource explorer, and platform workflows",
+  "name": "openchoreo-unofficial",
+  "displayName": "OpenChoreo (Unofficial)",
+  "description": "Unofficial community tooling for the OpenChoreo developer platform — not affiliated with OpenChoreo. CRD editing, resource explorer, project scaffolding, and platform workflows.",
   "version": "0.1.0",
-  "publisher": "openchoreo",
+  "publisher": "KavithLokuhewage",
   "license": "Apache-2.0",
-  "icon": "resources/openchoreo.png",
+  "icon": "resources/openchoreo-unofficial.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kaviththiranga/openchoreo-vscode-extension"
+  },
+  "bugs": {
+    "url": "https://github.com/kaviththiranga/openchoreo-vscode-extension/issues"
+  },
+  "homepage": "https://github.com/kaviththiranga/openchoreo-vscode-extension#readme",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -146,7 +154,7 @@
         {
           "id": "openchoreo",
           "title": "OpenChoreo",
-          "icon": "resources/openchoreo.svg"
+          "icon": "resources/openchoreo-unofficial.svg"
         }
       ]
     },

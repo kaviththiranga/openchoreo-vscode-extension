@@ -199,6 +199,26 @@ export async function activate(
     context.subscriptions.push({ dispose: () => clearInterval(autoRefreshTimer) });
   }
 
+  // One-time disclaimer toast on first activation — flags this as the
+  // unofficial community build of the extension.
+  const DISCLAIMER_KEY = 'unofficial.disclaimerShown';
+  if (!context.globalState.get<boolean>(DISCLAIMER_KEY)) {
+    void context.globalState.update(DISCLAIMER_KEY, true);
+    void vscode.window
+      .showInformationMessage(
+        'OpenChoreo (Unofficial) is a community extension, not affiliated with OpenChoreo.',
+        'Learn more',
+        'Dismiss',
+      )
+      .then((choice) => {
+        if (choice === 'Learn more') {
+          void vscode.env.openExternal(
+            vscode.Uri.parse('https://github.com/kaviththiranga/openchoreo-vscode-extension#readme'),
+          );
+        }
+      });
+  }
+
   // Watch for occ config changes
   authProvider.startWatching();
 }

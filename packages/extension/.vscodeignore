@@ -1,0 +1,32 @@
+# Source & build configs
+src/**
+tsconfig*.json
+vitest.config.ts
+.eslintrc*
+.fantasticonrc.json
+scripts/**
+smoke-detector.mjs
+
+# Build & test artifacts
+.turbo/**
+out/**
+**/*.map
+**/*.test.ts
+**/*.test.js
+**/*.tsbuildinfo
+
+# Node / git
+node_modules/**
+.git/**
+.gitignore
+.gitattributes
+.github/**
+
+# Editor / OS
+.vscode/**
+.DS_Store
+
+# The unbadged original logo isn't referenced by the manifest — exclude it
+# from the .vsix so we don't ship two near-identical icons.
+resources/openchoreo.png
+resources/openchoreo.svg
