@@ -2,7 +2,7 @@
   "name": "openchoreo-unofficial",
   "displayName": "OpenChoreo (Unofficial)",
   "description": "Unofficial community tooling for the OpenChoreo developer platform — not affiliated with OpenChoreo. CRD editing, resource explorer, project scaffolding, and platform workflows.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "KavithLokuhewage",
   "license": "Apache-2.0",
   "icon": "resources/openchoreo-unofficial.png",
