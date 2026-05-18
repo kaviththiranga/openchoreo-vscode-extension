@@ -168,6 +168,26 @@ export class OccConfigAuthProvider implements vscode.Disposable {
   }
 
   /**
+   * Resolve the security-enabled flag for the current context's control
+   * plane before any consumer of getSession() needs it. Used at extension
+   * activation so the first MCP `provideMcpServerDefinitions()` call has
+   * a populated cache and returns the server immediately (otherwise the
+   * first call returns [] while the async probe is in flight, and some
+   * MCP hosts don't re-query on the subsequent change event).
+   */
+  async prewarm(): Promise<void> {
+    if (!this.config) return;
+    const ctx = this.config.contexts.find((c) => c.name === this.config!.currentContext);
+    if (!ctx) return;
+    const cp = this.config.controlplanes.find((c) => c.name === ctx.controlplane);
+    if (!cp) return;
+    const cred = this.config.credentials.find((c) => c.name === ctx.credentials);
+    // Only probe when we'd actually depend on the result — i.e. tokenless contexts.
+    if (cred && cred.token) return;
+    await this.probeSecurityEnabled(cp.url);
+  }
+
+  /**
    * Get the current authentication session from the occ CLI config.
    *
    * Returns a session when either:

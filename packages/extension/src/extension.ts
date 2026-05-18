@@ -173,6 +173,12 @@ export async function activate(
     authProvider.onDidChangeSession(pushAll),
   );
 
+  // Resolve the security-enabled flag for the current control plane before
+  // MCP registration so the first provideMcpServerDefinitions() call has a
+  // populated cache (otherwise auth-disabled clusters can race and produce
+  // an empty initial server list that some MCP hosts then never refresh).
+  await authProvider.prewarm();
+
   // Register OpenChoreo MCP servers for Copilot Chat
   registerMcpServers(context, authProvider);
 

@@ -50,6 +50,19 @@ The extension and occ CLI share the same config file (`~/.openchoreo/config`). T
 
 When registered with VSCode Copilot Chat, the OpenChoreo MCP server receives the current Bearer token via HTTP headers. The token is refreshed automatically via the periodic refresh timer and session change events — ensuring MCP requests always use a valid token.
 
+For clusters installed with **authentication disabled**, the extension registers the MCP server without an `Authorization` header and adds `?filterByAuthz=false` to the URL so the platform's per-user tool filter doesn't hide the catalog. The OpenChoreo control plane still enforces its own authorization independently.
+
+### Enabling the MCP Server in Copilot Chat
+
+VS Code does **not** auto-start newly-registered MCP servers — this is a security feature of the MCP API, not something the extension can override. After the OpenChoreo extension activates:
+
+1. Open the Command Palette → **MCP: List Servers**.
+2. Find **OpenChoreo Platform** in the list.
+3. Click **Start** (you only need to do this once per machine).
+4. Open Copilot Chat → tools picker — the OpenChoreo tools are now available.
+
+If "OpenChoreo Platform" doesn't appear in the list at all, check that you are logged in via `occ login` and that the OpenChoreo Output panel shows a line like `MCP server providing: <url>`.
+
 ### Security Notes
 
 - Tokens are stored in **plain text** in the occ CLI config file (same model as kubectl/kubeconfig)
