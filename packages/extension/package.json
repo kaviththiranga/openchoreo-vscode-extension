@@ -14,6 +14,7 @@
     "url": "https://github.com/kaviththiranga/openchoreo-vscode-extension/issues"
   },
   "homepage": "https://github.com/kaviththiranga/openchoreo-vscode-extension#readme",
+  "occVersion": "v1.0.1",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -187,6 +188,11 @@
       {
         "command": "openchoreo.logout",
         "title": "Logout (via occ CLI)",
+        "category": "OpenChoreo"
+      },
+      {
+        "command": "openchoreo.downloadCli",
+        "title": "Download occ CLI",
         "category": "OpenChoreo"
       },
       {
@@ -476,6 +482,11 @@
           "type": "string",
           "default": "",
           "description": "Path to occ CLI config file. Defaults to ~/.openchoreo/config"
+        },
+        "openchoreo.cliPath": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the occ CLI binary. When set, overrides both the extension-managed download and the system PATH lookup. Useful for pointing at a custom build."
         },
         "openchoreo.autoRefresh": {
           "type": "boolean",

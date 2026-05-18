@@ -62,6 +62,14 @@ export class OccCliDetector {
   private inflight: Promise<OccCliInfo> | undefined;
 
   /**
+   * @param resolveBinary Returns the current best path to spawn — a
+   *   user-set absolute path, the managed download path, or the literal
+   *   'occ' (PATH lookup). Resolved per-call so a download completing
+   *   mid-session takes effect on the next detection.
+   */
+  constructor(private readonly resolveBinary: () => string = () => 'occ') {}
+
+  /**
    * Return the cached CLI status, detecting on first call.
    */
   async get(): Promise<OccCliInfo> {
@@ -96,7 +104,7 @@ export class OccCliDetector {
 
       let child: ReturnType<typeof spawn>;
       try {
-        child = spawn('occ', ['version'], { stdio: ['ignore', 'pipe', 'pipe'] });
+        child = spawn(this.resolveBinary(), ['version'], { stdio: ['ignore', 'pipe', 'pipe'] });
       } catch (err) {
         log.debug(`occ version spawn threw synchronously: ${String(err)}`);
         done({ installed: false });

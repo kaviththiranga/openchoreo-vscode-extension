@@ -50,10 +50,18 @@ function NoCliPanel({ openExternal }: { openExternal: (url: string) => void }) {
       <h3 class="onboarding-title">OpenChoreo CLI not found</h3>
       <p class="onboarding-body">
         This extension uses the <code>occ</code> CLI to authenticate with your
-        OpenChoreo control plane. Install it first, then come back here to log in.
+        OpenChoreo control plane. Let the extension download it for you (~14 MB),
+        or install it manually and come back here.
       </p>
       <button
         class="vscode-button vscode-button-primary"
+        onClick={() => vscode.postMessage({ type: 'downloadCli' })}
+      >
+        <i class="codicon codicon-cloud-download" />
+        <span>Download for me (~14 MB)</span>
+      </button>
+      <button
+        class="vscode-button vscode-button-secondary"
         onClick={() => openExternal(LINKS.cliInstall)}
       >
         <i class="codicon codicon-link-external" />

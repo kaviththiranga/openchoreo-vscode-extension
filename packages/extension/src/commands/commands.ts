@@ -35,6 +35,8 @@ import {
   COMPONENT_REL_PATH,
   WORKLOAD_REL_PATH,
 } from '../scaffolder/writer';
+import { downloadAndInstallOccCli } from '../cli/downloader';
+import type { OccCliDetector } from '../auth/occCliDetector';
 
 /**
  * Run `occ logout` as a one-shot child process. Resolves on exit code 0,
@@ -42,11 +44,11 @@ import {
  * Includes a 5s safety-net timeout since `occ logout` is a synchronous
  * file rewrite and should complete almost instantly.
  */
-function runOccLogout(): Promise<void> {
+function runOccLogout(binaryPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
     let child;
     try {
-      child = spawn('occ', ['logout'], { stdio: ['ignore', 'pipe', 'pipe'] });
+      child = spawn(binaryPath, ['logout'], { stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (err) {
       reject(new Error(`Failed to run occ: ${String(err)}`));
       return;
@@ -116,6 +118,8 @@ export function registerCommands(
   releaseBindingService: ReleaseBindingService,
   logOutputService: LogOutputService,
   loginRunner: LoginRunner,
+  resolveBinary: () => string,
+  occCliDetector: OccCliDetector,
   sidebarProvider?: SidebarViewProvider,
 ): void {
   // Refresh resources
@@ -266,12 +270,45 @@ export function registerCommands(
       if (confirm !== 'Logout') return;
 
       try {
-        await runOccLogout();
+        await runOccLogout(resolveBinary());
         authProvider.reload();
         vscode.window.showInformationMessage('Logged out of OpenChoreo.');
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         vscode.window.showErrorMessage(`Logout failed: ${msg}`);
+      }
+    }),
+  );
+
+  // Download the pinned `occ` CLI release into extension global storage.
+  // Triggered from the NotConnectedView "Download for me" button, from the
+  // first-run prompt, and from the command palette.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('openchoreo.downloadCli', async () => {
+      const result = await downloadAndInstallOccCli(context);
+      switch (result.status) {
+        case 'installed':
+          // Refresh detector so the sidebar transitions out of no-cli.
+          await occCliDetector.recheck();
+          authProvider.reload();
+          vscode.window.showInformationMessage(
+            'occ CLI installed. Run "OpenChoreo: Login" to continue.',
+          );
+          break;
+        case 'cancelled':
+          // Quiet — user knows they cancelled.
+          break;
+        case 'unsupported':
+          vscode.window.showWarningMessage(
+            result.error ??
+              'occ is not published for this platform — please install manually.',
+          );
+          break;
+        case 'failed':
+          vscode.window.showErrorMessage(
+            `Could not install occ: ${result.error ?? 'unknown error'}`,
+          );
+          break;
       }
     }),
   );

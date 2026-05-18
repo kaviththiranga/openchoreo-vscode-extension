@@ -57,6 +57,7 @@ export type WebviewToExtMessage =
   | { type: 'startLogin' }
   | { type: 'cancelLogin' }
   | { type: 'recheckCli' }
+  | { type: 'downloadCli' }
   | { type: 'openExternal'; url: string };
 
 // Extension → Webview

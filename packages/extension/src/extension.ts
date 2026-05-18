@@ -24,6 +24,7 @@ import { initLogger, log } from './logging/logger';
 import { ClusterExplorerProvider } from './treeView/clusterExplorer';
 import { SidebarViewProvider } from './webview/sidebarViewProvider';
 import { registerMcpServers } from './mcp/mcpProvider';
+import { getOccBinaryPath } from './cli/cliPath';
 import { setExtensionUri } from './treeView/shared';
 import { ComponentService } from './services/componentService';
 import { WorkflowRunService } from './services/workflowRunService';
@@ -49,11 +50,15 @@ export async function activate(
   const authProvider = new OccConfigAuthProvider(context);
   context.subscriptions.push(authProvider);
 
+  // All spawn-occ call sites resolve the binary through this thunk so a
+  // download completing mid-session takes effect on the next invocation.
+  const resolveOccBinary = (): string => getOccBinaryPath(context);
+
   // Detect whether the occ CLI is installed (drives the "no-cli" sidebar state)
-  const occCliDetector = new OccCliDetector();
+  const occCliDetector = new OccCliDetector(resolveOccBinary);
 
   // Programmatic `occ login` runner — replaces the old terminal-based login
-  const loginRunner = new LoginRunner();
+  const loginRunner = new LoginRunner(resolveOccBinary);
   context.subscriptions.push(loginRunner);
 
   // Initialize typed API client manager
@@ -151,6 +156,8 @@ export async function activate(
     releaseBindingService,
     logOutputService,
     loginRunner,
+    resolveOccBinary,
+    occCliDetector,
     sidebarProvider,
   );
 
@@ -224,6 +231,32 @@ export async function activate(
         }
       });
   }
+
+  // First-run nudge to download the occ CLI if it isn't present anywhere on
+  // PATH. One-shot per profile (the NotConnectedView keeps a persistent
+  // "Download for me" button so a dismissed prompt isn't a dead end).
+  const CLI_PROMPT_KEY = 'cliDownloadPromptShown';
+  void (async () => {
+    if (context.globalState.get<boolean>(CLI_PROMPT_KEY)) return;
+    const info = await occCliDetector.get();
+    if (info.installed) return;
+    await context.globalState.update(CLI_PROMPT_KEY, true);
+
+    const DOWNLOAD = 'Download (~14 MB)';
+    const MANUAL = 'Install Manually';
+    const choice = await vscode.window.showInformationMessage(
+      'OpenChoreo CLI (occ) is not installed. Download it now to log in to your cluster?',
+      DOWNLOAD,
+      MANUAL,
+    );
+    if (choice === DOWNLOAD) {
+      void vscode.commands.executeCommand('openchoreo.downloadCli');
+    } else if (choice === MANUAL) {
+      void vscode.env.openExternal(
+        vscode.Uri.parse('https://openchoreo.dev/docs/developer-guide/cli-installation/'),
+      );
+    }
+  })();
 
   // Watch for occ config changes
   authProvider.startWatching();

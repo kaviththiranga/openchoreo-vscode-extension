@@ -32,7 +32,11 @@ export class LoginRunner implements vscode.Disposable {
   /** Fired when a login starts, exits, or is cancelled. */
   readonly onStateChange = this.onStateChangeEmitter.event;
 
-  constructor() {
+  /**
+   * @param resolveBinary Returns the current best path to spawn — see
+   *   OccCliDetector for the same convention.
+   */
+  constructor(private readonly resolveBinary: () => string = () => 'occ') {
     this.channel = vscode.window.createOutputChannel('OpenChoreo Login');
   }
 
@@ -69,7 +73,7 @@ export class LoginRunner implements vscode.Disposable {
 
     let child: ChildProcess;
     try {
-      child = spawn('occ', ['login', ...extraArgs], {
+      child = spawn(this.resolveBinary(), ['login', ...extraArgs], {
         stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch (err) {

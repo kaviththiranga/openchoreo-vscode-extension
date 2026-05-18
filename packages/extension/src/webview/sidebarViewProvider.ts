@@ -178,6 +178,11 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         this.sendAuthState();
         break;
 
+      case 'downloadCli':
+        // Delegate to the command — it handles progress, toasts, recheck.
+        void vscode.commands.executeCommand('openchoreo.downloadCli');
+        break;
+
       case 'openExternal': {
         try {
           const url = new URL(msg.url);
