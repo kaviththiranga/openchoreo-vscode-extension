@@ -25,6 +25,16 @@ import {
   FS_SCHEME,
   type OpenChoreoFileSystemProvider,
 } from '../filesystem/fileSystemProvider';
+import { analyzeWorkspace, type ProjectProfile } from '../scaffolder';
+import { renderComponentYaml } from '../scaffolder/renderers/component';
+import { renderWorkloadYaml } from '../scaffolder/renderers/workload';
+import {
+  checkExistingFiles,
+  writeScaffoldFiles,
+  tryCommitScaffold,
+  COMPONENT_REL_PATH,
+  WORKLOAD_REL_PATH,
+} from '../scaffolder/writer';
 
 /**
  * Run `occ logout` as a one-shot child process. Resolves on exit code 0,
@@ -1164,6 +1174,207 @@ spec:
       },
     ),
   );
+
+  // Scaffold OpenChoreo manifests from the user's source repo.
+  context.subscriptions.push(
+    vscode.commands.registerCommand('openchoreo.scaffoldFromProject', async () => {
+      await runScaffoldFromProject(authProvider);
+    }),
+  );
+}
+
+/**
+ * Interactive flow:
+ *   1. Pick a workspace folder (auto if only one).
+ *   2. Analyze it → ProjectProfile.
+ *   3. Confirm detection summary; offer Adjust overrides.
+ *   4. Preview the two YAML files in split editors.
+ *   5. On confirm, write to `.openchoreo/` and optionally commit.
+ */
+async function runScaffoldFromProject(
+  authProvider: OccConfigAuthProvider,
+): Promise<void> {
+  const folders = vscode.workspace.workspaceFolders ?? [];
+  if (folders.length === 0) {
+    vscode.window.showWarningMessage(
+      'Open a folder first to scaffold OpenChoreo manifests from it.',
+    );
+    return;
+  }
+
+  let folder: vscode.WorkspaceFolder;
+  if (folders.length === 1) {
+    folder = folders[0];
+  } else {
+    const picked = await vscode.window.showQuickPick(
+      folders.map((f) => ({ label: f.name, description: f.uri.fsPath, folder: f })),
+      { placeHolder: 'Select a workspace folder to scaffold from' },
+    );
+    if (!picked) return;
+    folder = picked.folder;
+  }
+
+  const profile = await vscode.window.withProgress(
+    { location: vscode.ProgressLocation.Notification, title: 'Analyzing project…' },
+    () => analyzeWorkspace(folder),
+  );
+
+  // Adjust loop: user can keep tweaking overrides until they confirm or cancel.
+  let finalProfile = profile;
+  while (true) {
+    const summary = describeProfile(finalProfile);
+    const ctxInfo = authProvider.getContextInfo();
+    const targetHint = `Target: namespace "${ctxInfo?.namespace ?? 'default'}", project "${ctxInfo?.project ?? 'default'}"`;
+
+    const action = await vscode.window.showInformationMessage(
+      `${summary}\n\n${targetHint}`,
+      { modal: true },
+      'Scaffold',
+      'Adjust',
+    );
+    if (action === 'Scaffold') break;
+    if (action !== 'Adjust') return; // cancelled
+
+    const adjusted = await promptForAdjustments(finalProfile);
+    if (!adjusted) return;
+    finalProfile = adjusted;
+  }
+
+  const ctxInfo = authProvider.getContextInfo();
+  const namespace = ctxInfo?.namespace ?? 'default';
+  const projectRef = ctxInfo?.project ?? 'default';
+
+  const componentYaml = renderComponentYaml(finalProfile, { namespace, projectRef });
+  const workloadYaml = renderWorkloadYaml(finalProfile, { namespace, projectRef });
+
+  // Show the two files side-by-side as untitled documents so the user can
+  // edit before saving. VS Code will prompt for a filename when they save
+  // — we pre-populate the URI hint below.
+  await showPreview(COMPONENT_REL_PATH, componentYaml, 'yaml');
+  await showPreview(WORKLOAD_REL_PATH, workloadYaml, 'yaml', vscode.ViewColumn.Beside);
+
+  const existing = await checkExistingFiles(folder);
+  if (existing.componentExists || existing.workloadExists) {
+    const overwrite = await vscode.window.showWarningMessage(
+      `Existing manifests found in ${folder.name}/.openchoreo/. Overwrite?`,
+      { modal: true },
+      'Overwrite',
+    );
+    if (overwrite !== 'Overwrite') return;
+  }
+
+  const saveChoice = await vscode.window.showInformationMessage(
+    `Save manifests to ${folder.name}/${COMPONENT_REL_PATH} and ${WORKLOAD_REL_PATH}?`,
+    { modal: true },
+    'Save',
+  );
+  if (saveChoice !== 'Save') return;
+
+  const result = await writeScaffoldFiles(folder, { componentYaml, workloadYaml });
+
+  const commitChoice = await vscode.window.showInformationMessage(
+    `Manifests saved. Commit them to git now?`,
+    'Commit',
+    'Skip',
+  );
+  if (commitChoice === 'Commit') {
+    const committed = await tryCommitScaffold(folder, result);
+    if (committed) {
+      vscode.window.showInformationMessage('Committed OpenChoreo manifests.');
+    } else {
+      vscode.window.showWarningMessage(
+        'Could not commit — git extension unavailable or folder is not a git repo. Files were still saved.',
+      );
+    }
+  }
+}
+
+/** Human-readable summary for the confirmation modal. */
+function describeProfile(profile: ProjectProfile): string {
+  const parts: string[] = [];
+  parts.push(`Detected: ${profile.frameworkName ?? capitalize(profile.language)}`);
+  parts.push(`Component type: ${profile.componentType}`);
+  if (profile.port !== undefined) parts.push(`Port: ${profile.port}`);
+  parts.push(`Build workflow: ${profile.workflow.name}`);
+  parts.push(`Component name: ${profile.projectName}`);
+  if (profile.confidence !== 'high') parts.push(`Confidence: ${profile.confidence}`);
+  return parts.join('\n');
+}
+
+function capitalize(s: string): string {
+  return s.length === 0 ? s : s[0].toUpperCase() + s.slice(1);
+}
+
+/** Multi-step QuickPick to let the user override name, componentType, port. */
+async function promptForAdjustments(
+  profile: ProjectProfile,
+): Promise<ProjectProfile | undefined> {
+  const newName = await vscode.window.showInputBox({
+    prompt: 'Component name',
+    value: profile.projectName,
+    validateInput: (v) => {
+      if (!v) return 'Name is required';
+      if (!/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/.test(v)) {
+        return 'Must be lowercase DNS label: letters, digits, hyphens';
+      }
+      return undefined;
+    },
+  });
+  if (newName === undefined) return undefined;
+
+  const componentTypes: Array<{ label: string; value: ProjectProfile['componentType'] }> = [
+    { label: 'service', value: 'service' },
+    { label: 'web-application', value: 'web-application' },
+    { label: 'scheduled-task', value: 'scheduled-task' },
+    { label: 'worker', value: 'worker' },
+  ];
+  const ctPick = await vscode.window.showQuickPick(
+    componentTypes.map((c) => ({
+      ...c,
+      description: c.value === profile.componentType ? '(current)' : undefined,
+    })),
+    { placeHolder: 'Component type' },
+  );
+  if (!ctPick) return undefined;
+
+  const portStr = await vscode.window.showInputBox({
+    prompt: 'Container port (leave empty for none)',
+    value: profile.port !== undefined ? String(profile.port) : '',
+    validateInput: (v) => {
+      if (!v) return undefined;
+      const n = parseInt(v, 10);
+      if (Number.isNaN(n) || n < 1 || n > 65535) return 'Must be 1–65535';
+      return undefined;
+    },
+  });
+  if (portStr === undefined) return undefined;
+
+  return {
+    ...profile,
+    projectName: newName,
+    componentType: ctPick.value,
+    port: portStr ? parseInt(portStr, 10) : undefined,
+  };
+}
+
+/**
+ * Open a preview of a YAML file in an untitled document so the user can
+ * review before saving to disk.
+ */
+async function showPreview(
+  relPath: string,
+  content: string,
+  languageId: string,
+  column: vscode.ViewColumn = vscode.ViewColumn.Active,
+): Promise<void> {
+  const doc = await vscode.workspace.openTextDocument({
+    content,
+    language: languageId,
+  });
+  await vscode.window.showTextDocument(doc, { viewColumn: column, preview: false });
+  // We open both files in separate tabs; the relPath is shown in the description only,
+  // as untitled documents don't carry a path. The actual write uses the fixed path.
+  void relPath;
 }
 
 /** Open a scaffold YAML on the openchoreo:// filesystem so Cmd+S creates on cluster. */

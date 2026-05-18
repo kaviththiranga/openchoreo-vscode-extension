@@ -341,6 +341,12 @@
         "title": "View Events",
         "category": "OpenChoreo",
         "icon": "$(list-unordered)"
+      },
+      {
+        "command": "openchoreo.scaffoldFromProject",
+        "title": "Scaffold Component from this Project",
+        "category": "OpenChoreo",
+        "icon": "$(wand)"
       }
     ],
     "menus": {
@@ -490,7 +496,11 @@
   },
   "dependencies": {
     "@openchoreo/openchoreo-client-node": "link:/Users/kavithlokuhewage/git/backstage-plugins/packages/openchoreo-client-node",
+    "@vercel/frameworks": "^3.24",
+    "dockerfile-ast": "^0.7",
+    "fast-xml-parser": "^5.7",
     "openapi-fetch": "0.13.8",
+    "package-manager-detector": "^1.6",
     "vscode-languageclient": "^9.0.1",
     "yaml": "^2.6.0"
   },
