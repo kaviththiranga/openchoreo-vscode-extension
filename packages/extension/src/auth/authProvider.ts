@@ -43,12 +43,19 @@ export interface OccContext {
 }
 
 export interface AuthSession {
+  /** Bearer token. Empty string when the cluster has security disabled. */
   token: string;
   refreshToken: string;
   clientId: string;
   authMethod: string;
   controlPlaneUrl: string;
   context: OccContext;
+  /**
+   * True when the control plane requires authentication, false when the
+   * helm chart disables security. Determines whether API calls need a
+   * Bearer header and whether to skip the OIDC refresh path.
+   */
+  securityEnabled: boolean;
 }
 
 /**
@@ -89,6 +96,15 @@ export class OccConfigAuthProvider implements vscode.Disposable {
   private fileWatcher: vscode.FileSystemWatcher | undefined;
   private onDidChangeSessionEmitter = new vscode.EventEmitter<void>();
   readonly onDidChangeSession = this.onDidChangeSessionEmitter.event;
+
+  /**
+   * Cache of `openchoreo_security_enabled` per control-plane URL, populated
+   * by `probeSecurityEnabled()`. Missing entry = "not probed yet"; we treat
+   * that as "security enabled" (the safer default) until the probe answers.
+   */
+  private securityEnabledCache = new Map<string, boolean>();
+  /** Tracks URLs with an in-flight probe so we don't fire duplicates. */
+  private inflightProbes = new Set<string>();
 
   constructor(private readonly context: vscode.ExtensionContext) {
     this.loadConfig();
@@ -144,12 +160,24 @@ export class OccConfigAuthProvider implements vscode.Disposable {
    */
   reload(): void {
     this.loadConfig();
+    // A reload follows occ login/logout/context-switch; invalidate the
+    // security-enabled cache so a flipped-config control plane is re-probed.
+    this.securityEnabledCache.clear();
+    this.inflightProbes.clear();
     this.onDidChangeSessionEmitter.fire();
   }
 
   /**
    * Get the current authentication session from the occ CLI config.
-   * Returns undefined if not logged in or config doesn't exist.
+   *
+   * Returns a session when either:
+   *  - the credential has a token (normal auth-enabled flow), or
+   *  - the control-plane URL has been probed and reported
+   *    `openchoreo_security_enabled: false` (auth-disabled flow).
+   *
+   * For a tokenless credential where security state is unknown, kicks off
+   * an async probe and returns undefined for now. The probe fires
+   * onDidChangeSession when it completes so the sidebar re-renders.
    */
   getSession(): AuthSession | undefined {
     if (!this.config) {
@@ -166,7 +194,7 @@ export class OccConfigAuthProvider implements vscode.Disposable {
     const credential = this.config.credentials.find(
       (c) => c.name === currentCtx.credentials,
     );
-    if (!credential || !credential.token) {
+    if (!credential) {
       return undefined;
     }
 
@@ -177,23 +205,80 @@ export class OccConfigAuthProvider implements vscode.Disposable {
       return undefined;
     }
 
-    return {
-      token: credential.token,
+    const baseSession = {
       refreshToken: credential.refreshToken,
       clientId: credential.clientId,
       authMethod: credential.authMethod,
       controlPlaneUrl: controlPlane.url,
       context: currentCtx,
     };
+
+    if (credential.token) {
+      // Normal auth-enabled session. Don't bother probing — having a token
+      // already implies the server issued one, which means security is on.
+      return {
+        ...baseSession,
+        token: credential.token,
+        securityEnabled: true,
+      };
+    }
+
+    // Tokenless credential: check the probe cache for this control-plane URL.
+    const cached = this.securityEnabledCache.get(controlPlane.url);
+    if (cached === false) {
+      return { ...baseSession, token: '', securityEnabled: false };
+    }
+    if (cached === true) {
+      // Server confirmed it needs auth but we have no token — not logged in.
+      return undefined;
+    }
+
+    // Not probed yet — fire-and-forget; the next change event will surface it.
+    void this.probeSecurityEnabled(controlPlane.url);
+    return undefined;
+  }
+
+  /**
+   * Probe the control-plane's OAuth metadata to learn whether it requires
+   * authentication. Caches the result and fires onDidChangeSession so any
+   * pending tokenless session is re-evaluated.
+   */
+  private async probeSecurityEnabled(controlPlaneUrl: string): Promise<void> {
+    if (this.inflightProbes.has(controlPlaneUrl)) return;
+    if (this.securityEnabledCache.has(controlPlaneUrl)) return;
+    this.inflightProbes.add(controlPlaneUrl);
+    try {
+      const metadata = await this.fetchAuthMetadata(controlPlaneUrl);
+      if (!metadata) {
+        // Probe failed (network error or 404). Leave the cache empty so
+        // we can retry later; treat the session as not connected for now.
+        return;
+      }
+      this.securityEnabledCache.set(
+        controlPlaneUrl,
+        metadata.openchoreo_security_enabled,
+      );
+      this.onDidChangeSessionEmitter.fire();
+    } finally {
+      this.inflightProbes.delete(controlPlaneUrl);
+    }
   }
 
   /**
    * Get a valid access token, refreshing if necessary.
+   *
+   * Returns `''` (empty string) when security is disabled — callers
+   * should check `session.securityEnabled` first and skip the
+   * Authorization header entirely in that case.
    */
   async getToken(): Promise<string | undefined> {
     const session = this.getSession();
     if (!session) {
       return undefined;
+    }
+
+    if (!session.securityEnabled) {
+      return '';
     }
 
     // Check if token is expired

@@ -7,6 +7,8 @@ interface NamespaceHeaderProps {
   namespace?: string;
   contextName?: string;
   userDisplayName?: string;
+  /** True when the cluster has authentication disabled. */
+  securityDisabled?: boolean;
   onSelectNamespace: () => void;
   onSwitchContext: () => void;
   onLogout: () => void;
@@ -16,6 +18,7 @@ export function NamespaceHeader({
   namespace,
   contextName,
   userDisplayName,
+  securityDisabled,
   onSelectNamespace,
   onSwitchContext,
   onLogout,
@@ -23,11 +26,24 @@ export function NamespaceHeader({
   const ocChar = getFontChar('logo');
   const nsChar = getFontChar('apartment');
 
-  const logoutTitle = 'Logout from OpenChoreo (also logs out the occ CLI)';
+  // When auth is disabled, occ logout still works (it clears the local
+  // context entry) but the wording "logout" implies an authenticated
+  // session is being terminated — soften it.
+  const logoutTitle = securityDisabled
+    ? 'Disconnect from OpenChoreo context (clears the local context entry)'
+    : 'Logout from OpenChoreo (also logs out the occ CLI)';
+
+  const authDisabledTitle =
+    'This OpenChoreo cluster has authentication disabled. The extension is connected without credentials.';
+
+  // With auth disabled, there is no JWT identity, so the user chip is
+  // suppressed entirely — the auth-disabled badge takes its place
+  // on the chips row.
+  const showUserChip = !!userDisplayName && !securityDisabled;
 
   return (
     <div class="context-header-wrapper">
-      {userDisplayName ? (
+      {showUserChip ? (
         <div class="user-chip-row">
           <div class="user-chip" title={userDisplayName}>
             <i class="codicon codicon-account chip-leading-icon" />
@@ -61,7 +77,17 @@ export function NamespaceHeader({
           <span class="chip-text">{namespace || 'None'}</span>
           <i class="codicon codicon-chevron-down chip-arrow" />
         </button>
-        {!userDisplayName && (
+        {securityDisabled && (
+          <span
+            class="auth-disabled-badge"
+            title={authDisabledTitle}
+            aria-label={authDisabledTitle}
+          >
+            <i class="codicon codicon-unlock" />
+            <span class="auth-disabled-label">auth off</span>
+          </span>
+        )}
+        {!showUserChip && (
           <button
             class="header-icon-button"
             title={logoutTitle}

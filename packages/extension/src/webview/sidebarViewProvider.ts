@@ -233,6 +233,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
       cliVersion: cliInfo.version,
       cliVersionDetails: cliInfo.versionDetails,
       loginError,
+      securityDisabled: session ? !session.securityEnabled : undefined,
     };
     this.postMessage({ type: 'setAuthState', state });
   }

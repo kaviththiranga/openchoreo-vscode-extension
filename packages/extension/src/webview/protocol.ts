@@ -38,6 +38,12 @@ export interface AuthState {
   /** Full `occ version` output — shown as a tooltip on the cliVersion footnote. */
   cliVersionDetails?: string;
   loginError?: string;
+  /**
+   * True when the control plane reports `openchoreo_security_enabled: false`.
+   * The sidebar uses this to show an "auth disabled" badge and hide the user
+   * chip (there's no JWT identity when auth is disabled).
+   */
+  securityDisabled?: boolean;
 }
 
 // ── Webview → Extension ──────────────────────────────────────────────

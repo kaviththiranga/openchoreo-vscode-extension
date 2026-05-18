@@ -148,6 +148,32 @@ body {
   font-size: 14px;
 }
 
+.auth-disabled-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  padding: 0 6px;
+  margin-left: 4px;
+  border-radius: 3px;
+  background: var(--vscode-inputValidation-warningBackground, var(--vscode-editorWarning-background, transparent));
+  color: var(--vscode-inputValidation-warningForeground, var(--vscode-editorWarning-foreground, var(--vscode-foreground)));
+  border: 1px solid var(--vscode-inputValidation-warningBorder, var(--vscode-editorWarning-border, transparent));
+  font-size: 11px;
+  flex-shrink: 0;
+  cursor: help;
+}
+
+.auth-disabled-badge .codicon {
+  font-size: 12px;
+}
+
+.auth-disabled-label {
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
 .context-chip .codicon {
   flex-shrink: 0;
   font-size: 14px;

@@ -29,25 +29,35 @@ export class ApiClientManager {
       return undefined;
     }
 
-    const token = await this.authProvider.getToken();
-    if (!token) {
-      return undefined;
+    let token: string | undefined;
+    if (session.securityEnabled) {
+      const fetched = await this.authProvider.getToken();
+      if (!fetched) {
+        return undefined;
+      }
+      token = fetched;
     }
+    // When security is disabled, `token` stays undefined and
+    // createOpenChoreoApiClient omits the Authorization header entirely
+    // (see factory.ts in @openchoreo/openchoreo-client-node).
 
     const baseUrl = session.controlPlaneUrl;
+    const cacheKey = token ?? '';
 
     if (
       this.client &&
       this.clientBaseUrl === baseUrl &&
-      this.clientToken === token
+      this.clientToken === cacheKey
     ) {
       return this.client;
     }
 
-    log.debug(`Creating API client for ${baseUrl}`);
+    log.debug(
+      `Creating API client for ${baseUrl} (auth: ${session.securityEnabled ? 'bearer' : 'disabled'})`,
+    );
     this.client = createOpenChoreoApiClient({ baseUrl, token });
     this.clientBaseUrl = baseUrl;
-    this.clientToken = token;
+    this.clientToken = cacheKey;
     return this.client;
   }
 

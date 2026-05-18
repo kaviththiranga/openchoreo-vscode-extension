@@ -55,9 +55,10 @@ export class StatusBarManager implements vscode.Disposable {
       return;
     }
 
+    const session = this.authProvider.getSession();
     const contextInfo = this.authProvider.getContextInfo();
 
-    if (!contextInfo) {
+    if (!session || !contextInfo) {
       this.statusBarItem.text = '$(warning) OC: Not connected';
       this.statusBarItem.tooltip =
         'Not connected to OpenChoreo. Click to login.';
@@ -68,29 +69,38 @@ export class StatusBarManager implements vscode.Disposable {
       return;
     }
 
-    // Check if token is still valid (getToken refreshes if expired)
-    const token = await this.authProvider.getToken();
-    if (!token) {
-      this.statusBarItem.text = '$(warning) OC: Session expired';
-      this.statusBarItem.tooltip =
-        'Session expired. Click to login.';
-      this.statusBarItem.command = 'openchoreo.login';
-      this.statusBarItem.backgroundColor = new vscode.ThemeColor(
-        'statusBarItem.warningBackground',
-      );
-      return;
+    // Only validate the token when the cluster actually requires auth.
+    // For security-disabled clusters getToken() returns '' (empty string) —
+    // a falsy value that does NOT mean "expired".
+    if (session.securityEnabled) {
+      const token = await this.authProvider.getToken();
+      if (!token) {
+        this.statusBarItem.text = '$(warning) OC: Session expired';
+        this.statusBarItem.tooltip =
+          'Session expired. Click to login.';
+        this.statusBarItem.command = 'openchoreo.login';
+        this.statusBarItem.backgroundColor = new vscode.ThemeColor(
+          'statusBarItem.warningBackground',
+        );
+        return;
+      }
     }
 
     this.statusBarItem.command = 'openchoreo.switchContext';
 
     const ns = contextInfo.namespace || 'none';
-    this.statusBarItem.text = `$(openchoreo-logo) ${contextInfo.contextName} $(openchoreo-apartment) ${ns}`;
-    this.statusBarItem.tooltip = [
+    const authSuffix = session.securityEnabled ? '' : ' $(unlock)';
+    this.statusBarItem.text = `$(openchoreo-logo) ${contextInfo.contextName} $(openchoreo-apartment) ${ns}${authSuffix}`;
+    const tooltipLines = [
       `Context: ${contextInfo.contextName}`,
       `Namespace: ${ns}`,
       `Project: ${contextInfo.project}`,
       `API: ${contextInfo.controlPlaneUrl}`,
-    ].join('\n');
+    ];
+    if (!session.securityEnabled) {
+      tooltipLines.push('', 'Authentication disabled on this cluster.');
+    }
+    this.statusBarItem.tooltip = tooltipLines.join('\n');
     this.statusBarItem.backgroundColor = undefined;
   }
 

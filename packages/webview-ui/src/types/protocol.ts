@@ -38,6 +38,11 @@ export interface AuthState {
   cliVersionDetails?: string;
   /** Populated when status === 'login-failed'. Last lines of stderr from `occ login`. */
   loginError?: string;
+  /**
+   * True when the cluster has authentication disabled. Sidebar shows an
+   * "auth disabled" badge and hides the user chip (no JWT identity exists).
+   */
+  securityDisabled?: boolean;
 }
 
 // Webview → Extension
