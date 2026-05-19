@@ -85,6 +85,18 @@ export function buildPutRequest(
         params: { path: { namespaceName: ns, releaseBindingName: name } },
         body: rest,
       };
+    case 'Resource':
+      return {
+        path: '/api/v1/namespaces/{namespaceName}/resources/{resourceName}',
+        params: { path: { namespaceName: ns, resourceName: name } },
+        body: rest,
+      };
+    case 'ResourceReleaseBinding':
+      return {
+        path: '/api/v1/namespaces/{namespaceName}/resourcereleasebindings/{resourceReleaseBindingName}',
+        params: { path: { namespaceName: ns, resourceReleaseBindingName: name } },
+        body: rest,
+      };
     case 'Workflow':
       return {
         path: '/api/v1/namespaces/{namespaceName}/workflows/{workflowName}',
@@ -391,6 +403,33 @@ export async function fetchResource(
         { params: { path: { namespaceName: ns, releaseBindingName: name } } },
       );
       if (error) throw new Error(`Failed to fetch release binding: ${JSON.stringify(error)}`);
+      return data;
+    }
+    case 'resource': {
+      if (!ns || !name) throw new Error('Namespace and name required for resource');
+      const { data, error } = await client.GET(
+        '/api/v1/namespaces/{namespaceName}/resources/{resourceName}',
+        { params: { path: { namespaceName: ns, resourceName: name } } },
+      );
+      if (error) throw new Error(`Failed to fetch resource: ${JSON.stringify(error)}`);
+      return data;
+    }
+    case 'resource-release': {
+      if (!ns || !name) throw new Error('Namespace and name required for resource release');
+      const { data, error } = await client.GET(
+        '/api/v1/namespaces/{namespaceName}/resourcereleases/{resourceReleaseName}',
+        { params: { path: { namespaceName: ns, resourceReleaseName: name } } },
+      );
+      if (error) throw new Error(`Failed to fetch resource release: ${JSON.stringify(error)}`);
+      return data;
+    }
+    case 'resource-release-binding': {
+      if (!ns || !name) throw new Error('Namespace and name required for resource release binding');
+      const { data, error } = await client.GET(
+        '/api/v1/namespaces/{namespaceName}/resourcereleasebindings/{resourceReleaseBindingName}',
+        { params: { path: { namespaceName: ns, resourceReleaseBindingName: name } } },
+      );
+      if (error) throw new Error(`Failed to fetch resource release binding: ${JSON.stringify(error)}`);
       return data;
     }
     case 'namespace-role': {

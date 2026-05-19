@@ -169,6 +169,14 @@ export class ResourceExplorerProvider
           return this.fetchComponentReleases(client, element);
         case 'release-bindings':
           return this.fetchReleaseBindings(client, element);
+        case 'project-resources':
+          return this.fetchProjectResources(client, element);
+        case 'resource-children':
+          return this.buildResourceChildren(element);
+        case 'resource-releases':
+          return this.fetchResourceReleases(client, element);
+        case 'resource-release-bindings':
+          return this.fetchResourceReleaseBindings(client, element);
         case 'workflow-run-steps':
           return this.fetchWorkflowRunSteps(element);
         case 'k8s-resource-tree':
@@ -189,7 +197,10 @@ export class ResourceExplorerProvider
   }
 
   private static readonly EDITABLE_TYPES: ReadonlySet<ResourceNodeType> =
-    new Set(['project', 'component', 'deployment-pipeline', 'workload', 'release-binding']);
+    new Set([
+      'project', 'component', 'deployment-pipeline', 'workload', 'release-binding',
+      'resource', 'resource-release-binding',
+    ]);
 
   /** Types that support creating child resources via inline "+" button. */
   private static readonly CREATABLE_TYPES: ReadonlySet<ResourceNodeType> =
@@ -264,6 +275,29 @@ export class ResourceExplorerProvider
         childrenMode: 'lazy',
         lazyChildrenKey: 'component-children',
       });
+    }
+
+    // Fetch resources for this project. Silently skip the branch if the
+    // cluster's API doesn't yet expose /resources (older controller).
+    try {
+      const { data: resourcesData, error: resourcesError } = await client.GET(
+        '/api/v1/namespaces/{namespaceName}/resources',
+        { params: { path: { namespaceName: ns }, query: { project: proj } } },
+      );
+      if (!resourcesError && resourcesData) {
+        const count = resourcesData.items?.length ?? 0;
+        children.push({
+          label: `Resources (${count})`,
+          type: 'resource-category',
+          contextValue: 'resource-category',
+          namespace: ns,
+          project: proj,
+          childrenMode: 'lazy',
+          lazyChildrenKey: 'project-resources',
+        });
+      }
+    } catch {
+      // No /resources endpoint on this control plane — keep the rest of the tree intact.
     }
 
     if (children.length === 0) {
@@ -606,6 +640,152 @@ export class ResourceExplorerProvider
     }
 
     return nodes;
+  }
+
+  private async fetchProjectResources(
+    client: Client,
+    element: ResourceNodeData,
+  ): Promise<ResourceNodeData[]> {
+    const ns = element.namespace!;
+    const proj = element.project!;
+
+    const { data, error } = await client.GET(
+      '/api/v1/namespaces/{namespaceName}/resources',
+      { params: { path: { namespaceName: ns }, query: { project: proj } } },
+    );
+
+    if (error) {
+      return [];
+    }
+
+    const items = data?.items ?? [];
+    if (items.length === 0) {
+      return [{ label: 'No resources', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
+    }
+
+    return items.map((item) => {
+      const name = (item.metadata?.name as string) ?? 'unknown';
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      const typeRef = (item as { spec?: { type?: { name?: string } } }).spec?.type?.name;
+      return {
+        label: name,
+        type: 'resource' as const,
+        contextValue: isDeleting ? 'resource' : this.resolveContextValue('resource'),
+        description: isDeleting ? (typeRef ? `${typeRef} (deleting)` : '(deleting)') : typeRef,
+        namespace: ns,
+        project: proj,
+        resourceName: name,
+        childrenMode: 'lazy' as const,
+        lazyChildrenKey: 'resource-children',
+      };
+    });
+  }
+
+  private buildResourceChildren(
+    element: ResourceNodeData,
+  ): ResourceNodeData[] {
+    const base = {
+      namespace: element.namespace,
+      project: element.project,
+      resourceName: element.resourceName,
+    };
+    return [
+      {
+        label: 'Releases',
+        type: 'resource-category',
+        icon: 'resource-release',
+        contextValue: 'resource-category',
+        ...base,
+        childrenMode: 'lazy',
+        lazyChildrenKey: 'resource-releases',
+      },
+      {
+        label: 'Release Bindings',
+        type: 'resource-category',
+        icon: 'resource-release-binding',
+        contextValue: 'resource-category',
+        ...base,
+        childrenMode: 'lazy',
+        lazyChildrenKey: 'resource-release-bindings',
+      },
+    ];
+  }
+
+  private async fetchResourceReleases(
+    client: Client,
+    element: ResourceNodeData,
+  ): Promise<ResourceNodeData[]> {
+    const { data, error } = await client.GET(
+      '/api/v1/namespaces/{namespaceName}/resourcereleases',
+      {
+        params: {
+          path: { namespaceName: element.namespace! },
+          query: { resource: element.resourceName! },
+        },
+      },
+    );
+
+    if (error) {
+      return [];
+    }
+
+    const items = data?.items ?? [];
+    if (items.length === 0) {
+      return [{ label: 'No releases', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
+    }
+
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'resource-release' as const,
+        contextValue: 'resource-release',
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: element.namespace,
+        project: element.project,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
+  }
+
+  private async fetchResourceReleaseBindings(
+    client: Client,
+    element: ResourceNodeData,
+  ): Promise<ResourceNodeData[]> {
+    const { data, error } = await client.GET(
+      '/api/v1/namespaces/{namespaceName}/resourcereleasebindings',
+      {
+        params: {
+          path: { namespaceName: element.namespace! },
+          query: { resource: element.resourceName! },
+        },
+      },
+    );
+
+    if (error) {
+      return [];
+    }
+
+    const items = data?.items ?? [];
+    if (items.length === 0) {
+      return [{ label: 'No release bindings', type: 'empty', contextValue: 'empty', childrenMode: 'none' }];
+    }
+
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      const env = (item as { spec?: { environment?: string } }).spec?.environment;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'resource-release-binding' as const,
+        contextValue: this.resolveContextValue('resource-release-binding'),
+        description: isDeleting ? (env ? `${env} (deleting)` : '(deleting)') : env,
+        namespace: element.namespace,
+        project: element.project,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
   }
 
   private async fetchWorkflowRunSteps(

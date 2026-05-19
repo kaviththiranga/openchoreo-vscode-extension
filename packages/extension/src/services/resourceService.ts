@@ -24,6 +24,9 @@ const NODE_TYPE_TO_CRD_KIND: Partial<Record<ResourceNodeType, string>> = {
   workload: 'Workload',
   'component-release': 'ComponentRelease',
   'release-binding': 'ReleaseBinding',
+  resource: 'Resource',
+  'resource-release': 'ResourceRelease',
+  'resource-release-binding': 'ResourceReleaseBinding',
   'namespace-role': 'NamespaceRole',
   'namespace-role-binding': 'NamespaceRoleBinding',
   'cluster-role': 'ClusterRole',
@@ -296,6 +299,36 @@ export class ResourceService {
         );
         if (error) {
           throw new Error(`Failed to delete cluster observability plane: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'resource': {
+        const { error } = await client.DELETE(
+          '/api/v1/namespaces/{namespaceName}/resources/{resourceName}',
+          { params: { path: { namespaceName: ns, resourceName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete resource: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'resource-release': {
+        const { error } = await client.DELETE(
+          '/api/v1/namespaces/{namespaceName}/resourcereleases/{resourceReleaseName}',
+          { params: { path: { namespaceName: ns, resourceReleaseName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete resource release: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'resource-release-binding': {
+        const { error } = await client.DELETE(
+          '/api/v1/namespaces/{namespaceName}/resourcereleasebindings/{resourceReleaseBindingName}',
+          { params: { path: { namespaceName: ns, resourceReleaseBindingName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete resource release binding: ${JSON.stringify(error)}`);
         }
         return;
       }

@@ -12,6 +12,10 @@ export type ResourceNodeType =
   | 'release-binding'
   | 'workload'
   | 'deployment-pipeline'
+  | 'resource-category'
+  | 'resource'
+  | 'resource-release'
+  | 'resource-release-binding'
   // Infrastructure view nodes (namespace-scoped)
   | 'infra-category'
   | 'environment'

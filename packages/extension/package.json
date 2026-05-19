@@ -464,12 +464,12 @@
         },
         {
           "command": "openchoreo.addToChat",
-          "when": "webviewId == openchoreo.sidebar && nodeType && nodeType != 'no-connection' && nodeType != empty && nodeType != 'component-category' && nodeType != 'infra-category'",
+          "when": "webviewId == openchoreo.sidebar && nodeType && nodeType != 'no-connection' && nodeType != empty && nodeType != 'component-category' && nodeType != 'infra-category' && nodeType != 'resource-category'",
           "group": "4_chat"
         },
         {
           "command": "openchoreo.addYamlToChat",
-          "when": "webviewId == openchoreo.sidebar && nodeType && nodeType != 'no-connection' && nodeType != empty && nodeType != 'component-category' && nodeType != 'infra-category'",
+          "when": "webviewId == openchoreo.sidebar && nodeType && nodeType != 'no-connection' && nodeType != empty && nodeType != 'component-category' && nodeType != 'infra-category' && nodeType != 'resource-category'",
           "group": "4_chat"
         }
       ],

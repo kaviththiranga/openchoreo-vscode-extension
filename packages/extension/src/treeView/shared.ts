@@ -57,6 +57,10 @@ const THEME_ICON_MAP: Record<ResourceNodeType, string> = {
   'release-binding': 'openchoreo-link',
   workload: 'openchoreo-storage',
   'deployment-pipeline': 'openchoreo-account-tree',
+  'resource-category': 'symbol-folder',
+  resource: 'database',
+  'resource-release': 'tag',
+  'resource-release-binding': 'link',
   // Infrastructure view (namespace-scoped)
   'infra-category': 'symbol-folder',
   environment: 'openchoreo-cloud',
@@ -153,7 +157,8 @@ export function buildNodeId(node: ResourceNodeData): string {
   }
   if (
     node.type === 'component-category' ||
-    node.type === 'infra-category'
+    node.type === 'infra-category' ||
+    node.type === 'resource-category'
   ) {
     parts.push(node.label);
   }
@@ -192,7 +197,7 @@ export function toTreeItem(element: ResourceNodeData): vscode.TreeItem {
   // Non-clickable node types
   const NON_CLICKABLE: ReadonlySet<string> = new Set([
     'no-connection', 'empty', 'component-category', 'infra-category',
-    'workflow-run-step', 'k8s-rendered-release',
+    'resource-category', 'workflow-run-step', 'k8s-rendered-release',
   ]);
 
   // "Not connected" / "Session expired" nodes trigger login on click

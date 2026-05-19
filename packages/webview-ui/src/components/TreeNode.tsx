@@ -41,7 +41,7 @@ export function buildNodeId(parentPath: string, node: ResourceNodeData): string 
 
 const NON_CLICKABLE = new Set([
   'no-connection', 'empty', 'component-category', 'infra-category',
-  'workflow-run-step', 'k8s-rendered-release',
+  'resource-category', 'workflow-run-step', 'k8s-rendered-release',
 ]);
 
 export function TreeNode({ node, section, depth, parentPath, childrenMap, expandedNodes, selectedNodeId, activeGuideDepth, onToggleNode, onRequestChildren, onNodeClick, onSelectNode }: TreeNodeProps) {
