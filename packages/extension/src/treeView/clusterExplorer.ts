@@ -90,6 +90,14 @@ export class ClusterExplorerProvider
         lazyChildrenKey: 'cluster-component-types',
       },
       {
+        label: 'Cluster Resource Types',
+        type: 'infra-category',
+        icon: 'cluster-resource-type',
+        contextValue: 'infra-category_creatable',
+        childrenMode: 'lazy',
+        lazyChildrenKey: 'cluster-resource-types',
+      },
+      {
         label: 'Cluster Workflows',
         type: 'infra-category',
         icon: 'cluster-workflow',
@@ -160,6 +168,7 @@ export class ClusterExplorerProvider
   private static readonly EDITABLE_TYPES: ReadonlySet<ResourceNodeType> =
     new Set([
       'cluster-component-type',
+      'cluster-resource-type',
       'cluster-workflow',
       'cluster-trait',
       'cluster-data-plane',
@@ -189,6 +198,8 @@ export class ClusterExplorerProvider
       switch (element.lazyChildrenKey) {
         case 'cluster-component-types':
           return this.fetchClusterList('/api/v1/clustercomponenttypes', 'cluster-component-type');
+        case 'cluster-resource-types':
+          return this.fetchClusterList('/api/v1/clusterresourcetypes', 'cluster-resource-type');
         case 'cluster-workflows':
           return this.fetchClusterWorkflows();
         case 'cluster-traits':

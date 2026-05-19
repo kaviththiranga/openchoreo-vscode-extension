@@ -147,6 +147,15 @@ export class InfrastructureExplorerProvider
         lazyChildrenKey: 'component-types',
       },
       {
+        label: 'Resource Types',
+        type: 'infra-category',
+        icon: 'resource-type',
+        contextValue: 'infra-category_creatable',
+        namespace: ns,
+        childrenMode: 'lazy',
+        lazyChildrenKey: 'resource-types',
+      },
+      {
         label: 'Workflows',
         type: 'infra-category',
         icon: 'workflow',
@@ -207,6 +216,7 @@ export class InfrastructureExplorerProvider
   private static readonly EDITABLE_TYPES: ReadonlySet<ResourceNodeType> =
     new Set([
       'component-type',
+      'resource-type',
       'workflow',
       'trait',
       'environment',
@@ -249,6 +259,8 @@ export class InfrastructureExplorerProvider
           return this.fetchObservabilityPlanes(element.namespace!);
         case 'component-types':
           return this.fetchComponentTypes(element.namespace!);
+        case 'resource-types':
+          return this.fetchResourceTypes(element.namespace!);
         case 'workflows':
           return this.fetchWorkflows(element.namespace!);
         case 'workflow-runs-by-workflow':
@@ -444,6 +456,43 @@ export class InfrastructureExplorerProvider
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'component-type' as const,
         contextValue: isDeleting ? 'component-type' : this.resolveContextValue('component-type'),
+        description: isDeleting ? '(deleting)' : undefined,
+        namespace: ns,
+        resourceName: item.metadata?.name as string,
+        childrenMode: 'none' as const,
+      };
+    });
+  }
+
+  private async fetchResourceTypes(ns: string): Promise<ResourceNodeData[]> {
+    const client = await this.requireClient();
+    const { data, error } = await client.GET(
+      '/api/v1/namespaces/{namespaceName}/resourcetypes',
+      { params: { path: { namespaceName: ns } } },
+    );
+
+    if (error) {
+      return [];
+    }
+
+    const items = data?.items ?? [];
+    if (items.length === 0) {
+      return [
+        {
+          label: 'No resource types',
+          type: 'empty',
+          contextValue: 'empty',
+          childrenMode: 'none',
+        },
+      ];
+    }
+
+    return items.map((item) => {
+      const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
+      return {
+        label: (item.metadata?.name as string) ?? 'unknown',
+        type: 'resource-type' as const,
+        contextValue: isDeleting ? 'resource-type' : this.resolveContextValue('resource-type'),
         description: isDeleting ? '(deleting)' : undefined,
         namespace: ns,
         resourceName: item.metadata?.name as string,

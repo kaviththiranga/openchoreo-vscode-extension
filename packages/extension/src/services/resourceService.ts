@@ -11,6 +11,8 @@ type Client = NonNullable<
 /** Maps tree-view node types to their PascalCase CRD kind (used by apply command). */
 const NODE_TYPE_TO_CRD_KIND: Partial<Record<ResourceNodeType, string>> = {
   'component-type': 'ComponentType',
+  'resource-type': 'ResourceType',
+  'cluster-resource-type': 'ClusterResourceType',
   workflow: 'Workflow',
   trait: 'Trait',
   project: 'Project',
@@ -45,6 +47,7 @@ const CLUSTER_SCOPED_KINDS = new Set([
   'ClusterRole',
   'ClusterRoleBinding',
   'ClusterComponentType',
+  'ClusterResourceType',
   'ClusterWorkflow',
   'ClusterTrait',
   'ClusterDataPlane',
@@ -98,6 +101,26 @@ export class ResourceService {
         );
         if (error) {
           throw new Error(`Failed to delete component type: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'resource-type': {
+        const { error } = await client.DELETE(
+          '/api/v1/namespaces/{namespaceName}/resourcetypes/{rtName}',
+          { params: { path: { namespaceName: ns, rtName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete resource type: ${JSON.stringify(error)}`);
+        }
+        return;
+      }
+      case 'cluster-resource-type': {
+        const { error } = await client.DELETE(
+          '/api/v1/clusterresourcetypes/{crtName}',
+          { params: { path: { crtName: name } } },
+        );
+        if (error) {
+          throw new Error(`Failed to delete cluster resource type: ${JSON.stringify(error)}`);
         }
         return;
       }

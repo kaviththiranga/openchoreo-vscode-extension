@@ -7,6 +7,7 @@ import { stringify } from 'yaml';
 export const DEFINITION_RESOURCE_TYPES = new Set([
   'namespace',
   'component-type',
+  'resource-type',
   'workflow',
   'trait',
   'project',
@@ -27,6 +28,7 @@ export const DEFINITION_RESOURCE_TYPES = new Set([
   'cluster-role-binding',
   // Cluster-scoped resources
   'cluster-component-type',
+  'cluster-resource-type',
   'cluster-workflow',
   'cluster-trait',
   'cluster-data-plane',

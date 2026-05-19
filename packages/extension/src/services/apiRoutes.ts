@@ -109,6 +109,18 @@ export function buildPutRequest(
         params: { path: { namespaceName: ns, ctName: name } },
         body: rest,
       };
+    case 'ResourceType':
+      return {
+        path: '/api/v1/namespaces/{namespaceName}/resourcetypes/{rtName}',
+        params: { path: { namespaceName: ns, rtName: name } },
+        body: rest,
+      };
+    case 'ClusterResourceType':
+      return {
+        path: '/api/v1/clusterresourcetypes/{crtName}',
+        params: { path: { crtName: name } },
+        body: rest,
+      };
     case 'Trait':
       return {
         path: '/api/v1/namespaces/{namespaceName}/traits/{traitName}',
@@ -218,6 +230,10 @@ export function buildPostRequest(
       return { path: '/api/v1/namespaces/{namespaceName}/workflows', params: { path: { namespaceName: ns } }, body: rest };
     case 'ComponentType':
       return { path: '/api/v1/namespaces/{namespaceName}/componenttypes', params: { path: { namespaceName: ns } }, body: rest };
+    case 'ResourceType':
+      return { path: '/api/v1/namespaces/{namespaceName}/resourcetypes', params: { path: { namespaceName: ns } }, body: rest };
+    case 'ClusterResourceType':
+      return { path: '/api/v1/clusterresourcetypes', params: { path: {} }, body: rest };
     case 'Trait':
       return { path: '/api/v1/namespaces/{namespaceName}/traits', params: { path: { namespaceName: ns } }, body: rest };
     case 'ReleaseBinding':
@@ -277,6 +293,24 @@ export async function fetchResource(
         { params: { path: { namespaceName: ns, ctName: name } } },
       );
       if (error) throw new Error(`Failed to fetch component type: ${JSON.stringify(error)}`);
+      return data;
+    }
+    case 'resource-type': {
+      if (!ns || !name) throw new Error('Namespace and name required for resource type');
+      const { data, error } = await client.GET(
+        '/api/v1/namespaces/{namespaceName}/resourcetypes/{rtName}',
+        { params: { path: { namespaceName: ns, rtName: name } } },
+      );
+      if (error) throw new Error(`Failed to fetch resource type: ${JSON.stringify(error)}`);
+      return data;
+    }
+    case 'cluster-resource-type': {
+      if (!name) throw new Error('Name required for cluster resource type');
+      const { data, error } = await client.GET(
+        '/api/v1/clusterresourcetypes/{crtName}',
+        { params: { path: { crtName: name } } },
+      );
+      if (error) throw new Error(`Failed to fetch cluster resource type: ${JSON.stringify(error)}`);
       return data;
     }
     case 'workflow': {

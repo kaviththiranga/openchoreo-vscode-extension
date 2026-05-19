@@ -23,6 +23,7 @@ export type ResourceNodeType =
   | 'workflow-plane'
   | 'observability-plane'
   | 'component-type'
+  | 'resource-type'
   | 'workflow'
   | 'trait'
   | 'secret-reference'
@@ -32,6 +33,7 @@ export type ResourceNodeType =
   | 'cluster-role-binding'
   // Infrastructure view nodes (cluster-scoped)
   | 'cluster-component-type'
+  | 'cluster-resource-type'
   | 'cluster-workflow'
   | 'cluster-trait'
   | 'cluster-data-plane'

@@ -38,9 +38,11 @@ const DELETABLE_TYPES: ReadonlySet<ResourceNodeType> = new Set([
   'environment', 'data-plane', 'workflow-plane', 'observability-plane',
   'deployment-pipeline', 'workload', 'secret-reference', 'release-binding',
   'resource', 'resource-release', 'resource-release-binding',
+  'resource-type',
   // Cluster-scoped
   'cluster-component-type', 'cluster-workflow', 'cluster-trait',
   'cluster-data-plane', 'cluster-workflow-plane', 'cluster-observability-plane',
+  'cluster-resource-type',
 ]);
 
 interface ActionCapability {
