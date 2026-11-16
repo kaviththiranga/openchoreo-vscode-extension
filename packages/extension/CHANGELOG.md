@@ -21,6 +21,8 @@ Targets OpenChoreo 1.3 (works with 1.4 milestones).
 - **Run Now** for scheduled-task (cronjob) components from a release binding (1.3+)
 - Project Types and Cluster Project Types in the platform trees, Project Bindings under each project, and create templates for both type kinds (1.3)
 - New Project scaffolds include the `spec.type` reference that OpenChoreo 1.3 requires
+- Fix hover showing nothing for a key that follows a sibling with nested fields (e.g. `deploymentPipelineRef` after `type:`)
+- End-to-end tests in a real VS Code instance (`pnpm test:e2e`), run in CI and before every release; tagged releases build, test and publish automatically
 
 ## 0.1.1 — 2026-05-18
 

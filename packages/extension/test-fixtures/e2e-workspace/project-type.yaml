@@ -1,0 +1,14 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: ProjectType
+metadata:
+  name: shared
+  namespace: default
+spec:
+  bogus: true
+  resources:
+    - id: cell-namespace
+      template:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: ${metadata.namespace}

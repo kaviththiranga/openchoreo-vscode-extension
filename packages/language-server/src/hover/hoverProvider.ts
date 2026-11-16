@@ -116,6 +116,14 @@ function resolveYamlPathForHover(
     indentStack.push(indent);
   }
 
+  // Unwind to the hovered line's own level: earlier siblings (and their
+  // nested keys) at the same or deeper indent are not its ancestors.
+  const targetIndent = (lines[targetLine] ?? '').search(/\S/);
+  while (indentStack.length > 0 && targetIndent >= 0 && targetIndent <= indentStack[indentStack.length - 1]) {
+    indentStack.pop();
+    path.pop();
+  }
+
   return path;
 }
 

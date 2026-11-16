@@ -1,0 +1,11 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: Project
+metadata:
+  name: shop
+  namespace: default
+spec:
+  type:
+    kind: ClusterProjectType
+    name: default
+  deploymentPipelineRef:
+    name: standard

@@ -1,0 +1,81 @@
+name: Release
+
+# Push a tag matching the extension version (e.g. v0.2.0) to build, test,
+# create a GitHub release with the .vsix, and publish it. Marketplace and
+# Open VSX publishing run only when their token secrets are set:
+#   VSCE_PAT  — Azure DevOps PAT for the KavithLokuhewage publisher
+#   OVSX_PAT  — Open VSX access token
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      VSCE_PAT: ${{ secrets.VSCE_PAT }}
+      OVSX_PAT: ${{ secrets.OVSX_PAT }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Check the tag matches the extension version
+        run: |
+          version=$(node -p "require('./packages/extension/package.json').version")
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match packages/extension version ${version}"
+            exit 1
+          fi
+          echo "VERSION=${version}" >> "$GITHUB_ENV"
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - run: pnpm lint
+      - run: pnpm test
+      - name: End-to-end tests (real VS Code)
+        working-directory: packages/extension
+        run: |
+          command -v xvfb-run >/dev/null || (sudo apt-get update && sudo apt-get install -y xvfb)
+          xvfb-run -a pnpm test:e2e
+      - run: pnpm package
+
+      - name: Release notes from the changelog
+        run: |
+          awk -v v="$VERSION" '
+            $0 ~ "^## " v "( |$)" { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' packages/extension/CHANGELOG.md > release-notes.md
+          test -s release-notes.md || echo "See CHANGELOG.md" > release-notes.md
+
+      - name: Create GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "packages/extension/openchoreo-unofficial-${VERSION}.vsix" \
+            --title "$GITHUB_REF_NAME" --notes-file release-notes.md --verify-tag
+
+      - name: Publish to the VS Code Marketplace
+        if: env.VSCE_PAT != ''
+        working-directory: packages/extension
+        run: npx @vscode/vsce publish --packagePath "openchoreo-unofficial-${VERSION}.vsix"
+
+      - name: Publish to Open VSX
+        if: env.OVSX_PAT != ''
+        working-directory: packages/extension
+        run: npx ovsx publish "openchoreo-unofficial-${VERSION}.vsix" -p "$OVSX_PAT"
+
+      - name: Note skipped publishing
+        if: env.VSCE_PAT == '' || env.OVSX_PAT == ''
+        run: |
+          [ -n "$VSCE_PAT" ] || echo "::warning::VSCE_PAT is not set — skipped VS Code Marketplace publishing"
+          [ -n "$OVSX_PAT" ] || echo "::warning::OVSX_PAT is not set — skipped Open VSX publishing"

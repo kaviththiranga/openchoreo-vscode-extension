@@ -1,0 +1,12 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: Workload
+metadata:
+  name: greeter
+  namespace: default
+spec:
+  owner:
+    projectName: demo
+    componentName: greeter
+  container:
+    image: ghcr.io/example/greeter:1.0
+    enviroment: []

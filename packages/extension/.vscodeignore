@@ -10,6 +10,9 @@ smoke-detector.mjs
 # Build & test artifacts
 .turbo/**
 out/**
+test-fixtures/**
+.vscode-test/**
+*.vsix
 **/*.map
 **/*.test.ts
 **/*.test.js

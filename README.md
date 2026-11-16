@@ -28,6 +28,9 @@ cd packages/extension && pnpm dev
 # Run tests
 pnpm test
 
+# End-to-end tests in a real VS Code (after pnpm build; Linux CI wraps this in xvfb-run)
+cd packages/extension && pnpm test:e2e
+
 # Type check
 cd packages/extension && pnpm lint
 cd packages/language-server && pnpm lint
@@ -55,3 +58,9 @@ node scripts/generate-schemas.mjs --openchoreo <path-to-openchoreo-checkout> --r
 ## License
 
 Apache-2.0
+
+## Releasing
+
+1. Bump `version` in `packages/extension/package.json` and add a `## <version> — <date>` section to `packages/extension/CHANGELOG.md`.
+2. Push to `main`, then push a matching tag: `git tag v<version> && git push origin v<version>`.
+3. The **Release** workflow builds, runs unit and end-to-end tests, creates the GitHub release with the `.vsix` and the changelog section as notes, and publishes to the VS Code Marketplace (`VSCE_PAT` secret) and Open VSX (`OVSX_PAT` secret) when those secrets are set.
