@@ -7,7 +7,8 @@ IDE-native tooling for the [OpenChoreo](https://openchoreo.dev) developer platfo
 ## Prerequisites
 
 - **VSCode** 1.85+ (1.99+ recommended for MCP/Copilot features)
-- **occ CLI** installed and logged in — the extension reads authentication from the occ CLI config
+- **occ CLI** logged in — the extension reads authentication from the occ CLI config. If `occ` isn't installed, the extension offers to download a verified copy (v1.3.3) on first run (macOS and Linux; on Windows, install it manually)
+- **OpenChoreo 1.3** recommended. Core features work against 1.1 and 1.2; features marked *1.3+* need a 1.3 control plane, and 1.4 milestone clusters are supported (see [OpenChoreo version support](#openchoreo-version-support))
 
 ### Getting Started
 
@@ -78,11 +79,11 @@ A unified webview sidebar replaces the traditional tree views, providing a riche
 
 **Context Header** — shows the current context and namespace as clickable chips with custom icons. Click to switch context or select a namespace.
 
-**Projects** — Projects, Components, Deployment Pipelines, Workflow Runs, Releases, Release Bindings, Workloads
+**Projects** — Projects, Components, Deployment Pipelines, Workflow Runs, Releases, Release Bindings, Workloads, Resources (with their releases and bindings) and, on 1.3+, Project Bindings (each project's per-environment deployment of its project type)
 
-**Namespace Resources** — Environments, Data Planes, Workflow Planes, Observability Planes, Component Types, Workflows, Traits, Secret References, RBAC Roles & Bindings
+**Namespace Resources** — Environments, Data Planes, Workflow Planes, Observability Planes, Component Types, Resource Types, Project Types (1.3+), Workflows, Traits, Secret References, RBAC Roles & Bindings
 
-**Cluster Resources** — Cluster-scoped variants of infrastructure resources and Cluster RBAC
+**Cluster Resources** — Cluster-scoped variants of infrastructure resources (including Cluster Resource Types and Cluster Project Types) and Cluster RBAC. Kinds the connected control plane doesn't serve yet show a "Requires OpenChoreo 1.3+" hint instead of an empty list
 
 Each section has a title bar with **create (+)**, **refresh**, and **collapse all** buttons.
 
@@ -104,7 +105,7 @@ Click any resource in the tree to open it as a YAML file. The extension uses a v
 - **Edit** — make changes in the editor, file becomes dirty (dot in tab)
 - **Save (Cmd+S)** — pushes changes to the cluster via PUT with optimistic concurrency
 - **Conflict detection** — if the resource was modified on the cluster since you opened it (409 Conflict), you're prompted to reopen with the latest version
-- **Read-only resources** — Workflow Runs and Component Releases open as read-only (no PUT endpoint)
+- **Read-only resources** — Workflow Runs, Component Releases and Project Releases open as read-only (run history and immutable snapshots)
 
 ### Resource Creation
 
@@ -114,7 +115,13 @@ Click the **+** button on a tree category or project to create a new resource fr
 - Edit the template, then **Cmd+S** to create the resource on the cluster (uses POST)
 - After successful creation, the tab reopens pointing to the actual resource
 
-Available scaffolds: Project, Component, ComponentType, Trait, Environment, DataPlane, WorkflowPlane, ObservabilityPlane, Workflow, Workload, DeploymentPipeline, SecretReference, AuthzRole, AuthzRoleBinding, ClusterAuthzRole, ClusterAuthzRoleBinding
+Available scaffolds: Project, Component, ComponentType, ProjectType, Trait, Environment, DataPlane, WorkflowPlane, ObservabilityPlane, Workflow, Workload, DeploymentPipeline, SecretReference, AuthzRole, AuthzRoleBinding, ClusterComponentType, ClusterProjectType, ClusterWorkflow, ClusterTrait, ClusterDataPlane, ClusterWorkflowPlane, ClusterObservabilityPlane, ClusterAuthzRole, ClusterAuthzRoleBinding
+
+The Project scaffold includes the `spec.type` project type reference that OpenChoreo 1.3 requires (`ClusterProjectType` `default`), and leaves it out for older control planes.
+
+### Scaffold from Your Source Code
+
+**OpenChoreo: Scaffold Component from this Project** inspects the open folder (Node, Go, JVM, Python, Dockerfile), proposes a Component and Workload, previews both, and writes them to `.openchoreo/component.yaml` and `.openchoreo/workload.yaml`.
 
 ### Create Namespace
 
@@ -148,6 +155,15 @@ Expand any Release Binding in the tree to see the Kubernetes resources deployed 
 - **View Definition** — click any K8s resource to view its full YAML definition (read-only)
 - **Pod Logs** — right-click a Pod → "View Pod Logs" to stream container output with auto-refresh
 - **Resource Events** — right-click any deployed resource → "View Events" to see Kubernetes events with auto-refresh
+
+### Inner Loop (OpenChoreo 1.3+)
+
+Work against a real environment without leaving the editor:
+
+- **Run Locally Against Environment** — right-click a `workload.yaml` (or a `.openchoreo` folder) in the Explorer, or run it from the Command Palette. Pick an environment, then either open a shell whose environment variables point at local tunnels to that environment's real dependencies (run your app from it), or keep the tunnels open and print the resolved variables to copy into a debugger launch configuration. Uses `occ remote`; dependency secrets stay in the session and are never printed unless you ask
+- **Open Shell** — right-click a Component or one of its deployed environments → an interactive shell in a running pod (`occ component exec`)
+- **View Runtime Logs** — right-click a Component or one of its environments → choose a window (15 minutes to 24 hours) and an optional text filter; logs are read from the environment's observability plane and shown in an Output channel with pod and level. Works wherever the environment's data plane has an observability plane with an observer
+- **Run Now** — right-click a deployed environment of a scheduled-task (cronjob) component to start a one-off Job from its schedule
 
 ### Generate Release
 
@@ -196,19 +212,24 @@ Fields that reference other resources (marked with `x-openchoreo-ref` in schemas
 |---|---|
 | `metadata.namespace` | Accessible namespaces |
 | `spec.componentType.name` | ComponentTypes + ClusterComponentTypes |
+| `spec.type.name` (Project, 1.3+) | ProjectTypes + ClusterProjectTypes |
+| `spec.type.name` (Resource) | ResourceTypes + ClusterResourceTypes |
 | `spec.workflow.name` | Workflows + ClusterWorkflows |
 | `spec.traits[].name` | Traits + ClusterTraits |
 | `spec.owner.projectName` | Projects |
-| `spec.dataPlaneRef.name` | DataPlanes |
+| `spec.dataPlaneRef.name` | DataPlanes + ClusterDataPlanes |
+| `spec.observabilityPlaneRef.name` | ObservabilityPlanes + ClusterObservabilityPlanes |
 | `spec.deploymentPipelineRef.name` | DeploymentPipelines |
 | `spec.environment` | Environments |
-| `spec.workflowPlaneRef.name` | WorkflowPlanes |
+| `spec.workflowPlaneRef.name` | WorkflowPlanes + ClusterWorkflowPlanes |
+
+The full list lives in [`schemas/refs.json`](../../schemas/refs.json).
 
 #### Cross-Document Schema Completions
 
-When editing a **Component**, `spec.parameters` offers property completions from the referenced ComponentType's `openAPIV3Schema` — including types, defaults, and enum values.
+When editing a **Component**, `spec.parameters` offers property completions from the referenced ComponentType's `openAPIV3Schema` — including types, defaults, and enum values. **Project** `spec.parameters` (1.3+) does the same from its ProjectType, and **Resource** `spec.parameters` from its ResourceType.
 
-Similarly, **ReleaseBinding** `componentTypeEnvironmentConfigs` offers properties from the ComponentType's environment config schema. Component `spec.traits[].parameters` offers from Trait schemas.
+Component `spec.traits[].parameters` offers the parameters of the trait entry you're editing (falling back to all traits while its `name` is still empty), and **ReleaseBinding** `componentTypeEnvironmentConfigs` offers properties from component type environment config schemas.
 
 #### CEL Expression Completions
 
@@ -235,16 +256,16 @@ Inside `${...}` expressions (used in ComponentType and Trait templates), the ext
 
 - **Empty files** — scaffold templates (`oc-project`, `oc-component`, etc.)
 - **New files** — `apiVersion` and `kind` field suggestions to get started
-- **`kind:` field** — all 31 OpenChoreo CRD kinds
+- **`kind:` field** — all 43 OpenChoreo CRD kinds (1.3, plus the 1.4 additions)
 - **`apiVersion:` field** — `openchoreo.dev/v1alpha1`
 
 ### Schema Validation
 
-Real-time diagnostics as you type:
+Real-time diagnostics as you type, against JSON Schemas generated from the OpenChoreo v1.3.3 CRDs for all 37 kinds:
 
 - **Type checking** — detects mismatches (string where integer expected, etc.)
 - **Required fields** — errors for missing required properties
-- **Unknown properties** — warnings for fields not in the schema (when `additionalProperties: false`)
+- **Unknown properties** — warnings for fields the CRD doesn't define. The API server silently drops such fields, so this catches typos like `enviroment:` before they vanish; free-form fields (parameters, templates) are left open
 - **Const validation** — errors when a field doesn't match its required value
 - **Enum validation** — errors for values not in the allowed set
 - **String constraints** — warnings for `minLength`, `maxLength`, `pattern` violations
@@ -257,12 +278,12 @@ Inside `${...}` expressions:
 
 - **Unclosed expressions** — error for missing closing `}`
 - **Empty expressions** — warning for `${}`
-- **Unknown variables** — warning when the first identifier isn't a known context variable
+- **Unknown variables** — warning when the first identifier isn't a known context variable (ComponentType and Trait templates only — other kinds, such as alert notification channels, template with their own variables)
 - **Type skip** — CEL expressions correctly skip type validation (dynamic values are validated at render time, not edit time)
 
 ### Cross-Resource Reference Validation
 
-Fields referencing other resources show **warnings** if the referenced resource doesn't exist in the current namespace. Supports merged references (e.g., `ComponentType+ClusterComponentType` — checks both).
+Fields referencing other resources show **warnings** if the referenced resource doesn't exist in the current namespace. Supports merged references (e.g., `ComponentType+ClusterComponentType` — checks both). A reference is only checked when every kind it may point to could be listed, so missing permissions (e.g. no access to cluster-scoped resources) never produce false warnings.
 
 ### Hover Documentation
 
@@ -310,7 +331,7 @@ Both actions open Copilot Chat without auto-submitting, so you can compose your 
 
 The status bar shows your current connection status using the custom OpenChoreo icon font:
 
-- Connected: `[OC logo] {context} [namespace icon] {namespace}`
+- Connected: `[OC logo] {context} [namespace icon] {namespace}` — the tooltip adds the control plane URL and the server and `occ` CLI versions
 - Not connected: `OC: Not connected`
 
 Click to switch context.
@@ -329,16 +350,17 @@ View diagnostic information in **Output > OpenChoreo**:
 | Setting | Default | Description |
 |---|---|---|
 | `openchoreo.configPath` | `""` | Path to occ CLI config file. Defaults to `~/.openchoreo/config` |
+| `openchoreo.cliPath` | `""` | Path to the `occ` binary. Overrides the extension-managed download and the `PATH` lookup |
 | `openchoreo.autoRefresh` | `false` | Automatically refresh resource tree on changes |
 | `openchoreo.autoRefreshInterval` | `30` | Auto-refresh interval in seconds |
 
 ## Supported Resource Types
 
 ### Namespace-Scoped
-Project, Component, Environment, DataPlane, WorkflowPlane, ObservabilityPlane, ComponentType, Workflow, Trait, Workload, DeploymentPipeline, SecretReference, ReleaseBinding, WorkflowRun (read-only), ComponentRelease (read-only)
+Project, Component, Environment, DataPlane, WorkflowPlane, ObservabilityPlane, ComponentType, ResourceType, ProjectType (1.3+), Workflow, Trait, Workload, DeploymentPipeline, SecretReference, ReleaseBinding, Resource, ResourceReleaseBinding, ProjectReleaseBinding (1.3+), ObservabilityAlertsNotificationChannel, WorkflowRun (read-only), ComponentRelease (read-only), ResourceRelease, ProjectRelease (read-only, 1.3+)
 
 ### Cluster-Scoped
-ClusterComponentType, ClusterWorkflow, ClusterTrait, ClusterDataPlane, ClusterWorkflowPlane, ClusterObservabilityPlane, ClusterRole, ClusterRoleBinding
+ClusterComponentType, ClusterResourceType, ClusterProjectType (1.3+), ClusterWorkflow, ClusterTrait, ClusterDataPlane, ClusterWorkflowPlane, ClusterObservabilityPlane
 
 ### RBAC
 AuthzRole, AuthzRoleBinding (in Namespace Resources), ClusterAuthzRole, ClusterAuthzRoleBinding (in Cluster Resources) — full CRUD support including scaffolds, create, edit, and delete (RBAC-gated)
@@ -364,6 +386,12 @@ AuthzRole, AuthzRoleBinding (in Namespace Resources), ClusterAuthzRole, ClusterA
 | `OpenChoreo: View Step Logs` | View logs for a specific workflow run step (tree context menu) |
 | `OpenChoreo: View Step Events` | View events for a specific workflow run step (tree context menu) |
 | `OpenChoreo: View Pod Logs` | View deployed pod logs from release binding (tree context menu) |
+| `OpenChoreo: Run Locally Against Environment` | Run a workload locally against an environment's dependencies via `occ remote` (Explorer context menu, Command Palette; 1.3+) |
+| `OpenChoreo: Open Shell` | Interactive shell in a component's running pod via `occ component exec` (tree context menu; 1.3+) |
+| `OpenChoreo: View Runtime Logs` | Query a component's runtime logs from the observability plane (tree context menu) |
+| `OpenChoreo: Run Now (Scheduled Task)` | Start a one-off Job for a scheduled-task component (tree context menu; 1.3+) |
+| `OpenChoreo: Scaffold Component from this Project` | Generate Component and Workload manifests from the open source folder |
+| `OpenChoreo: Download occ CLI` | Download and verify the pinned `occ` CLI into extension storage |
 | `OpenChoreo: View Definition` | View K8s resource YAML definition (tree context menu) |
 | `OpenChoreo: Add to Chat` | Add resource reference to Copilot Chat (tree context menu) |
 | `OpenChoreo: Add YAML to Chat` | Add full resource YAML to Copilot Chat (tree context menu) |
@@ -375,7 +403,10 @@ packages/
 ├── extension/           # Main VSCode extension
 │   ├── src/
 │   │   ├── auth/        # occ CLI session & token management
-│   │   ├── api/         # Typed OpenChoreo API client
+│   │   ├── api/         # Typed OpenChoreo API client, server version parsing
+│   │   ├── kinds/       # Kind registry: API routes, scope, tree mapping, operations
+│   │   ├── cli/         # occ CLI download & resolution
+│   │   ├── scaffolder/  # Source-folder detection → Component/Workload YAML
 │   │   ├── treeView/    # Data providers (used by webview sidebar)
 │   │   ├── webview/     # WebviewViewProvider & message protocol
 │   │   ├── filesystem/  # Virtual filesystem (openchoreo://)
@@ -390,6 +421,7 @@ packages/
 │   │   ├── openchoreo-icons.json    # Codepoint map (generated)
 │   │   └── icons/                   # Material UI SVG source icons
 │   └── scripts/
+│       ├── generate-schemas.mjs     # Regenerate schemas/ from OpenChoreo CRDs
 │       └── update-icon-font.mjs     # Sync font codepoints to package.json
 ├── webview-ui/          # Preact-based sidebar webview
 │   ├── src/
@@ -405,8 +437,12 @@ packages/
 │       ├── hover/       # Hover documentation
 │       ├── symbols/     # Document symbols (outline)
 │       └── schemas/     # Schema loader
-└── schemas/             # JSON Schema files for all CRD types
+└── schemas/             # JSON Schemas generated from the OpenChoreo CRDs (+ refs.json overlay)
 ```
+
+### Kind Registry
+
+`src/kinds/registry.ts` is the single source of truth for every resource kind the OpenChoreo API serves: collection and item routes (type-checked against the client's route list, so a wrong path fails `tsc`), scope, tree node type, and which operations the tree offers. API calls, delete permissions, editability and the language-server feed all read from it. Supporting a new kind starts with a registry entry.
 
 ### Icon Font
 
@@ -418,6 +454,16 @@ pnpm generate:icons    # Generates WOFF2 font + JSON codepoints + updates packag
 ```
 
 To add a new icon: drop an SVG into `resources/icons/`, run `pnpm generate:icons`. The codepoints are auto-synced to both `package.json` (for VS Code `contributes.icons`) and the webview (via JSON import).
+
+## OpenChoreo Version Support
+
+| Control plane | Status |
+|---|---|
+| 1.3.x | Fully supported — client, `occ`, schemas and scaffolds target 1.3.3 |
+| 1.4 milestones (m.1, m.2) | Supported; 1.4-only kinds (Endpoints, Release Lines) aren't surfaced yet |
+| 1.1.x, 1.2.x | Core browsing and editing are expected to work (not re-tested for this release); *1.3+* features report that they need 1.3 |
+
+The extension reads the control plane version from `/version` when it connects.
 
 ## License
 

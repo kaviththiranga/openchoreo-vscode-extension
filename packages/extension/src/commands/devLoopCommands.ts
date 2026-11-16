@@ -267,7 +267,7 @@ async function resolveWorkloadUri(arg: unknown): Promise<vscode.Uri | undefined>
   const files = await vscode.workspace.findFiles('**/workload.{yaml,yml}', '**/node_modules/**', 50);
   if (files.length === 0) {
     vscode.window.showWarningMessage(
-      'No workload.yaml found. Open a Workload manifest, or scaffold one with "OpenChoreo: Scaffold from Project".',
+      'No workload.yaml found. Open a Workload manifest, or scaffold one with "OpenChoreo: Scaffold Component from this Project".',
     );
     return undefined;
   }

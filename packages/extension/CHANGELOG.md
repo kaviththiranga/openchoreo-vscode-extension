@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — 2026-11-16
+
+Targets OpenChoreo 1.3 (works with 1.4 milestones).
 
 - Depend on `@openchoreo/openchoreo-client-node` from public npm (^1.3.3) instead of a local checkout, so the extension builds anywhere
 - Bump the managed `occ` CLI to v1.3.3; Windows now gets the "install manually" path (OpenChoreo publishes no Windows `occ` asset)
