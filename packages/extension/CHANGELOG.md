@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- Depend on `@openchoreo/openchoreo-client-node` from public npm (^1.3.3) instead of a local checkout, so the extension builds anywhere
+- Bump the managed `occ` CLI to v1.3.3; Windows now gets the "install manually" path (OpenChoreo publishes no Windows `occ` asset)
+- Read the control plane's version from `/version`; show server and CLI versions in the status bar tooltip
+- Scaffolded Workloads use the endpoint `protocol` field on OpenChoreo 1.4+ servers (`type` before)
+- Language server recognises every OpenChoreo 1.3 kind (plus the 1.4 additions) and drops removed legacy kinds (Organization, Release, API, APIBinding, APIClass, ConfigurationGroup)
+- CI workflow (build, lint, test, package) and unit tests for the extension package
+
 ## 0.1.1 — 2026-05-18
 
 - Support OpenChoreo clusters with authentication disabled — extension probes the control plane's RFC 9728 metadata and connects without a Bearer token when auth is off

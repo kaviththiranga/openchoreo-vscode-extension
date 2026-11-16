@@ -7,6 +7,8 @@ import type { ProjectProfile } from '../profile';
 export interface WorkloadRenderOptions {
   namespace: string;
   projectRef: string;
+  /** Endpoint field naming the protocol: `protocol` from OpenChoreo 1.4, `type` before. */
+  endpointProtocolField?: 'type' | 'protocol';
 }
 
 export function renderWorkloadYaml(
@@ -36,7 +38,7 @@ export function renderWorkloadYaml(
   if (profile.port !== undefined) {
     spec.endpoints = {
       http: {
-        type: 'HTTP',
+        [opts.endpointProtocolField ?? 'type']: 'HTTP',
         port: profile.port,
       },
     };

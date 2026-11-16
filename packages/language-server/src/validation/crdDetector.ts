@@ -2,37 +2,57 @@
 // SPDX-License-Identifier: Apache-2.0
 
 /**
- * All known OpenChoreo CRD kinds.
+ * All known OpenChoreo CRD kinds (openchoreo.dev/v1alpha1), as of OpenChoreo 1.3
+ * plus the 1.4 additions. Source of truth: config/crd/bases in openchoreo/openchoreo.
  */
 export const OPENCHOREO_CRD_KINDS = [
-  'Organization',
+  // Namespaced
   'Project',
+  'ProjectType',
+  'ProjectRelease',
+  'ProjectReleaseBinding',
   'Environment',
   'DataPlane',
   'WorkflowPlane',
+  'ObservabilityPlane',
+  'DeploymentPipeline',
   'Component',
   'ComponentType',
+  'ComponentRelease',
   'Trait',
   'Workload',
   'Workflow',
   'WorkflowRun',
-  'ComponentRelease',
   'ReleaseBinding',
-  'Release',
-  'DeploymentPipeline',
-  'Endpoint',
-  'API',
-  'APIBinding',
-  'APIClass',
+  'RenderedRelease',
+  'Resource',
+  'ResourceType',
+  'ResourceRelease',
+  'ResourceReleaseBinding',
   'SecretReference',
-  'ConfigurationGroup',
+  'AuthzRole',
+  'AuthzRoleBinding',
+  'ObservabilityAlertRule',
+  'ObservabilityAlertsNotificationChannel',
+  // Namespaced, OpenChoreo 1.4+
+  'Endpoint',
+  'EndpointType',
+  'EndpointRelease',
+  'EndpointReleaseBinding',
+  'ReleaseLine',
   // Cluster-scoped
   'ClusterComponentType',
+  'ClusterProjectType',
+  'ClusterResourceType',
   'ClusterWorkflow',
   'ClusterTrait',
   'ClusterDataPlane',
   'ClusterWorkflowPlane',
   'ClusterObservabilityPlane',
+  'ClusterAuthzRole',
+  'ClusterAuthzRoleBinding',
+  // Cluster-scoped, OpenChoreo 1.4+
+  'ClusterEndpointType',
 ] as const;
 
 export type CrdKind = (typeof OPENCHOREO_CRD_KINDS)[number];

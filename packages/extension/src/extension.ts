@@ -30,6 +30,7 @@ import { ComponentService } from './services/componentService';
 import { WorkflowRunService } from './services/workflowRunService';
 import { ReleaseBindingService } from './services/releaseBindingService';
 import { LogOutputService } from './services/logOutputService';
+import { ServerInfoService } from './services/serverInfoService';
 import {
   OpenChoreoFileSystemProvider,
   FS_SCHEME,
@@ -64,8 +65,12 @@ export async function activate(
   // Initialize typed API client manager
   const apiClientManager = new ApiClientManager(authProvider);
 
+  // Track the connected control plane's version for version-gated features
+  const serverInfo = new ServerInfoService(authProvider, apiClientManager);
+  context.subscriptions.push(serverInfo);
+
   // Initialize status bar
-  const statusBar = new StatusBarManager(authProvider, occCliDetector, loginRunner);
+  const statusBar = new StatusBarManager(authProvider, occCliDetector, loginRunner, serverInfo);
   context.subscriptions.push(statusBar);
 
   // Initialize RBAC capability service
@@ -158,6 +163,7 @@ export async function activate(
     loginRunner,
     resolveOccBinary,
     occCliDetector,
+    serverInfo,
     sidebarProvider,
   );
 
@@ -185,6 +191,7 @@ export async function activate(
   // populated cache (otherwise auth-disabled clusters can race and produce
   // an empty initial server list that some MCP hosts then never refresh).
   await authProvider.prewarm();
+  void serverInfo.refresh();
 
   // Register OpenChoreo MCP servers for Copilot Chat
   registerMcpServers(context, authProvider);

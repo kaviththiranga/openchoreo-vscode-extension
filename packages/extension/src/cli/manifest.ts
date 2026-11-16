@@ -8,9 +8,9 @@ import * as vscode from 'vscode';
  * Versioned so updates ride a clean directory swap (no in-place overwrites).
  */
 export interface OccAsset {
-  /** Pinned occ version, e.g. "v1.0.1" (from package.json `occVersion`). */
+  /** Pinned occ version, e.g. "v1.3.3" (from package.json `occVersion`). */
   version: string;
-  /** GitHub release asset filename (e.g. occ_v1.0.1_darwin_arm64.tar.gz). */
+  /** GitHub release asset filename (e.g. occ_v1.3.3_darwin_arm64.tar.gz). */
   assetName: string;
   /** Full URL of the asset on github.com/releases/download/<tag>/<file>. */
   assetUrl: string;
@@ -22,7 +22,7 @@ export interface OccAsset {
   binaryName: string;
 }
 
-interface TargetTriple {
+export interface TargetTriple {
   os: 'darwin' | 'linux' | 'windows';
   arch: 'amd64' | 'arm64';
 }
@@ -32,15 +32,20 @@ interface TargetTriple {
  * combination isn't published as an occ release asset — caller falls back
  * to "install manually" UX.
  */
-export function targetTriple(): TargetTriple | undefined {
+export function targetTriple(
+  platform: NodeJS.Platform = process.platform,
+  nodeArch: string = process.arch,
+): TargetTriple | undefined {
+  // OpenChoreo releases publish occ for darwin and linux only — there is no
+  // windows asset, so win32 takes the "install manually" path rather than a
+  // download that 404s.
   let os: TargetTriple['os'] | undefined;
-  if (process.platform === 'darwin') os = 'darwin';
-  else if (process.platform === 'linux') os = 'linux';
-  else if (process.platform === 'win32') os = 'windows';
+  if (platform === 'darwin') os = 'darwin';
+  else if (platform === 'linux') os = 'linux';
 
   let arch: TargetTriple['arch'] | undefined;
-  if (process.arch === 'x64') arch = 'amd64';
-  else if (process.arch === 'arm64') arch = 'arm64';
+  if (nodeArch === 'x64') arch = 'amd64';
+  else if (nodeArch === 'arm64') arch = 'arm64';
 
   if (!os || !arch) return undefined;
   return { os, arch };
@@ -77,7 +82,11 @@ export function resolveOccAsset(context: vscode.ExtensionContext): OccAsset | un
   if (!triple) return undefined;
   const version = readPinnedVersion(context.extensionPath);
   if (!version) return undefined;
+  return buildOccAsset(version, triple);
+}
 
+/** Build the release-asset descriptor for a version and platform triple. */
+export function buildOccAsset(version: string, triple: TargetTriple): OccAsset {
   const ext = triple.os === 'windows' ? 'zip' : 'tar.gz';
   const assetName = `occ_${version}_${triple.os}_${triple.arch}.${ext}`;
   const base = `https://github.com/openchoreo/openchoreo/releases/download/${version}`;

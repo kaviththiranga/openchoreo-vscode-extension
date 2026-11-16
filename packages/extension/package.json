@@ -14,7 +14,7 @@
     "url": "https://github.com/kaviththiranga/openchoreo-vscode-extension/issues"
   },
   "homepage": "https://github.com/kaviththiranga/openchoreo-vscode-extension#readme",
-  "occVersion": "v1.0.1",
+  "occVersion": "v1.3.3",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -514,7 +514,7 @@
     "postpackage": "rm -rf ./schemas ./language-server ./webview-ui"
   },
   "dependencies": {
-    "@openchoreo/openchoreo-client-node": "link:/Users/kavithlokuhewage/git/backstage-plugins/packages/openchoreo-client-node",
+    "@openchoreo/openchoreo-client-node": "^1.3.3",
     "@vercel/frameworks": "^3.24",
     "dockerfile-ast": "^0.7",
     "fast-xml-parser": "^5.7",

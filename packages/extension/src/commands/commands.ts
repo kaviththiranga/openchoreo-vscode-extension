@@ -28,6 +28,7 @@ import {
 import { analyzeWorkspace, type ProjectProfile } from '../scaffolder';
 import { renderComponentYaml } from '../scaffolder/renderers/component';
 import { renderWorkloadYaml } from '../scaffolder/renderers/workload';
+import type { ServerInfoService } from '../services/serverInfoService';
 import {
   checkExistingFiles,
   writeScaffoldFiles,
@@ -120,6 +121,7 @@ export function registerCommands(
   loginRunner: LoginRunner,
   resolveBinary: () => string,
   occCliDetector: OccCliDetector,
+  serverInfo: ServerInfoService,
   sidebarProvider?: SidebarViewProvider,
 ): void {
   // Refresh resources
@@ -1215,7 +1217,7 @@ spec:
   // Scaffold OpenChoreo manifests from the user's source repo.
   context.subscriptions.push(
     vscode.commands.registerCommand('openchoreo.scaffoldFromProject', async () => {
-      await runScaffoldFromProject(authProvider);
+      await runScaffoldFromProject(authProvider, serverInfo);
     }),
   );
 }
@@ -1230,6 +1232,7 @@ spec:
  */
 async function runScaffoldFromProject(
   authProvider: OccConfigAuthProvider,
+  serverInfo: ServerInfoService,
 ): Promise<void> {
   const folders = vscode.workspace.workspaceFolders ?? [];
   if (folders.length === 0) {
@@ -1282,7 +1285,13 @@ async function runScaffoldFromProject(
   const projectRef = ctxInfo?.project ?? 'default';
 
   const componentYaml = renderComponentYaml(finalProfile, { namespace, projectRef });
-  const workloadYaml = renderWorkloadYaml(finalProfile, { namespace, projectRef });
+  await serverInfo.refresh();
+  const workloadYaml = renderWorkloadYaml(finalProfile, {
+    namespace,
+    projectRef,
+    // 1.4 renamed Workload endpoint `type` to `protocol`; older servers reject the new field.
+    endpointProtocolField: serverInfo.supports(1, 4) ? 'protocol' : 'type',
+  });
 
   // Show the two files side-by-side as untitled documents so the user can
   // edit before saving. VS Code will prompt for a filename when they save

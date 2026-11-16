@@ -54,13 +54,18 @@ metadata:
 
   it('detects all known CRD kinds', () => {
     const kinds = [
-      'Organization', 'Project', 'Environment', 'DataPlane', 'WorkflowPlane',
+      'Project', 'ProjectType', 'ProjectRelease', 'ProjectReleaseBinding',
+      'Environment', 'DataPlane', 'WorkflowPlane', 'ObservabilityPlane',
       'Component', 'ComponentType', 'Trait', 'Workload', 'Workflow',
-      'WorkflowRun', 'ComponentRelease', 'ReleaseBinding',
-      'Release', 'DeploymentPipeline', 'Endpoint', 'API', 'APIBinding',
-      'APIClass', 'SecretReference', 'ConfigurationGroup',
-      'ClusterComponentType', 'ClusterWorkflow', 'ClusterTrait',
-      'ClusterDataPlane', 'ClusterWorkflowPlane', 'ClusterObservabilityPlane',
+      'WorkflowRun', 'ComponentRelease', 'ReleaseBinding', 'RenderedRelease',
+      'DeploymentPipeline', 'Resource', 'ResourceType', 'ResourceRelease',
+      'ResourceReleaseBinding', 'SecretReference', 'AuthzRole', 'AuthzRoleBinding',
+      'ObservabilityAlertRule', 'ObservabilityAlertsNotificationChannel',
+      'Endpoint', 'EndpointType', 'EndpointRelease', 'EndpointReleaseBinding', 'ReleaseLine',
+      'ClusterComponentType', 'ClusterProjectType', 'ClusterResourceType',
+      'ClusterWorkflow', 'ClusterTrait', 'ClusterDataPlane', 'ClusterWorkflowPlane',
+      'ClusterObservabilityPlane', 'ClusterAuthzRole', 'ClusterAuthzRoleBinding',
+      'ClusterEndpointType',
     ];
 
     for (const kind of kinds) {

@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { OccConfigAuthProvider } from '../auth/authProvider';
 import type { OccCliDetector } from '../auth/occCliDetector';
 import type { LoginRunner } from '../auth/loginRunner';
+import type { ServerInfoService } from '../services/serverInfoService';
 
 export class StatusBarManager implements vscode.Disposable {
   private statusBarItem: vscode.StatusBarItem;
@@ -14,6 +15,7 @@ export class StatusBarManager implements vscode.Disposable {
     private readonly authProvider: OccConfigAuthProvider,
     private readonly occCliDetector: OccCliDetector,
     private readonly loginRunner: LoginRunner,
+    private readonly serverInfo: ServerInfoService,
   ) {
     this.statusBarItem = vscode.window.createStatusBarItem(
       vscode.StatusBarAlignment.Left,
@@ -27,6 +29,7 @@ export class StatusBarManager implements vscode.Disposable {
     // Update when the login runner starts/stops so the status bar shows
     // "Logging in…" alongside the sidebar.
     this.disposables.push(loginRunner.onStateChange(() => this.update()));
+    this.disposables.push(serverInfo.onDidChange(() => this.update()));
 
     this.update();
     this.statusBarItem.show();
@@ -97,6 +100,13 @@ export class StatusBarManager implements vscode.Disposable {
       `Project: ${contextInfo.project}`,
       `API: ${contextInfo.controlPlaneUrl}`,
     ];
+    const serverVersion = this.serverInfo.getVersion();
+    if (serverVersion) {
+      tooltipLines.push(`Server: OpenChoreo ${serverVersion.raw}`);
+    }
+    if (cliInfo.version) {
+      tooltipLines.push(`CLI: ${cliInfo.version}`);
+    }
     if (!session.securityEnabled) {
       tooltipLines.push('', 'Authentication disabled on this cluster.');
     }

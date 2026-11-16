@@ -326,7 +326,7 @@ async function fetchText(
 }
 
 /** Find the SHA-256 hex for a given filename in a goreleaser-style checksums.txt. */
-function parseChecksum(text: string, assetName: string): string | undefined {
+export function parseChecksum(text: string, assetName: string): string | undefined {
   for (const line of text.split(/\r?\n/)) {
     const trimmed = line.trim();
     if (!trimmed) continue;
