@@ -29,7 +29,3 @@ node_modules/**
 .vscode/**
 .DS_Store
 
-# The unbadged original logo isn't referenced by the manifest — exclude it
-# from the .vsix so we don't ship two near-identical icons.
-resources/openchoreo.png
-resources/openchoreo.svg

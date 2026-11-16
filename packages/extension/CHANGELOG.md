@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 — 2026-11-17
+
+- Rename to **OpenChoreo for VS Code** with the standard OpenChoreo icon; the extension ID (`KavithLokuhewage.openchoreo-unofficial`) is unchanged, so existing installs keep updating
+- Drop the first-run disclaimer popup; the README notes the extension is community-maintained
+
 ## 0.2.0 — 2026-11-16
 
 Targets OpenChoreo 1.3 (works with 1.4 milestones).

@@ -1,11 +1,11 @@
 {
   "name": "openchoreo-unofficial",
-  "displayName": "OpenChoreo (Unofficial)",
-  "description": "Unofficial community tooling for the OpenChoreo developer platform — not affiliated with OpenChoreo. CRD editing, resource explorer, project scaffolding, and platform workflows.",
-  "version": "0.2.0",
+  "displayName": "OpenChoreo for VS Code",
+  "description": "Build, deploy and operate on the OpenChoreo developer platform from VS Code: resource explorer, CRD editing with validation and completions, run locally against real environments, runtime logs, and Copilot (MCP) tools.",
+  "version": "0.2.1",
   "publisher": "KavithLokuhewage",
   "license": "Apache-2.0",
-  "icon": "resources/openchoreo-unofficial.png",
+  "icon": "resources/openchoreo.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/kaviththiranga/openchoreo-vscode-extension"
@@ -155,7 +155,7 @@
         {
           "id": "openchoreo",
           "title": "OpenChoreo",
-          "icon": "resources/openchoreo-unofficial.svg"
+          "icon": "resources/openchoreo.svg"
         }
       ]
     },

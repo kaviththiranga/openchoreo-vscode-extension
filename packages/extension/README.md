@@ -1,6 +1,6 @@
-# OpenChoreo (Unofficial) for Visual Studio Code
+# OpenChoreo for VS Code
 
-> ⚠️ **Unofficial extension.** This extension is **not affiliated with, endorsed by, or officially maintained by OpenChoreo**. It is a community project published under a personal account. For the official OpenChoreo project visit <https://openchoreo.dev>.
+Community-maintained by Kavith Lokuhewage, an OpenChoreo contributor. Learn about OpenChoreo at <https://openchoreo.dev>.
 
 IDE-native tooling for the [OpenChoreo](https://openchoreo.dev) developer platform — resource management, CRD editing with intelligent completions, and AI-powered workflows via MCP.
 
