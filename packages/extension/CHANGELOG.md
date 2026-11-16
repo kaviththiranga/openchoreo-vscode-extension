@@ -5,7 +5,6 @@
 - Depend on `@openchoreo/openchoreo-client-node` from public npm (^1.3.3) instead of a local checkout, so the extension builds anywhere
 - Bump the managed `occ` CLI to v1.3.3; Windows now gets the "install manually" path (OpenChoreo publishes no Windows `occ` asset)
 - Read the control plane's version from `/version`; show server and CLI versions in the status bar tooltip
-- Scaffolded Workloads use the endpoint `protocol` field on OpenChoreo 1.4+ servers (`type` before)
 - Language server recognises every OpenChoreo 1.3 kind (plus the 1.4 additions) and drops removed legacy kinds (Organization, Release, API, APIBinding, APIClass, ConfigurationGroup)
 - CI workflow (build, lint, test, package) and unit tests for the extension package
 - One kind registry (`src/kinds/registry.ts`, generated from the OpenChoreo 1.3.3 API spec) now drives API routes, delete permissions, editability and the language-server feed; routes are type-checked against the client

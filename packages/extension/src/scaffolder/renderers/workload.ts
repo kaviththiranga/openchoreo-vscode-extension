@@ -7,7 +7,11 @@ import type { ProjectProfile } from '../profile';
 export interface WorkloadRenderOptions {
   namespace: string;
   projectRef: string;
-  /** Endpoint field naming the protocol: `protocol` from OpenChoreo 1.4, `type` before. */
+  /**
+   * Endpoint field naming the protocol. `type` works on every release (1.4
+   * deprecates it but mirrors it to `protocol`); `protocol` only on servers
+   * that have the rename.
+   */
   endpointProtocolField?: 'type' | 'protocol';
 }
 

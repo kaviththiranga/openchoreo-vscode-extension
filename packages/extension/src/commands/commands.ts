@@ -1226,7 +1226,7 @@ spec:
   // Scaffold OpenChoreo manifests from the user's source repo.
   context.subscriptions.push(
     vscode.commands.registerCommand('openchoreo.scaffoldFromProject', async () => {
-      await runScaffoldFromProject(authProvider, serverInfo);
+      await runScaffoldFromProject(authProvider);
     }),
   );
 }
@@ -1241,7 +1241,6 @@ spec:
  */
 async function runScaffoldFromProject(
   authProvider: OccConfigAuthProvider,
-  serverInfo: ServerInfoService,
 ): Promise<void> {
   const folders = vscode.workspace.workspaceFolders ?? [];
   if (folders.length === 0) {
@@ -1294,13 +1293,10 @@ async function runScaffoldFromProject(
   const projectRef = ctxInfo?.project ?? 'default';
 
   const componentYaml = renderComponentYaml(finalProfile, { namespace, projectRef });
-  await serverInfo.refresh();
-  const workloadYaml = renderWorkloadYaml(finalProfile, {
-    namespace,
-    projectRef,
-    // 1.4 renamed Workload endpoint `type` to `protocol`; older servers reject the new field.
-    endpointProtocolField: serverInfo.supports(1, 4) ? 'protocol' : 'type',
-  });
+  // Endpoint `type` is accepted by every release: 1.4 deprecates it for
+  // `protocol` but its admission webhook mirrors the two, while 1.4
+  // milestones before the rename (m.1, m.2) and 1.3 reject `protocol`.
+  const workloadYaml = renderWorkloadYaml(finalProfile, { namespace, projectRef });
 
   // Show the two files side-by-side as untitled documents so the user can
   // edit before saving. VS Code will prompt for a filename when they save

@@ -9,13 +9,13 @@ import type { ProjectProfile } from '../scaffolder/profile';
 const profile = { projectName: 'greeter', port: 8080 } as ProjectProfile;
 
 describe('renderWorkloadYaml', () => {
-  it('emits the endpoint protocol as `type` by default (pre-1.4 servers)', () => {
+  it('emits the endpoint protocol as `type` by default (accepted by every release)', () => {
     const doc = YAML.parse(renderWorkloadYaml(profile, { namespace: 'default', projectRef: 'demo' }));
     expect(doc.spec.endpoints.http).toEqual({ type: 'HTTP', port: 8080 });
     expect(doc.spec.owner).toEqual({ projectName: 'demo', componentName: 'greeter' });
   });
 
-  it('emits `protocol` when asked (1.4+ servers)', () => {
+  it('emits `protocol` when asked', () => {
     const doc = YAML.parse(
       renderWorkloadYaml(profile, {
         namespace: 'default',
