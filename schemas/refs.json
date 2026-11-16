@@ -1,0 +1,62 @@
+{
+  "$comment": "Resource references re-applied by scripts/generate-schemas.mjs as x-openchoreo-ref. Keys are dotted spec paths; [] steps into array items; A+B accepts either kind. metadata.namespace on namespaced kinds is added automatically.",
+  "ClusterComponentType": {
+    "spec.allowedTraits[].name": "ClusterTrait",
+    "spec.allowedWorkflows[].name": "ClusterWorkflow",
+    "spec.traits[].name": "ClusterTrait"
+  },
+  "ClusterDataPlane": {
+    "spec.observabilityPlaneRef.name": "ClusterObservabilityPlane"
+  },
+  "ClusterWorkflow": {
+    "spec.workflowPlaneRef.name": "ClusterWorkflowPlane"
+  },
+  "ClusterWorkflowPlane": {
+    "spec.observabilityPlaneRef.name": "ClusterObservabilityPlane"
+  },
+  "Component": {
+    "spec.componentType.name": "ComponentType+ClusterComponentType",
+    "spec.owner.projectName": "Project",
+    "spec.traits[].name": "Trait+ClusterTrait",
+    "spec.workflow.name": "Workflow+ClusterWorkflow"
+  },
+  "ComponentType": {
+    "spec.allowedTraits[].name": "Trait+ClusterTrait",
+    "spec.allowedWorkflows[].name": "Workflow+ClusterWorkflow",
+    "spec.traits[].name": "Trait+ClusterTrait"
+  },
+  "DataPlane": {
+    "spec.observabilityPlaneRef.name": "ObservabilityPlane+ClusterObservabilityPlane"
+  },
+  "DeploymentPipeline": {
+    "spec.promotionPaths[].sourceEnvironmentRef.name": "Environment",
+    "spec.promotionPaths[].targetEnvironmentRefs[].name": "Environment"
+  },
+  "Environment": {
+    "spec.dataPlaneRef.name": "DataPlane+ClusterDataPlane"
+  },
+  "Project": {
+    "spec.deploymentPipelineRef.name": "DeploymentPipeline",
+    "spec.type.name": "ProjectType+ClusterProjectType"
+  },
+  "ReleaseBinding": {
+    "spec.environment": "Environment",
+    "spec.owner.componentName": "Component",
+    "spec.owner.projectName": "Project"
+  },
+  "Resource": {
+    "spec.owner.projectName": "Project",
+    "spec.type.name": "ResourceType+ClusterResourceType"
+  },
+  "Workflow": {
+    "spec.workflowPlaneRef.name": "WorkflowPlane+ClusterWorkflowPlane"
+  },
+  "WorkflowPlane": {
+    "spec.observabilityPlaneRef.name": "ObservabilityPlane+ClusterObservabilityPlane"
+  },
+  "Workload": {
+    "spec.dependencies.endpoints[].component": "Component",
+    "spec.owner.componentName": "Component",
+    "spec.owner.projectName": "Project"
+  }
+}

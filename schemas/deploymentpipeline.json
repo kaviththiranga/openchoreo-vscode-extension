@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "x-openchoreo-kind": "DeploymentPipeline",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_deploymentpipelines.yaml",
   "title": "OpenChoreo DeploymentPipeline",
-  "description": "Defines promotion paths between environments for deploying component releases.",
+  "description": "DeploymentPipeline is the Schema for the deploymentpipelines API.",
   "type": "object",
   "properties": {
     "apiVersion": {
@@ -22,70 +23,106 @@
         },
         "namespace": {
           "type": "string",
-          "description": "Namespace (organization)",
+          "description": "Namespace",
           "x-openchoreo-ref": "Namespace"
-        }
-      },
-      "required": ["name"]
-    },
-    "spec": {
-      "type": "object",
-      "description": "DeploymentPipeline specification",
-      "additionalProperties": false,
-      "properties": {
-        "promotionPaths": {
-          "type": "array",
-          "description": "Promotion paths between environments",
-          "items": {
-            "type": "object",
-            "required": ["sourceEnvironmentRef", "targetEnvironmentRefs"],
-            "properties": {
-              "sourceEnvironmentRef": {
-                "type": "object",
-                "description": "Reference to the source environment for this promotion path",
-                "required": ["name"],
-                "properties": {
-                  "kind": {
-                    "type": "string",
-                    "description": "Kind of environment resource",
-                    "enum": ["Environment"],
-                    "default": "Environment"
-                  },
-                  "name": {
-                    "type": "string",
-                    "description": "Name of the source environment",
-                    "minLength": 1,
-                    "maxLength": 63,
-                    "x-openchoreo-ref": "Environment"
-                  }
-                }
-              },
-              "targetEnvironmentRefs": {
-                "type": "array",
-                "description": "Target environments for promotion",
-                "items": {
-                  "type": "object",
-                  "required": ["name"],
-                  "properties": {
-                    "kind": {
-                      "type": "string",
-                      "description": "Kind of environment resource",
-                      "enum": ["Environment"],
-                      "default": "Environment"
-                    },
-                    "name": {
-                      "type": "string",
-                      "description": "Target environment name",
-                      "x-openchoreo-ref": "Environment"
-                    }
-                  }
-                }
-              }
-            }
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
           }
         }
-      }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "DeploymentPipelineSpec defines the desired state of DeploymentPipeline.",
+      "properties": {
+        "promotionPaths": {
+          "description": "PromotionPaths defines the available paths for promotion between environments",
+          "items": {
+            "description": "PromotionPath defines a path for promoting between environments",
+            "properties": {
+              "sourceEnvironmentRef": {
+                "description": "SourceEnvironmentRef is the reference to the source environment",
+                "properties": {
+                  "kind": {
+                    "default": "Environment",
+                    "description": "Kind is the kind of environment (Environment)",
+                    "enum": [
+                      "Environment"
+                    ],
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Name is the name of the environment resource",
+                    "maxLength": 63,
+                    "minLength": 1,
+                    "type": "string",
+                    "x-openchoreo-ref": "Environment"
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "targetEnvironmentRefs": {
+                "description": "TargetEnvironmentRefs is the list of target environments",
+                "items": {
+                  "description": "TargetEnvironmentRef defines a reference to a target environment",
+                  "properties": {
+                    "kind": {
+                      "default": "Environment",
+                      "description": "Kind is the kind of environment (Environment)",
+                      "enum": [
+                        "Environment"
+                      ],
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Name is the name of the target environment resource",
+                      "maxLength": 63,
+                      "minLength": 1,
+                      "type": "string",
+                      "x-openchoreo-ref": "Environment"
+                    }
+                  },
+                  "required": [
+                    "name"
+                  ],
+                  "type": "object",
+                  "additionalProperties": false
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "sourceEnvironmentRef",
+              "targetEnvironmentRefs"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "type": "array"
+        }
+      },
+      "type": "object",
+      "additionalProperties": false
     }
   },
-  "required": ["apiVersion", "kind", "metadata"]
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata"
+  ]
 }

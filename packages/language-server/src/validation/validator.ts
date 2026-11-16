@@ -90,8 +90,16 @@ export function validateDocument(
     });
   }
 
+  // The known-variable list is the ComponentType/Trait template context; other
+  // kinds (e.g. alert notification channels) template with their own variables.
+  const kind = (schema as { 'x-openchoreo-kind'?: string })['x-openchoreo-kind'];
+  if (kind && !CEL_TEMPLATE_KINDS.has(kind)) {
+    return diagnostics.filter((d) => !d.message.startsWith('Unknown CEL variable'));
+  }
   return diagnostics;
 }
+
+const CEL_TEMPLATE_KINDS = new Set(['ComponentType', 'ClusterComponentType', 'Trait', 'ClusterTrait']);
 
 function validateObject(
   node: YAMLMap,

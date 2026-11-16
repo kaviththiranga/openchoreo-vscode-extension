@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "RenderedRelease",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_renderedreleases.yaml",
+  "title": "OpenChoreo RenderedRelease",
+  "description": "RenderedRelease is the Schema for the renderedreleases API.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "RenderedRelease"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the RenderedRelease"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace",
+          "x-openchoreo-ref": "Namespace"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "RenderedReleaseSpec defines the desired state of RenderedRelease.",
+      "properties": {
+        "environmentName": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "interval": {
+          "description": "Interval watch interval for the release resources when stable.\nDefaults to 5m if not specified.",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$",
+          "type": "string"
+        },
+        "owner": {
+          "description": "RenderedReleaseOwner identifies the owner of a RenderedRelease. ProjectName\nis always required. The optional name fields disambiguate the binding kind:\n  - ComponentName set: produced by a ReleaseBinding (component)\n  - ResourceName set:  produced by a ResourceReleaseBinding\n  - Both unset:        produced by a ProjectReleaseBinding (project-level\n    infra including the cell namespace)\n\nAt most one of ComponentName or ResourceName may be set.",
+          "properties": {
+            "componentName": {
+              "description": "ComponentName is set when the RenderedRelease is owned by a Component\n(via ReleaseBinding). Mutually exclusive with ResourceName.",
+              "type": "string"
+            },
+            "projectName": {
+              "description": "ProjectName is the name of the Project the owner belongs to.",
+              "minLength": 1,
+              "type": "string"
+            },
+            "resourceName": {
+              "description": "ResourceName is set when the RenderedRelease is owned by a Resource\n(via ResourceReleaseBinding). Mutually exclusive with ComponentName.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "projectName"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "progressingInterval": {
+          "description": "ProgressingInterval watch interval for the release resources when transitioning.\nDefaults to 10s if not specified.",
+          "pattern": "^([0-9]+(\\.[0-9]+)?(ms|s|m|h))+$",
+          "type": "string"
+        },
+        "resources": {
+          "description": "Scalable resource template approach (KRO-inspired)\nSupports any Kubernetes resource type including HPA, PDB, NetworkPolicy, CRDs, etc. that can\nbe applied to the data plane.",
+          "items": {
+            "description": "RenderedManifest defines a Kubernetes resource template that can be applied to the data plane.",
+            "properties": {
+              "id": {
+                "description": "Unique identifier for the resource",
+                "minLength": 1,
+                "type": "string"
+              },
+              "object": {
+                "description": "Object contains the complete Kubernetes resource definition"
+              }
+            },
+            "required": [
+              "id",
+              "object"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "type": "array"
+        },
+        "targetPlane": {
+          "default": "dataplane",
+          "description": "TargetPlane specifies which plane this release should be deployed to.\nDefaults to \"dataplane\" if not specified.",
+          "enum": [
+            "dataplane",
+            "observabilityplane"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "environmentName",
+        "owner"
+      ],
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
+}

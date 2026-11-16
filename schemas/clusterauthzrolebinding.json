@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ClusterAuthzRoleBinding",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_clusterauthzrolebindings.yaml",
+  "title": "OpenChoreo ClusterAuthzRoleBinding",
+  "description": "ClusterAuthzRoleBinding is the Schema for the clusterauthzrolebindings API",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ClusterAuthzRoleBinding"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the ClusterAuthzRoleBinding"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "ClusterAuthzRoleBindingSpec defines the desired state of ClusterAuthzRoleBinding",
+      "properties": {
+        "effect": {
+          "default": "allow",
+          "description": "Effect indicates whether this binding allows or denies access (default: allow)",
+          "enum": [
+            "allow",
+            "deny"
+          ],
+          "type": "string"
+        },
+        "entitlement": {
+          "description": "Entitlement defines the subject (from JWT claims) to grant the role to",
+          "properties": {
+            "claim": {
+              "description": "Claim is the JWT claim name (e.g., \"groups\", \"sub\", \"email\")",
+              "type": "string"
+            },
+            "value": {
+              "description": "Value is the entitlement value to match",
+              "type": "string"
+            }
+          },
+          "required": [
+            "claim",
+            "value"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "roleMappings": {
+          "description": "RoleMappings is the list of cluster roles this binding grants",
+          "items": {
+            "description": "ClusterRoleMapping pairs a role reference with an optional scope for cluster-scoped bindings",
+            "properties": {
+              "conditions": {
+                "description": "Conditions define attribute-based restrictions on specific actions granted by the role.\nMultiple entries whose actions match the request are combined with OR semantics —\nat least one matching entry must pass for the action to be permitted.\nIf omitted, no attribute restrictions apply — the RBAC grant stands as-is.",
+                "items": {
+                  "description": "AuthzCondition represents the conditions under which an action is allowed or denied in an authorization role.",
+                  "properties": {
+                    "actions": {
+                      "description": "Actions is the list of actions this condition applies to.\nSupports exact match (\"releasebinding:create\") and wildcards (\"releasebinding:*\").",
+                      "items": {
+                        "type": "string"
+                      },
+                      "minItems": 1,
+                      "type": "array"
+                    },
+                    "expression": {
+                      "description": "Expression is a CEL expression that must evaluate to true for the action to be permitted.\nExamples:\n  resource.environment in [\"dev\", \"staging\"]",
+                      "minLength": 1,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "actions",
+                    "expression"
+                  ],
+                  "type": "object",
+                  "additionalProperties": false
+                },
+                "type": "array"
+              },
+              "roleRef": {
+                "description": "RoleRef references the ClusterAuthzRole to bind",
+                "properties": {
+                  "kind": {
+                    "description": "Kind is the kind of role (AuthzRole or ClusterAuthzRole)\nFor AuthzRoleBinding: AuthzRole must be in the same namespace",
+                    "enum": [
+                      "AuthzRole",
+                      "ClusterAuthzRole"
+                    ],
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Name is the name of the role",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "name"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "scope": {
+                "description": "Scope defines the target scope within the ownership hierarchy",
+                "properties": {
+                  "component": {
+                    "description": "Component scopes to a specific component (optional, requires project)",
+                    "type": "string"
+                  },
+                  "namespace": {
+                    "description": "Namespace scopes to a specific namespace (optional)",
+                    "type": "string"
+                  },
+                  "project": {
+                    "description": "Project scopes to a specific project (optional, requires namespace)",
+                    "type": "string"
+                  },
+                  "resource": {
+                    "description": "Resource scopes to a specific resource (optional, requires project)",
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "roleRef"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "entitlement",
+        "roleMappings"
+      ],
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
+}

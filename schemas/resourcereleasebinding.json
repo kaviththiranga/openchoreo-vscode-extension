@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ResourceReleaseBinding",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_resourcereleasebindings.yaml",
+  "title": "OpenChoreo ResourceReleaseBinding",
+  "description": "ResourceReleaseBinding is the Schema for the resourcereleasebindings API.\nPins a ResourceRelease to an Environment and carries per-env config overrides.\nAuthored externally; not managed by the Resource controller.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ResourceReleaseBinding"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the ResourceReleaseBinding"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace",
+          "x-openchoreo-ref": "Namespace"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "ResourceReleaseBindingSpec defines the desired state of ResourceReleaseBinding.\nPins a ResourceRelease to an Environment and carries per-env overrides.\nThe Resource controller never creates or modifies ResourceReleaseBindings;\nthey are authored externally (kubectl, GitOps, API server).\nThe resourceRelease pin is advanced manually via `occ resource promote` or\nkubectl edit.",
+      "properties": {
+        "environment": {
+          "description": "Environment is the name of the Environment this binding targets.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "owner": {
+          "description": "Owner identifies the resource and project this ResourceReleaseBinding belongs to.",
+          "properties": {
+            "projectName": {
+              "description": "ProjectName is the name of the project that owns this resource.",
+              "minLength": 1,
+              "type": "string"
+            },
+            "resourceName": {
+              "description": "ResourceName is the name of the Resource.",
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "projectName",
+            "resourceName"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "resourceRelease": {
+          "description": "ResourceRelease is the name of the ResourceRelease pinned by this binding.\nThe release pin is advanced manually (e.g. via `occ resource promote` or\n`kubectl edit`). Unset before the first ResourceRelease is cut; the\ncontroller leaves the binding pending until set.",
+          "type": "string"
+        },
+        "resourceTypeEnvironmentConfigs": {
+          "description": "ResourceTypeEnvironmentConfigs provides per-environment values for the schema\ndeclared on the referenced ResourceType (or ClusterResourceType). Validated\nagainst ResourceType.spec.environmentConfigs by the binding controller;\nfailures surface via status.conditions."
+        },
+        "retainPolicy": {
+          "description": "RetainPolicy controls whether emitted DP-side resources survive binding\ndeletion. When unset, falls back to the ResourceType's retainPolicy (which\nitself defaults to Delete). Per-env override.",
+          "enum": [
+            "Delete",
+            "Retain"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "environment",
+        "owner"
+      ],
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
+}

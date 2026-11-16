@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "x-openchoreo-kind": "Project",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_projects.yaml",
   "title": "OpenChoreo Project",
-  "description": "Groups components with a shared deployment pipeline.",
+  "description": "Project is the Schema for the projects API.",
   "type": "object",
   "properties": {
     "apiVersion": {
@@ -22,40 +23,96 @@
         },
         "namespace": {
           "type": "string",
-          "description": "Namespace (organization)",
+          "description": "Namespace",
           "x-openchoreo-ref": "Namespace"
-        }
-      },
-      "required": ["name"]
-    },
-    "spec": {
-      "type": "object",
-      "description": "Project specification",
-      "additionalProperties": false,
-      "properties": {
-        "deploymentPipelineRef": {
+        },
+        "labels": {
           "type": "object",
-          "description": "Reference to the DeploymentPipeline that defines the environments and deployment progression for components in this project.",
-          "required": ["name"],
-          "properties": {
-            "kind": {
-              "type": "string",
-              "description": "Kind of deployment pipeline resource",
-              "enum": ["DeploymentPipeline"],
-              "default": "DeploymentPipeline"
-            },
-            "name": {
-              "type": "string",
-              "description": "Name of the deployment pipeline resource",
-              "minLength": 1,
-              "maxLength": 63,
-              "x-openchoreo-ref": "DeploymentPipeline"
-            }
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
           }
         }
       },
-      "required": ["deploymentPipelineRef"]
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "ProjectSpec defines the desired state of Project.",
+      "properties": {
+        "deploymentPipelineRef": {
+          "description": "DeploymentPipelineRef references the DeploymentPipeline that defines the environments\nand deployment progression for components in this project.",
+          "properties": {
+            "kind": {
+              "default": "DeploymentPipeline",
+              "description": "Kind is the kind of deployment pipeline (DeploymentPipeline)",
+              "enum": [
+                "DeploymentPipeline"
+              ],
+              "type": "string"
+            },
+            "name": {
+              "description": "Name is the name of the deployment pipeline resource",
+              "maxLength": 63,
+              "minLength": 1,
+              "type": "string",
+              "x-openchoreo-ref": "DeploymentPipeline"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "parameters": {
+          "description": "Parameters are the project-level inputs validated against the\nreferenced (Cluster)ProjectType's parameters schema and inlined into\neach ProjectRelease snapshot."
+        },
+        "type": {
+          "description": "Type references the (Cluster)ProjectType that defines the\ninfrastructure template materialized in each environment's cell\nnamespace. Immutable: changing the type after creation is rejected\nby webhook-level CEL. The Project controller automatically cuts a\nnew ProjectRelease whenever the inlined (Cluster)ProjectType\nsnapshot or Parameters change.",
+          "properties": {
+            "kind": {
+              "default": "ProjectType",
+              "description": "Kind is the kind of project type (ProjectType or ClusterProjectType).",
+              "enum": [
+                "ProjectType",
+                "ClusterProjectType"
+              ],
+              "type": "string"
+            },
+            "name": {
+              "description": "Name is the name of the ProjectType or ClusterProjectType to reference.\nMust be a valid DNS-1123 label since it identifies a Kubernetes object.",
+              "minLength": 1,
+              "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+              "type": "string",
+              "x-openchoreo-ref": "ProjectType+ClusterProjectType"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "deploymentPipelineRef",
+        "type"
+      ],
+      "type": "object",
+      "additionalProperties": false
     }
   },
-  "required": ["apiVersion", "kind", "metadata", "spec"]
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
 }

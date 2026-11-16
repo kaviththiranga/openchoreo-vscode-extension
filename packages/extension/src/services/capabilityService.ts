@@ -4,46 +4,7 @@
 import type { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
 import type { ResourceNodeType } from '../treeView/types';
-
-/**
- * Maps deletable node types to their candidate authz action name.
- * Action names are matched against the discovered actions from GET /api/v1/authz/actions.
- */
-/**
- * Maps deletable node types to their candidate authz action name.
- * Action names are matched against the discovered actions from GET /api/v1/authz/actions.
- */
-const DELETE_ACTION_MAP: Partial<Record<ResourceNodeType, string>> = {
-  project: 'project:delete',
-  component: 'component:delete',
-  'component-type': 'componenttype:delete',
-  workflow: 'workflow:delete',
-  trait: 'trait:delete',
-  'namespace-role': 'authzrole:delete',
-  'namespace-role-binding': 'authzrolebinding:delete',
-  'cluster-role': 'clusterauthzrole:delete',
-  'cluster-role-binding': 'clusterauthzrolebinding:delete',
-};
-
-/**
- * All resource types that have DELETE API endpoints.
- * Types in DELETE_ACTION_MAP are RBAC-gated; types only here are always deletable
- * (the server will reject if unauthorized).
- */
-const DELETABLE_TYPES: ReadonlySet<ResourceNodeType> = new Set([
-  // RBAC-gated (also in DELETE_ACTION_MAP)
-  'project', 'component', 'component-type', 'workflow', 'trait',
-  'cluster-role', 'namespace-role', 'cluster-role-binding', 'namespace-role-binding',
-  // Always deletable (server enforces permissions)
-  'environment', 'data-plane', 'workflow-plane', 'observability-plane',
-  'deployment-pipeline', 'workload', 'secret-reference', 'release-binding',
-  'resource', 'resource-release', 'resource-release-binding',
-  'resource-type',
-  // Cluster-scoped
-  'cluster-component-type', 'cluster-workflow', 'cluster-trait',
-  'cluster-data-plane', 'cluster-workflow-plane', 'cluster-observability-plane',
-  'cluster-resource-type',
-]);
+import { kindSpecForNode } from '../kinds/registry';
 
 interface ActionCapability {
   allowed?: Array<{ path: string; constraints?: Record<string, never> }>;
@@ -140,19 +101,20 @@ export class CapabilityService {
    * Synchronous -- uses cached data from the last refresh().
    *
    * Returns true only if:
-   * 1. The node type has a known delete action mapping
+   * 1. The node type is deletable (see KIND_REGISTRY)
    * 2. That action exists in the discovered actions list
    * 3. The user's capability profile allows it (has non-empty `allowed` list)
    */
   canDelete(nodeType: ResourceNodeType): boolean {
     // Not a deletable resource type at all
-    if (!DELETABLE_TYPES.has(nodeType)) {
+    const spec = kindSpecForNode(nodeType);
+    if (!spec?.delete) {
       return false;
     }
 
     // If no RBAC action is mapped for this type, allow delete
     // (the server will enforce permissions on the actual DELETE request)
-    const actionName = DELETE_ACTION_MAP[nodeType];
+    const actionName = spec.deleteAction;
     if (!actionName) {
       return true;
     }

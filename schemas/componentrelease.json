@@ -1,0 +1,1233 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ComponentRelease",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_componentreleases.yaml",
+  "title": "OpenChoreo ComponentRelease",
+  "description": "ComponentRelease is the Schema for the componentreleases API.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ComponentRelease"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the ComponentRelease"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace",
+          "x-openchoreo-ref": "Namespace"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "ComponentReleaseSpec defines the desired state of ComponentRelease.",
+      "properties": {
+        "componentProfile": {
+          "description": "ComponentProfile contains the immutable snapshot of parameter values and trait configs\nspecified for this component at release time",
+          "properties": {
+            "parameters": {
+              "description": "Parameters holds the snapshot of parameter values from the Component spec\nThe schema for these values is defined in the ComponentType's parameters schema"
+            },
+            "traits": {
+              "description": "Traits holds the snapshot of trait instances configured on the component at release time.\nEach entry records the kind, name, and instanceName of the trait, along with any\nuser-supplied parameters, using the composite (kind, name) key to unambiguously identify\nthe trait spec in ComponentReleaseSpec.Traits.",
+              "items": {
+                "description": "ComponentProfileTrait is a snapshot of a single trait instance configured on a component.\nIt records the kind and name of the trait (to look up the spec in ComponentReleaseSpec.Traits),\nthe instance name (unique within the component), and any user-supplied parameters.",
+                "properties": {
+                  "instanceName": {
+                    "description": "InstanceName uniquely identifies this trait instance within the component.",
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "kind": {
+                    "description": "Kind identifies whether this is a namespace-scoped Trait or a cluster-scoped ClusterTrait.",
+                    "enum": [
+                      "Trait",
+                      "ClusterTrait"
+                    ],
+                    "type": "string"
+                  },
+                  "name": {
+                    "description": "Name is the name of the Trait or ClusterTrait resource.",
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "parameters": {
+                    "description": "Parameters contains the trait parameter values supplied by the user."
+                  }
+                },
+                "required": [
+                  "instanceName",
+                  "kind",
+                  "name"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "type": "array"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "componentType": {
+          "description": "ComponentType is a frozen snapshot of the ComponentType resource at the time of component release.\nIt records the kind and name of the original resource alongside its full spec, enabling\nthe rendering pipeline to distinguish ComponentType from ClusterComponentType.",
+          "properties": {
+            "kind": {
+              "description": "Kind identifies whether this is a namespace-scoped ComponentType or a cluster-scoped ClusterComponentType.",
+              "enum": [
+                "ComponentType",
+                "ClusterComponentType"
+              ],
+              "type": "string"
+            },
+            "name": {
+              "description": "Name is the component type reference in format: {workloadType}/{componentTypeName}",
+              "minLength": 1,
+              "type": "string"
+            },
+            "spec": {
+              "description": "Spec is the frozen specification of the component type at the time of this ComponentRelease.",
+              "properties": {
+                "allowedTraits": {
+                  "description": "AllowedTraits restricts which Trait or ClusterTrait CRs developers can attach to Components of this type.\nWhen specified, only traits listed here (matched by kind and name) may be attached beyond those already embedded in spec.traits.\nTrait references listed here must not overlap with traits already embedded in spec.traits.\nIf empty or omitted, no additional component-level traits are allowed.",
+                  "items": {
+                    "description": "TraitRef represents a reference to a Trait or ClusterTrait",
+                    "properties": {
+                      "kind": {
+                        "default": "Trait",
+                        "description": "Kind is the kind of trait (Trait or ClusterTrait)",
+                        "enum": [
+                          "Trait",
+                          "ClusterTrait"
+                        ],
+                        "type": "string"
+                      },
+                      "name": {
+                        "description": "Name is the name of the trait resource",
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
+                },
+                "allowedWorkflows": {
+                  "description": "AllowedWorkflows restricts which workflow CRs developers can use\nfor building components of this type. If empty, no workflows are allowed.\nEach entry is a WorkflowRef whose Kind defaults to ClusterWorkflow and\nmay be either Workflow (namespace-scoped) or ClusterWorkflow (cluster-scoped).",
+                  "items": {
+                    "description": "WorkflowRef represents a reference to a Workflow resource.",
+                    "properties": {
+                      "kind": {
+                        "default": "ClusterWorkflow",
+                        "description": "Kind is the kind of workflow (Workflow or ClusterWorkflow).",
+                        "enum": [
+                          "Workflow",
+                          "ClusterWorkflow"
+                        ],
+                        "type": "string"
+                      },
+                      "name": {
+                        "description": "Name is the name of the workflow resource",
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "name"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
+                },
+                "environmentConfigs": {
+                  "description": "EnvironmentConfigs defines per-environment configs developers can set via ReleaseBinding.",
+                  "properties": {
+                    "openAPIV3Schema": {
+                      "description": "OpenAPIV3Schema defines the schema using standard OpenAPI V3 / JSON Schema format.",
+                      "type": "object"
+                    }
+                  },
+                  "type": "object",
+                  "additionalProperties": false
+                },
+                "parameters": {
+                  "description": "Parameters defines what developers can configure when creating components of this type.",
+                  "properties": {
+                    "openAPIV3Schema": {
+                      "description": "OpenAPIV3Schema defines the schema using standard OpenAPI V3 / JSON Schema format.",
+                      "type": "object"
+                    }
+                  },
+                  "type": "object",
+                  "additionalProperties": false
+                },
+                "postRenderValidations": {
+                  "description": "PostRenderValidations are CEL-based rules evaluated after all traits are applied,\nagainst the final rendered Kubernetes resources.",
+                  "items": {
+                    "description": "PostRenderValidation asserts a CEL rule against the rendered Kubernetes resources\nafter all traits have been applied. It selects target resources by GVK (and an\noptional where filter), binds each match to the `resource` variable, and requires\nthe rule to evaluate to true.",
+                    "properties": {
+                      "forEach": {
+                        "description": "ForEach repeats this validation for every item in a CEL-evaluated list, evaluated\nagainst the trait context. Requires var. The loop variable is available in\ntarget.where and rule, and mustMatch is applied per iteration.",
+                        "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                        "type": "string"
+                      },
+                      "message": {
+                        "description": "Message is the error message shown when the rule evaluates to false.",
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "rule": {
+                        "description": "Rule is a CEL expression wrapped in ${...} evaluated with `resource` bound to each\nmatched resource (and the forEach loop variable, if any). It must evaluate to true.",
+                        "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                        "type": "string"
+                      },
+                      "target": {
+                        "description": "Target selects which rendered resources this validation applies to.",
+                        "properties": {
+                          "group": {
+                            "description": "Group is the API group of the resource (e.g., \"apps\", \"batch\")\nMust be explicitly set. Use empty string \"\" for core API resources (v1 Service, ConfigMap, etc.)",
+                            "type": "string"
+                          },
+                          "kind": {
+                            "description": "Kind is the resource type to patch (e.g., \"Deployment\", \"StatefulSet\")",
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "mustMatch": {
+                            "default": true,
+                            "description": "MustMatch requires at least one rendered resource to match this target.\nWhen true (the default) and no resource matches, the validation fails.\nThis catches the case where an earlier/later trait removed the target resource.",
+                            "type": "boolean"
+                          },
+                          "version": {
+                            "description": "Version is the API version of the resource (e.g., \"v1\", \"v1beta1\")",
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "where": {
+                            "description": "Where is an optional CEL expression to filter which resources to patch\nExample: ${resource.metadata.name.endsWith(\"-secret-envs\")}",
+                            "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "group",
+                          "kind",
+                          "version"
+                        ],
+                        "type": "object",
+                        "additionalProperties": false
+                      },
+                      "targetPlane": {
+                        "default": "dataplane",
+                        "description": "TargetPlane scopes selection to resources in a single plane, matching how trait\ncreates/patches/removes target a plane. Defaults to \"dataplane\".",
+                        "enum": [
+                          "dataplane",
+                          "observabilityplane"
+                        ],
+                        "type": "string"
+                      },
+                      "var": {
+                        "description": "Var names the binding for forEach iterations. Required when forEach is specified.",
+                        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                        "type": "string"
+                      },
+                      "when": {
+                        "description": "When is an optional CEL guard evaluated once against the trait context (the loop\nvariable is NOT in scope here). If set and it evaluates to false, this validation\nis skipped entirely.",
+                        "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "message",
+                      "rule",
+                      "target"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
+                },
+                "preRenderValidations": {
+                  "description": "PreRenderValidations are CEL-based rules evaluated before rendering, against the\ncomponent context (parameters/environmentConfigs/workload/metadata). All rules must\nevaluate to true for rendering to proceed. Replaces Validations.",
+                  "items": {
+                    "description": "ValidationRule defines a CEL-based validation rule evaluated during rendering.",
+                    "properties": {
+                      "message": {
+                        "description": "Message is the error message shown when the rule evaluates to false.",
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "rule": {
+                        "description": "Rule is a CEL expression wrapped in ${...} that must evaluate to true.\nUses the same syntax as includeWhen and where fields.",
+                        "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "message",
+                      "rule"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
+                },
+                "resources": {
+                  "description": "Resources are templates that generate Kubernetes resources dynamically.\nAt least one resource template is required. For non-proxy workload types,\none resource must have an id matching the workloadType. When workloadType\nis \"proxy\", a matching resource id is not required.",
+                  "items": {
+                    "description": "ResourceTemplate defines a template for generating Kubernetes resources",
+                    "properties": {
+                      "forEach": {
+                        "description": "ForEach enables generating multiple resources from a list using CEL expression\nExample: \"${spec.configurations}\" to iterate over a list",
+                        "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                        "type": "string"
+                      },
+                      "id": {
+                        "description": "ID uniquely identifies this resource within the component type\nFor the primary workload resource, this must match the workloadType",
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "includeWhen": {
+                        "description": "IncludeWhen is a CEL expression that determines if this resource should be created\nIf not specified, the resource is always created\nExample: \"${spec.autoscaling.enabled}\"",
+                        "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                        "type": "string"
+                      },
+                      "targetPlane": {
+                        "default": "dataplane",
+                        "description": "TargetPlane specifies which plane this resource should be deployed to\nDefaults to \"dataplane\" if not specified",
+                        "enum": [
+                          "dataplane",
+                          "observabilityplane"
+                        ],
+                        "type": "string"
+                      },
+                      "template": {
+                        "description": "Template contains the Kubernetes resource with CEL expressions\nCEL expressions are enclosed in ${...} and will be evaluated at runtime",
+                        "type": "object"
+                      },
+                      "var": {
+                        "description": "Var is the loop variable name when using forEach\nExample: \"config\" will make each item available as ${config} in templates",
+                        "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "id",
+                      "template"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                },
+                "traits": {
+                  "description": "Traits are pre-configured trait instances embedded in the ComponentType.\nThe PE binds trait parameters using concrete values or CEL expressions\nreferencing the ComponentType schema (e.g., \"${parameters.storage.mountPath}\").\nThese traits are automatically applied to all Components of this type.",
+                  "items": {
+                    "description": "ComponentTypeTrait represents a pre-configured trait instance embedded in a ComponentType.\nThe PE binds trait parameters using concrete values (locked) or CEL expressions\nreferencing the ComponentType schema (wired to developer-configurable fields).",
+                    "properties": {
+                      "environmentConfigs": {
+                        "description": "EnvironmentConfigs contains trait environment config bindings.\nValues can be concrete (locked by PE) or CEL expressions referencing\nthe ComponentType schema using ${...} syntax.\nExample: \"${environmentConfigs.storage.size}\" or \"local-path\" (locked)"
+                      },
+                      "instanceName": {
+                        "description": "InstanceName uniquely identifies this trait instance.\nMust be unique across all embedded traits in the ComponentType\nand must not collide with any component-level trait instance names.",
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "kind": {
+                        "default": "Trait",
+                        "description": "Kind is the kind of trait (Trait or ClusterTrait)",
+                        "enum": [
+                          "Trait",
+                          "ClusterTrait"
+                        ],
+                        "type": "string"
+                      },
+                      "name": {
+                        "description": "Name is the name of the Trait resource to use.",
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "parameters": {
+                        "description": "Parameters contains trait parameter bindings.\nValues can be concrete (locked by PE) or CEL expressions referencing\nthe ComponentType schema using ${...} syntax.\nExample: \"${parameters.storage.mountPath}\" or \"app-data\" (locked)"
+                      }
+                    },
+                    "required": [
+                      "instanceName",
+                      "name"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
+                },
+                "validations": {
+                  "description": "Validations are CEL-based rules evaluated during rendering.\n\nDeprecated: use PreRenderValidations. Retained for backward compatibility;\nit is mutually exclusive with PreRenderValidations and has identical semantics.",
+                  "items": {
+                    "description": "ValidationRule defines a CEL-based validation rule evaluated during rendering.",
+                    "properties": {
+                      "message": {
+                        "description": "Message is the error message shown when the rule evaluates to false.",
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "rule": {
+                        "description": "Rule is a CEL expression wrapped in ${...} that must evaluate to true.\nUses the same syntax as includeWhen and where fields.",
+                        "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "message",
+                      "rule"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
+                },
+                "workloadType": {
+                  "description": "WorkloadType must be one of: deployment, statefulset, cronjob, job, proxy\nThis determines the primary workload resource type for this component type",
+                  "enum": [
+                    "deployment",
+                    "statefulset",
+                    "cronjob",
+                    "job",
+                    "proxy"
+                  ],
+                  "type": "string"
+                }
+              },
+              "required": [
+                "resources",
+                "workloadType"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "kind",
+            "name",
+            "spec"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "owner": {
+          "description": "Owner identifies the component and project this ComponentRelease belongs to",
+          "properties": {
+            "componentName": {
+              "description": "ComponentName is the name of the component",
+              "minLength": 1,
+              "type": "string"
+            },
+            "projectName": {
+              "description": "ProjectName is the name of the project that owns this component",
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "componentName",
+            "projectName"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "traits": {
+          "description": "Traits holds frozen trait specifications at the time of ComponentRelease, ensuring immutability.\nEach entry carries its kind (Trait or ClusterTrait), name, and spec, preserving the original\nresource identity so that a Trait and ClusterTrait with the same name can coexist.\nMaxItems bounds this unbounded array so the CEL cost estimate of the embedded TraitSpec\nXValidation rules (evaluated per trait item) stays within the apiserver's cost budget.",
+          "items": {
+            "description": "ComponentReleaseTrait is an entry in the frozen traits snapshot stored on a ComponentRelease.\nIt preserves both the Kind and Name of the original trait resource so that a namespace-scoped\nTrait and a cluster-scoped ClusterTrait with the same name can coexist.",
+            "properties": {
+              "kind": {
+                "description": "Kind identifies whether this is a namespace-scoped Trait or a cluster-scoped ClusterTrait.",
+                "enum": [
+                  "Trait",
+                  "ClusterTrait"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "description": "Name is the name of the Trait or ClusterTrait resource.",
+                "minLength": 1,
+                "type": "string"
+              },
+              "spec": {
+                "description": "Spec is the frozen specification of the trait at the time of this ComponentRelease.",
+                "properties": {
+                  "creates": {
+                    "description": "Creates defines new Kubernetes resources to create when this trait is applied",
+                    "items": {
+                      "description": "TraitCreate defines a resource template to be created by the trait",
+                      "properties": {
+                        "forEach": {
+                          "description": "ForEach enables generating multiple resources from a list using CEL expression\nExample: \"${parameters.volumes}\" to iterate over a list",
+                          "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                          "type": "string"
+                        },
+                        "includeWhen": {
+                          "description": "IncludeWhen is a CEL expression that determines if this resource should be created\nIf not specified, the resource is always created\nExample: \"${parameters.enableMetrics}\"",
+                          "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                          "type": "string"
+                        },
+                        "targetPlane": {
+                          "default": "dataplane",
+                          "description": "TargetPlane specifies which plane this resource should be deployed to\nDefaults to \"dataplane\" if not specified",
+                          "enum": [
+                            "dataplane",
+                            "observabilityplane"
+                          ],
+                          "type": "string"
+                        },
+                        "template": {
+                          "description": "Template contains the Kubernetes resource with CEL expressions\nCEL expressions are enclosed in ${...} and will be evaluated at runtime",
+                          "type": "object"
+                        },
+                        "var": {
+                          "description": "Var is the loop variable name when using forEach\nExample: \"volume\" will make each item available as ${volume} in templates",
+                          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "template"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "type": "array"
+                  },
+                  "environmentConfigs": {
+                    "description": "EnvironmentConfigs defines per-environment configurations for this trait via ReleaseBinding.",
+                    "properties": {
+                      "openAPIV3Schema": {
+                        "description": "OpenAPIV3Schema defines the schema using standard OpenAPI V3 / JSON Schema format.",
+                        "type": "object"
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "parameters": {
+                    "description": "Parameters defines developer-facing configuration options for this trait.",
+                    "properties": {
+                      "openAPIV3Schema": {
+                        "description": "OpenAPIV3Schema defines the schema using standard OpenAPI V3 / JSON Schema format.",
+                        "type": "object"
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "patches": {
+                    "description": "Patches defines modifications to existing resources generated by the ComponentType",
+                    "items": {
+                      "description": "TraitPatch defines a modification to an existing resource",
+                      "properties": {
+                        "forEach": {
+                          "description": "ForEach repeats this patch for every item in a CEL-evaluated list\nRequires 'var' to be set to name the binding used in operations\nExample: forEach: ${spec.mounts}",
+                          "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                          "type": "string"
+                        },
+                        "operations": {
+                          "description": "Operations is the list of JSONPatch operations to apply to the target resource",
+                          "items": {
+                            "description": "JSONPatchOperation defines a JSONPatch operation\nSupports standard operations (add, replace, remove) for map overlays",
+                            "properties": {
+                              "op": {
+                                "description": "Op is the operation type\nStandard operations: add, replace, remove (RFC 6902)",
+                                "enum": [
+                                  "add",
+                                  "replace",
+                                  "remove"
+                                ],
+                                "type": "string"
+                              },
+                              "path": {
+                                "description": "Path is the JSON Pointer to the field to modify (RFC 6901)\nSupports array filters: /spec/containers/[?(@.name=='app')]/volumeMounts/-",
+                                "type": "string"
+                              },
+                              "value": {
+                                "description": "Value is the value to set (for add/replace operations)\nNot used for remove operations\nCan be a literal value, a structure with embedded CEL expressions,\nor a standalone CEL expression."
+                              }
+                            },
+                            "required": [
+                              "op",
+                              "path"
+                            ],
+                            "type": "object",
+                            "additionalProperties": false
+                          },
+                          "minItems": 1,
+                          "type": "array"
+                        },
+                        "target": {
+                          "description": "Target specifies which resource to patch",
+                          "properties": {
+                            "group": {
+                              "description": "Group is the API group of the resource (e.g., \"apps\", \"batch\")\nMust be explicitly set. Use empty string \"\" for core API resources (v1 Service, ConfigMap, etc.)",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "description": "Kind is the resource type to patch (e.g., \"Deployment\", \"StatefulSet\")",
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "version": {
+                              "description": "Version is the API version of the resource (e.g., \"v1\", \"v1beta1\")",
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "where": {
+                              "description": "Where is an optional CEL expression to filter which resources to patch\nExample: ${resource.metadata.name.endsWith(\"-secret-envs\")}",
+                              "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "group",
+                            "kind",
+                            "version"
+                          ],
+                          "type": "object",
+                          "additionalProperties": false
+                        },
+                        "targetPlane": {
+                          "default": "dataplane",
+                          "description": "TargetPlane specifies which plane's resources this patch targets\nDefaults to \"dataplane\" if not specified",
+                          "enum": [
+                            "dataplane",
+                            "observabilityplane"
+                          ],
+                          "type": "string"
+                        },
+                        "var": {
+                          "description": "Var names the binding for forEach iterations\nRequired when forEach is specified\nExample: var: mount",
+                          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "operations",
+                        "target"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "type": "array"
+                  },
+                  "postRenderValidations": {
+                    "description": "PostRenderValidations are CEL-based rules evaluated after all traits are applied,\nagainst the final rendered Kubernetes resources.",
+                    "items": {
+                      "description": "PostRenderValidation asserts a CEL rule against the rendered Kubernetes resources\nafter all traits have been applied. It selects target resources by GVK (and an\noptional where filter), binds each match to the `resource` variable, and requires\nthe rule to evaluate to true.",
+                      "properties": {
+                        "forEach": {
+                          "description": "ForEach repeats this validation for every item in a CEL-evaluated list, evaluated\nagainst the trait context. Requires var. The loop variable is available in\ntarget.where and rule, and mustMatch is applied per iteration.",
+                          "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                          "type": "string"
+                        },
+                        "message": {
+                          "description": "Message is the error message shown when the rule evaluates to false.",
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "rule": {
+                          "description": "Rule is a CEL expression wrapped in ${...} evaluated with `resource` bound to each\nmatched resource (and the forEach loop variable, if any). It must evaluate to true.",
+                          "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                          "type": "string"
+                        },
+                        "target": {
+                          "description": "Target selects which rendered resources this validation applies to.",
+                          "properties": {
+                            "group": {
+                              "description": "Group is the API group of the resource (e.g., \"apps\", \"batch\")\nMust be explicitly set. Use empty string \"\" for core API resources (v1 Service, ConfigMap, etc.)",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "description": "Kind is the resource type to patch (e.g., \"Deployment\", \"StatefulSet\")",
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "mustMatch": {
+                              "default": true,
+                              "description": "MustMatch requires at least one rendered resource to match this target.\nWhen true (the default) and no resource matches, the validation fails.\nThis catches the case where an earlier/later trait removed the target resource.",
+                              "type": "boolean"
+                            },
+                            "version": {
+                              "description": "Version is the API version of the resource (e.g., \"v1\", \"v1beta1\")",
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "where": {
+                              "description": "Where is an optional CEL expression to filter which resources to patch\nExample: ${resource.metadata.name.endsWith(\"-secret-envs\")}",
+                              "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "group",
+                            "kind",
+                            "version"
+                          ],
+                          "type": "object",
+                          "additionalProperties": false
+                        },
+                        "targetPlane": {
+                          "default": "dataplane",
+                          "description": "TargetPlane scopes selection to resources in a single plane, matching how trait\ncreates/patches/removes target a plane. Defaults to \"dataplane\".",
+                          "enum": [
+                            "dataplane",
+                            "observabilityplane"
+                          ],
+                          "type": "string"
+                        },
+                        "var": {
+                          "description": "Var names the binding for forEach iterations. Required when forEach is specified.",
+                          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                          "type": "string"
+                        },
+                        "when": {
+                          "description": "When is an optional CEL guard evaluated once against the trait context (the loop\nvariable is NOT in scope here). If set and it evaluates to false, this validation\nis skipped entirely.",
+                          "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "message",
+                        "rule",
+                        "target"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "type": "array"
+                  },
+                  "preRenderValidations": {
+                    "description": "PreRenderValidations are CEL-based rules evaluated before rendering, against\nthe trait's static parameters/environmentConfigs/metadata context.\nAll rules must evaluate to true for rendering to proceed. Replaces Validations.",
+                    "items": {
+                      "description": "ValidationRule defines a CEL-based validation rule evaluated during rendering.",
+                      "properties": {
+                        "message": {
+                          "description": "Message is the error message shown when the rule evaluates to false.",
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "rule": {
+                          "description": "Rule is a CEL expression wrapped in ${...} that must evaluate to true.\nUses the same syntax as includeWhen and where fields.",
+                          "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "message",
+                        "rule"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "type": "array"
+                  },
+                  "removes": {
+                    "description": "Removes deletes whole resources previously produced by the ComponentType or earlier traits.\nWorkload resources (e.g. Deployment, StatefulSet, CronJob) cannot be removed.",
+                    "items": {
+                      "description": "TraitRemove deletes whole resources previously produced by the ComponentType or earlier traits.\nUnlike TraitPatch, it removes the matched resources entirely instead of modifying them.\nWorkload resource kinds (e.g. Deployment, StatefulSet, CronJob) are rejected by the webhook.",
+                      "properties": {
+                        "forEach": {
+                          "description": "ForEach repeats this remove for every item in a CEL-evaluated list\nRequires 'var' to be set to name the binding used in the where clause\nExample: forEach: ${parameters.routesToDrop}",
+                          "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                          "type": "string"
+                        },
+                        "target": {
+                          "description": "Target specifies which resource to remove. Matching resources are deleted entirely.",
+                          "properties": {
+                            "group": {
+                              "description": "Group is the API group of the resource (e.g., \"apps\", \"batch\")\nMust be explicitly set. Use empty string \"\" for core API resources (v1 Service, ConfigMap, etc.)",
+                              "type": "string"
+                            },
+                            "kind": {
+                              "description": "Kind is the resource type to patch (e.g., \"Deployment\", \"StatefulSet\")",
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "version": {
+                              "description": "Version is the API version of the resource (e.g., \"v1\", \"v1beta1\")",
+                              "minLength": 1,
+                              "type": "string"
+                            },
+                            "where": {
+                              "description": "Where is an optional CEL expression to filter which resources to patch\nExample: ${resource.metadata.name.endsWith(\"-secret-envs\")}",
+                              "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "group",
+                            "kind",
+                            "version"
+                          ],
+                          "type": "object",
+                          "additionalProperties": false
+                        },
+                        "targetPlane": {
+                          "default": "dataplane",
+                          "description": "TargetPlane specifies which plane's resources this remove targets\nDefaults to \"dataplane\" if not specified",
+                          "enum": [
+                            "dataplane",
+                            "observabilityplane"
+                          ],
+                          "type": "string"
+                        },
+                        "var": {
+                          "description": "Var names the binding for forEach iterations\nRequired when forEach is specified",
+                          "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "target"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "type": "array"
+                  },
+                  "validations": {
+                    "description": "Validations are CEL-based rules evaluated before rendering.\n\nDeprecated: use PreRenderValidations. Retained for backward compatibility;\nit is mutually exclusive with PreRenderValidations and has identical semantics.",
+                    "items": {
+                      "description": "ValidationRule defines a CEL-based validation rule evaluated during rendering.",
+                      "properties": {
+                        "message": {
+                          "description": "Message is the error message shown when the rule evaluates to false.",
+                          "minLength": 1,
+                          "type": "string"
+                        },
+                        "rule": {
+                          "description": "Rule is a CEL expression wrapped in ${...} that must evaluate to true.\nUses the same syntax as includeWhen and where fields.",
+                          "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "message",
+                        "rule"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "kind",
+              "name",
+              "spec"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "maxItems": 100,
+          "type": "array"
+        },
+        "workload": {
+          "description": "Workload is a full embedded copy of the Workload\nThis preserves the workload spec with the built image",
+          "properties": {
+            "container": {
+              "description": "Container defines the container specification for this workload.",
+              "properties": {
+                "args": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "command": {
+                  "description": "Container entrypoint & args.",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "env": {
+                  "description": "Explicit environment variables.",
+                  "items": {
+                    "description": "EnvVar represents an environment variable present in the container.",
+                    "properties": {
+                      "key": {
+                        "description": "The environment variable key.",
+                        "type": "string"
+                      },
+                      "value": {
+                        "description": "The literal value of the environment variable.\nMutually exclusive with valueFrom.",
+                        "type": "string"
+                      },
+                      "valueFrom": {
+                        "description": "Extract the environment variable value from another resource.\nMutually exclusive with value.",
+                        "properties": {
+                          "secretKeyRef": {
+                            "description": "Reference to a secret resource.",
+                            "properties": {
+                              "key": {
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "name": {
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name"
+                            ],
+                            "type": "object",
+                            "additionalProperties": false
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
+                },
+                "files": {
+                  "description": "File configurations.",
+                  "items": {
+                    "description": "FileVar represents a file configuration in a container.",
+                    "properties": {
+                      "key": {
+                        "description": "The file key/name.",
+                        "type": "string"
+                      },
+                      "mountPath": {
+                        "description": "The mount path where the file will be mounted.",
+                        "type": "string"
+                      },
+                      "value": {
+                        "description": "The literal content of the file.\nMutually exclusive with valueFrom.",
+                        "type": "string"
+                      },
+                      "valueFrom": {
+                        "description": "Extract the environment variable value from another resource.\nMutually exclusive with value.",
+                        "properties": {
+                          "secretKeyRef": {
+                            "description": "Reference to a secret resource.",
+                            "properties": {
+                              "key": {
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "name": {
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name"
+                            ],
+                            "type": "object",
+                            "additionalProperties": false
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "mountPath"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
+                },
+                "image": {
+                  "description": "OCI image to run (digest or tag).",
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "required": [
+                "image"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            },
+            "dependencies": {
+              "description": "Dependencies define the dependencies of this workload on other components.",
+              "properties": {
+                "endpoints": {
+                  "description": "Endpoints define how this workload consumes endpoints from other components.",
+                  "items": {
+                    "description": "WorkloadConnection represents a connection to another component's endpoint.",
+                    "properties": {
+                      "component": {
+                        "description": "Component is the target component name.",
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "envBindings": {
+                        "description": "EnvBindings maps semantic URL components to environment variable names.",
+                        "properties": {
+                          "address": {
+                            "description": "Address is the env var name for the protocol-appropriate connection string.\nFor HTTP/HTTPS/WS/WSS: scheme://host:port/basePath\nFor gRPC/TCP/UDP: host:port",
+                            "type": "string"
+                          },
+                          "basePath": {
+                            "description": "BasePath is the optional env var name for just the base path.",
+                            "type": "string"
+                          },
+                          "host": {
+                            "description": "Host is the optional env var name for just the hostname.",
+                            "type": "string"
+                          },
+                          "port": {
+                            "description": "Port is the optional env var name for just the port number.",
+                            "type": "string"
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      },
+                      "name": {
+                        "description": "Name is the target endpoint name on the target component.",
+                        "minLength": 1,
+                        "type": "string"
+                      },
+                      "project": {
+                        "description": "Project is the target component's project name.\nIf empty, defaults to the same project as the consumer.\nRequired when namespace is specified.",
+                        "type": "string"
+                      },
+                      "visibility": {
+                        "description": "Visibility is the visibility level at which this connection consumes the endpoint.",
+                        "enum": [
+                          "project",
+                          "namespace"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "component",
+                      "envBindings",
+                      "name",
+                      "visibility"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "maxItems": 50,
+                  "type": "array"
+                },
+                "resources": {
+                  "description": "Resources define how this workload consumes outputs from project-bound Resources.\nEach entry references a Resource by name and binds named outputs of the resolved\nResourceReleaseBinding to container env vars (envBindings) and file mounts (fileBindings).",
+                  "items": {
+                    "description": "WorkloadResourceDependency represents a dependency on a project-bound Resource. Output names\ndeclared on the referenced ResourceType are wired into the consuming container as env vars\n(envBindings) and file mounts (fileBindings). Outputs not listed in either map are ignored.",
+                    "properties": {
+                      "envBindings": {
+                        "additionalProperties": {
+                          "type": "string"
+                        },
+                        "description": "EnvBindings maps a ResourceType output name to a container environment variable name.\nThe output's source kind (value, secretKeyRef, configMapKeyRef) determines whether the\nresulting env var is a literal or a valueFrom reference.",
+                        "maxProperties": 50,
+                        "type": "object"
+                      },
+                      "fileBindings": {
+                        "additionalProperties": {
+                          "type": "string"
+                        },
+                        "description": "FileBindings maps a ResourceType output name to a container mount path. The referenced\noutput's source kind must be secretKeyRef or configMapKeyRef; value-kind outputs cannot\nbe mounted as files because there is no DP-side object to mount.",
+                        "maxProperties": 50,
+                        "type": "object"
+                      },
+                      "ref": {
+                        "description": "Ref is the name of the Resource to consume. The Resource must live in the same project as\nthe consuming Component (cross-project consumption is deferred to a later release).",
+                        "minLength": 1,
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "ref"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "maxItems": 50,
+                  "type": "array"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "endpoints": {
+              "additionalProperties": {
+                "description": "WorkloadEndpoint represents a simple network endpoint for basic exposure.",
+                "properties": {
+                  "basePath": {
+                    "description": "BasePath is the base path of the API exposed via the endpoint.",
+                    "type": "string"
+                  },
+                  "displayName": {
+                    "description": "DisplayName is an optional human-readable name for the endpoint.",
+                    "type": "string"
+                  },
+                  "port": {
+                    "description": "Port exposed by the endpoint. If targetPort is not set, platform defaults to port for both.",
+                    "format": "int32",
+                    "maximum": 65535,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "schema": {
+                    "description": "Schema for the endpoint API definition.",
+                    "properties": {
+                      "content": {
+                        "type": "string"
+                      },
+                      "type": {
+                        "type": "string"
+                      }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "targetPort": {
+                    "description": "TargetPort maps to the container listening port. Optional — defaults to port.",
+                    "format": "int32",
+                    "maximum": 65535,
+                    "minimum": 1,
+                    "type": "integer"
+                  },
+                  "type": {
+                    "description": "Type indicates the protocol/technology of the endpoint.",
+                    "enum": [
+                      "HTTP",
+                      "gRPC",
+                      "GraphQL",
+                      "Websocket",
+                      "TCP",
+                      "UDP"
+                    ],
+                    "type": "string"
+                  },
+                  "visibility": {
+                    "description": "Visibility is an array of additional endpoint visibilities beyond the implicit project visibility.\nEvery endpoint always gets project visibility. This array adds extra scopes.",
+                    "items": {
+                      "description": "EndpointVisibility defines the visibility scope for an endpoint.\nIt determines which components can access the endpoint and how that access is enforced at runtime.",
+                      "enum": [
+                        "project",
+                        "namespace",
+                        "internal",
+                        "external"
+                      ],
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": [
+                  "port",
+                  "type"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "description": "Endpoints define simple network endpoints for basic port exposure.\nThe key is the endpoint name, and the value is the endpoint specification.",
+              "type": "object"
+            },
+            "source": {
+              "description": "Source records the commit provenance of the image in Container, for Delivery\nInsights' Lead Time for Changes metric.",
+              "properties": {
+                "authoredAt": {
+                  "description": "AuthoredAt is when the commit was authored, not when it was committed or\nbuilt. This is the timestamp Lead Time for Changes measures from.",
+                  "format": "date-time",
+                  "type": "string"
+                },
+                "branch": {
+                  "description": "Branch is the VCS branch the commit was built from. Absent for a build pinned\nto a commit, which is not made from any particular branch. Not pattern-checked:\ngit ref names permit a wide character set, and rejecting a valid one would\nblock a deployment for a metadata field.",
+                  "maxLength": 255,
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "commit": {
+                  "description": "Commit is the VCS commit SHA the running image was built from. Constrained to\nhex so that a tag or branch name passed here is rejected rather than recorded\nas a commit -- an easy mistake to make when --source-branch sits next to it,\nand one that produces provenance pointing at nothing. A prefix is accepted\nbecause external CI often has only a short SHA; native CI canonicalizes to the\nfull 40.",
+                  "maxLength": 40,
+                  "minLength": 7,
+                  "pattern": "^[0-9a-fA-F]+$",
+                  "type": "string"
+                },
+                "repository": {
+                  "description": "Repository is the VCS repository URL the commit belongs to. Bounded but not\nformat-checked, since both https and scp-style SSH forms\n(git@host:org/repo.git) are legitimate here.",
+                  "maxLength": 2048,
+                  "minLength": 1,
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "container"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "componentType",
+        "owner",
+        "workload"
+      ],
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
+}

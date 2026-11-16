@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "x-openchoreo-kind": "Component",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_components.yaml",
   "title": "OpenChoreo Component",
-  "description": "An application unit (service, web app, scheduled task, etc.) that can be built and deployed.",
+  "description": "Component is the Schema for the components API.",
   "type": "object",
   "properties": {
     "apiVersion": {
@@ -15,7 +16,6 @@
     },
     "metadata": {
       "type": "object",
-      "description": "Standard Kubernetes metadata",
       "properties": {
         "name": {
           "type": "string",
@@ -23,118 +23,160 @@
         },
         "namespace": {
           "type": "string",
-          "description": "Namespace (organization) this Component belongs to",
+          "description": "Namespace",
           "x-openchoreo-ref": "Namespace"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
-      "required": ["name"]
+      "required": [
+        "name"
+      ]
     },
     "spec": {
-      "type": "object",
-      "description": "Component specification",
-      "additionalProperties": false,
+      "description": "ComponentSpec defines the desired state of Component.",
       "properties": {
-        "owner": {
-          "type": "object",
-          "description": "Ownership information for the component",
-          "properties": {
-            "projectName": {
-              "type": "string",
-              "description": "Name of the project this component belongs to",
-              "x-openchoreo-ref": "Project",
-              "minLength": 1
-            }
-          },
-          "required": ["projectName"]
-        },
-        "componentType": {
-          "type": "object",
-          "description": "Reference to the ComponentType or ClusterComponentType",
-          "required": ["name"],
-          "properties": {
-            "kind": {
-              "type": "string",
-              "description": "Kind of component type (ComponentType or ClusterComponentType)",
-              "enum": ["ComponentType", "ClusterComponentType"],
-              "default": "ComponentType"
-            },
-            "name": {
-              "type": "string",
-              "description": "Component type reference in format: {workloadType}/{componentTypeName}",
-              "x-openchoreo-ref": "ComponentType"
-            }
-          }
+        "autoBuild": {
+          "description": "AutoBuild enables automatic builds when code is pushed to the repository\nWhen enabled, webhook events will trigger builds automatically\nUsers must manually configure webhooks in their Git provider",
+          "type": "boolean"
         },
         "autoDeploy": {
-          "type": "boolean",
-          "description": "Whether to automatically deploy to default environment when created",
-          "default": false
+          "description": "AutoDeploy indicates whether the component should be deployed automatically when created\nWhen not specified, defaults to false (zero value)",
+          "type": "boolean"
         },
-        "autoBuild": {
-          "type": "boolean",
-          "description": "Whether to automatically trigger builds on code push"
-        },
-        "parameters": {
-          "type": "object",
-          "description": "ComponentType parameter values (schema defined by the referenced ComponentType)",
-          "additionalProperties": true
-        },
-        "traits": {
-          "type": "array",
-          "description": "Trait instances attached to the component",
-          "items": {
-            "type": "object",
-            "required": ["name", "instanceName"],
-            "properties": {
-              "kind": {
-                "type": "string",
-                "description": "Kind of trait resource (Trait for namespace-scoped, ClusterTrait for cluster-scoped)",
-                "enum": ["Trait", "ClusterTrait"],
-                "default": "Trait"
-              },
-              "name": {
-                "type": "string",
-                "description": "Trait template name",
-                "x-openchoreo-ref": "Trait+ClusterTrait"
-              },
-              "instanceName": {
-                "type": "string",
-                "description": "Instance name for this trait attachment"
-              },
-              "parameters": {
-                "type": "object",
-                "description": "Trait parameters",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
-        "workflow": {
-          "type": "object",
-          "description": "Workflow configuration for a component",
-          "required": ["name"],
+        "componentType": {
+          "description": "ComponentType specifies the component type reference with kind and name.\nName is in the format: {workloadType}/{componentTypeName}\nExample: kind=ComponentType, name=\"deployment/web-app\"",
           "properties": {
             "kind": {
-              "type": "string",
-              "description": "Kind of referenced workflow resource (Workflow or ClusterWorkflow)",
-              "enum": ["Workflow", "ClusterWorkflow"],
-              "default": "ClusterWorkflow"
+              "default": "ComponentType",
+              "description": "Kind is the kind of component type (ComponentType or ClusterComponentType)",
+              "enum": [
+                "ComponentType",
+                "ClusterComponentType"
+              ],
+              "type": "string"
             },
             "name": {
+              "description": "Name is the component type reference in format: {workloadType}/{componentTypeName}",
+              "pattern": "^(deployment|statefulset|cronjob|job|proxy)/[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
               "type": "string",
-              "description": "Referenced workflow resource name",
+              "x-openchoreo-ref": "ComponentType+ClusterComponentType"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "owner": {
+          "description": "Owner defines the ownership information for the component",
+          "properties": {
+            "projectName": {
+              "minLength": 1,
+              "type": "string",
+              "x-openchoreo-ref": "Project"
+            }
+          },
+          "required": [
+            "projectName"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "parameters": {
+          "description": "Parameters from ComponentType (oneOf schema based on componentType)\nThis is the merged schema of parameters + environmentConfigs from the ComponentType"
+        },
+        "traits": {
+          "description": "Traits to compose into this component\nEach trait can be instantiated multiple times with different instanceNames",
+          "items": {
+            "description": "ComponentTrait represents an trait instance attached to a component",
+            "properties": {
+              "instanceName": {
+                "description": "InstanceName uniquely identifies this trait instance within the component\nAllows the same trait to be used multiple times with different configurations\nMust be unique across all traits in the component",
+                "minLength": 1,
+                "type": "string"
+              },
+              "kind": {
+                "default": "Trait",
+                "description": "Kind is the kind of trait (Trait or ClusterTrait)",
+                "enum": [
+                  "Trait",
+                  "ClusterTrait"
+                ],
+                "type": "string"
+              },
+              "name": {
+                "description": "Name is the name of the Trait resource to use",
+                "minLength": 1,
+                "type": "string",
+                "x-openchoreo-ref": "Trait+ClusterTrait"
+              },
+              "parameters": {
+                "description": "Parameters contains the trait parameter values\nThe schema for these values is defined in the Trait's parameters schema"
+              }
+            },
+            "required": [
+              "instanceName",
+              "name"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "type": "array"
+        },
+        "workflow": {
+          "description": "Workflow defines the workflow configuration for building the component.\nThis references a Workflow CR and provides parameter values.\nThe Workflow must be in the allowedWorkflows list of the ComponentType.",
+          "properties": {
+            "kind": {
+              "default": "ClusterWorkflow",
+              "description": "Kind is the kind of workflow (Workflow or ClusterWorkflow).",
+              "enum": [
+                "Workflow",
+                "ClusterWorkflow"
+              ],
+              "type": "string"
+            },
+            "name": {
+              "description": "Name references the Workflow or ClusterWorkflow CR to use for building the component.\nThe Workflow must be in the allowedWorkflows list of the ComponentType.",
+              "minLength": 1,
+              "type": "string",
               "x-openchoreo-ref": "Workflow+ClusterWorkflow"
             },
             "parameters": {
-              "type": "object",
-              "description": "Developer-provided parameters for the referenced workflow",
-              "additionalProperties": true
+              "description": "Parameters contains the developer-provided values for the flexible parameter schema\ndefined in the referenced Workflow CR.\n\nThese values are validated against the Workflow's parameter schema.",
+              "type": "object"
             }
-          }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object",
+          "additionalProperties": false
         }
       },
-      "required": ["owner", "componentType"]
+      "required": [
+        "componentType",
+        "owner"
+      ],
+      "type": "object",
+      "additionalProperties": false
     }
   },
-  "required": ["apiVersion", "kind", "metadata", "spec"]
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
 }

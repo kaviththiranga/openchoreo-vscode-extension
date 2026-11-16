@@ -8,7 +8,7 @@ import {
   InsertTextFormat,
 } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import { parseDocument, isMap, isScalar, isPair, YAMLMap, Scalar, Node } from 'yaml';
+import { parseDocument, isMap, isScalar, isPair, isSeq, YAMLMap, Scalar, Node } from 'yaml';
 import type { JsonSchema } from '../schemas/schemaLoader';
 import { OPENCHOREO_CRD_KINDS, type CrdKind } from '../validation/crdDetector';
 import { isInsideCelExpression, getCelCompletionItems } from './celCompletions';
@@ -151,7 +151,7 @@ export function getCompletionItems(
   // Try these even when contextSchema is null (schema path unresolved for dynamic fields)
   if (crdKind) {
     const crossDocItems = getCrossDocumentCompletions(
-      text, yamlPath, crdKind, resourceSchemas, indent, existingKeys,
+      text, yamlPath, crdKind, resourceSchemas, indent, existingKeys, document.offsetAt(position),
     );
     // Note: crossDocItems may be empty if path doesn't match or schema not found
     if (crossDocItems.length > 0) {
@@ -500,19 +500,26 @@ function getCrossDocumentCompletions(
   resourceSchemas: ResourceSchemaCache,
   indent: number,
   existingKeys: Set<string> = new Set(),
+  offset?: number,
 ): CompletionItem[] {
   try {
     const doc = parseDocument(documentText, { keepSourceTokens: false });
     if (!doc.contents || !isMap(doc.contents)) return [];
+    const contents = doc.contents;
 
     const pathStr = yamlPath.join('.');
 
-    // Component: spec.parameters[.nested...] → lookup componentType → parameters schema
-    if (crdKind === 'Component' && (pathStr === 'spec.parameters' || pathStr.startsWith('spec.parameters.'))) {
-      const ctName = extractFieldValue(doc.contents, ['spec', 'componentType', 'name']);
+    // spec.parameters[.nested...] → the referenced type's parameters schema:
+    // Component → spec.componentType, Project → spec.type (ProjectType, 1.3+),
+    // Resource → spec.type (ResourceType).
+    const typeRef = PARAMETER_TYPE_REFS[crdKind];
+    if (typeRef && (pathStr === 'spec.parameters' || pathStr.startsWith('spec.parameters.'))) {
+      const typeName = extractFieldValue(contents, ['spec', typeRef.field, 'name']);
+      const typeKind = extractFieldValue(contents, ['spec', typeRef.field, 'kind']);
       const subPath = yamlPath.slice(2); // remove 'spec', 'parameters' → remaining nested path
-      if (ctName) {
-        return getSchemaPropertyCompletions(ctName, 'parameters', resourceSchemas, indent, existingKeys, subPath);
+      if (typeName) {
+        return getSchemaPropertyCompletions(typeName, 'parameters', resourceSchemas, indent, existingKeys, subPath,
+          typeKind ? [typeKind] : typeRef.kinds);
       }
     }
 
@@ -521,7 +528,8 @@ function getCrossDocumentCompletions(
       const wfName = extractFieldValue(doc.contents, ['spec', 'workflow', 'name']);
       const subPath = yamlPath.slice(3); // remove 'spec', 'workflow', 'parameters'
       if (wfName) {
-        return getSchemaPropertyCompletions(wfName, 'parameters', resourceSchemas, indent, existingKeys, subPath);
+        return getSchemaPropertyCompletions(wfName, 'parameters', resourceSchemas, indent, existingKeys, subPath,
+          ['Workflow', 'ClusterWorkflow']);
       }
       // Fallback: offer merged parameters from all known workflows
       return getAllSchemaPropertyCompletions('parameters', resourceSchemas, indent,
@@ -541,7 +549,14 @@ function getCrossDocumentCompletions(
         yamlPath[0] === 'spec' && yamlPath[1] === 'traits') {
       const paramsIdx = yamlPath.indexOf('parameters');
       if (paramsIdx >= 2) {
-        // For now, offer a merged set from all known traits
+        // The trait entry under the cursor decides the schema; fall back to a
+        // merged set when it can't be resolved (e.g. name not typed yet).
+        const trait = offset !== undefined ? traitEntryAt(contents, offset) : undefined;
+        if (trait?.name) {
+          const items = getSchemaPropertyCompletions(trait.name, 'parameters', resourceSchemas, indent,
+            existingKeys, yamlPath.slice(paramsIdx + 1), trait.kind ? [trait.kind] : ['Trait', 'ClusterTrait']);
+          if (items.length > 0) return items;
+        }
         return getAllSchemaPropertyCompletions('parameters', resourceSchemas, indent,
           ['Trait', 'ClusterTrait'], existingKeys);
       }
@@ -550,6 +565,35 @@ function getCrossDocumentCompletions(
     // Non-fatal
   }
   return [];
+}
+
+/** Which spec field names the type whose parameters a kind's spec.parameters fills in. */
+const PARAMETER_TYPE_REFS: Record<string, { field: string; kinds: string[] }> = {
+  Component: { field: 'componentType', kinds: ['ComponentType', 'ClusterComponentType'] },
+  Project: { field: 'type', kinds: ['ProjectType', 'ClusterProjectType'] },
+  Resource: { field: 'type', kinds: ['ResourceType', 'ClusterResourceType'] },
+};
+
+/**
+ * The spec.traits[] entry the cursor is in: the last entry starting before
+ * `offset` (the caller already knows the cursor is under spec.traits, and a
+ * half-typed line can sit past the node's parsed end).
+ */
+function traitEntryAt(root: YAMLMap, offset: number): { name?: string; kind?: string } | undefined {
+  const spec = root.get('spec');
+  const traits = isMap(spec) ? spec.get('traits') : undefined;
+  if (!isSeq(traits)) return undefined;
+  let entry: YAMLMap | undefined;
+  for (const item of traits.items) {
+    if (isMap(item) && item.range && item.range[0] <= offset) entry = item;
+  }
+  if (!entry) return undefined;
+  const name = entry.get('name');
+  const kind = entry.get('kind');
+  return {
+    name: typeof name === 'string' ? name : undefined,
+    kind: typeof kind === 'string' ? kind : undefined,
+  };
 }
 
 /** Extract a scalar field value by walking a YAML path. */
@@ -578,8 +622,10 @@ function getSchemaPropertyCompletions(
   indent: number,
   existingKeys: Set<string> = new Set(),
   subPath: string[] = [],
+  kinds?: string[],
 ): CompletionItem[] {
-  for (const kindSchemas of Object.values(resourceSchemas)) {
+  for (const [kind, kindSchemas] of Object.entries(resourceSchemas)) {
+    if (kinds && !kinds.includes(kind)) continue;
     const schemaData = kindSchemas[resourceName];
     if (schemaData?.[section]) {
       let schema = schemaData[section] as Record<string, unknown>;

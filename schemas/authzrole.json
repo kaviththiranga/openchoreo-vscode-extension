@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "AuthzRole",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_authzroles.yaml",
+  "title": "OpenChoreo AuthzRole",
+  "description": "AuthzRole is the Schema for the authzroles API",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "AuthzRole"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the AuthzRole"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace",
+          "x-openchoreo-ref": "Namespace"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "AuthzRoleSpec defines the desired state of AuthzRole",
+      "properties": {
+        "actions": {
+          "description": "Actions is the list of actions this role can perform",
+          "example": [
+            "component:create"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "description": {
+          "description": "Description is a human-readable description of the role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "actions"
+      ],
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
+}

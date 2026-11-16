@@ -1,0 +1,198 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ObservabilityAlertRule",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_observabilityalertrules.yaml",
+  "title": "OpenChoreo ObservabilityAlertRule",
+  "description": "ObservabilityAlertRule is the Schema for the observabilityalertrules API.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ObservabilityAlertRule"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the ObservabilityAlertRule"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace",
+          "x-openchoreo-ref": "Namespace"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "ObservabilityAlertRuleSpec defines the desired state of ObservabilityAlertRule.",
+      "properties": {
+        "actions": {
+          "description": "Actions defines the actions to take when the alert rule is triggered.",
+          "properties": {
+            "incident": {
+              "description": "Incident defines the incident to trigger when the alert rule is triggered.",
+              "properties": {
+                "enabled": {
+                  "default": false,
+                  "description": "Enabled toggles whether an incident should be triggered when the alert rule is triggered.",
+                  "type": "boolean"
+                },
+                "triggerAiCostAnalysis": {
+                  "default": false,
+                  "description": "TriggerAiCostAnalysis toggles whether an AI cost analysis should be triggered when an incident is created.\nTo set this to true, Enabled must also be set to true.",
+                  "type": "boolean"
+                },
+                "triggerAiRca": {
+                  "default": false,
+                  "description": "TriggerAiRca toggles whether an AI root cause analysis should be triggered when an incident is created.\nTo set this to true, Enabled must also be set to true.",
+                  "type": "boolean"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "notifications": {
+              "description": "Notifications defines the notifications to send when the alert rule is triggered.",
+              "properties": {
+                "channels": {
+                  "description": "Channels defines the channels to send notifications to.",
+                  "items": {
+                    "description": "NotificationChannelName defines a non-empty notification channel identifier.",
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "minItems": 1,
+                  "type": "array"
+                }
+              },
+              "required": [
+                "channels"
+              ],
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "notifications"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "condition": {
+          "description": "Condition controls how the rule should be evaluated against the source.",
+          "properties": {
+            "interval": {
+              "description": "Interval dictates how often the alert rule is evaluated.",
+              "type": "string"
+            },
+            "operator": {
+              "description": "Operator describes the comparison used when evaluating the threshold.",
+              "enum": [
+                "gt",
+                "lt",
+                "gte",
+                "lte",
+                "eq"
+              ],
+              "type": "string"
+            },
+            "threshold": {
+              "description": "Threshold is the trigger value for the configured operator.",
+              "format": "int64",
+              "type": "integer"
+            },
+            "window": {
+              "description": "Window is the time window that is aggregated before a comparison is made.",
+              "type": "string"
+            }
+          },
+          "required": [
+            "interval",
+            "operator",
+            "threshold",
+            "window"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "description": {
+          "description": "Description is a human-friendly summary of the alert rule.",
+          "type": "string"
+        },
+        "enabled": {
+          "description": "Enabled toggles whether this alert rule should be evaluated.",
+          "type": "boolean"
+        },
+        "name": {
+          "description": "Name identifies the alert rule when defined as a Trait.",
+          "type": "string"
+        },
+        "severity": {
+          "description": "Severity describes how urgent the alert is.",
+          "type": "string"
+        },
+        "source": {
+          "description": "Source specifies the origin and query that drives the rule.",
+          "properties": {
+            "metric": {
+              "description": "Metric specifies the metric to alert on.\nThis is required for metric-based alerting.",
+              "type": "string"
+            },
+            "query": {
+              "description": "Query defines the query or filter to locate relevant events.\nThis is required for log-based alerting.",
+              "type": "string"
+            },
+            "type": {
+              "description": "Type specifies the telemetry source type (log, metric).",
+              "enum": [
+                "log",
+                "metric",
+                "budget"
+              ],
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "actions",
+        "condition",
+        "name",
+        "source"
+      ],
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
+}

@@ -8,6 +8,13 @@
 - Scaffolded Workloads use the endpoint `protocol` field on OpenChoreo 1.4+ servers (`type` before)
 - Language server recognises every OpenChoreo 1.3 kind (plus the 1.4 additions) and drops removed legacy kinds (Organization, Release, API, APIBinding, APIClass, ConfigurationGroup)
 - CI workflow (build, lint, test, package) and unit tests for the extension package
+- One kind registry (`src/kinds/registry.ts`, generated from the OpenChoreo 1.3.3 API spec) now drives API routes, delete permissions, editability and the language-server feed; routes are type-checked against the client
+- Editing and saving ProjectType, ClusterProjectType, ProjectReleaseBinding and alert notification channel YAML now works
+- Fix role nodes mapping to non-existent kinds (`NamespaceRole`, `ClusterRole`, …) instead of `AuthzRole` / `ClusterAuthzRole`
+- CRD schemas are generated from the OpenChoreo v1.3.3 CRDs (`scripts/generate-schemas.mjs`): all 37 kinds covered (was 17); unknown fields the API server would prune are flagged; zero false warnings across the official v1.3.3 samples
+- Completions for Project `spec.parameters` (from its ProjectType) and Resource `spec.parameters` (from its ResourceType); trait parameters now come from the trait under the cursor
+- References accept cluster-scoped targets (ClusterComponentType, ClusterDataPlane, …) and are only checked when every target kind could be listed, so missing permissions no longer cause false "not found" warnings
+- CEL variable checks apply only to ComponentType/Trait templates
 
 ## 0.1.1 — 2026-05-18
 

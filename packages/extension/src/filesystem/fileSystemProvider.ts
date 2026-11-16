@@ -6,7 +6,8 @@ import { parse as parseYaml } from 'yaml';
 import type { ApiClientManager } from '../api/apiClient';
 import type { ResourceNodeData, ResourceNodeType } from '../treeView/types';
 import { ResourceService } from '../services/resourceService';
-import { DEFINITION_RESOURCE_TYPES, crdToYaml } from '../services/yamlService';
+import { crdToYaml } from '../services/yamlService';
+import { kindSpecForNode } from '../kinds/registry';
 import { buildPutRequest, buildPostRequest, fetchResource } from '../services/apiRoutes';
 import { log } from '../logging/logger';
 
@@ -46,7 +47,7 @@ export function buildResourceUri(node: ResourceNodeData): vscode.Uri {
   const resourceService = new ResourceService();
   const isCluster = resourceService.isClusterScoped(node.type);
   const isDeleting = node.description?.includes('(deleting)') ?? false;
-  const isEditable = !isDeleting && DEFINITION_RESOURCE_TYPES.has(node.type);
+  const isEditable = !isDeleting && !!kindSpecForNode(node.type)?.update;
 
   const name = node.resourceName ?? node.label;
   const path = isCluster

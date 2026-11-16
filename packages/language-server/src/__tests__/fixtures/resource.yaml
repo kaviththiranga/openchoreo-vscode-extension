@@ -1,0 +1,14 @@
+# Copied from openchoreo/openchoreo v1.3.3 samples/ (Apache-2.0) as a schema fixture.
+apiVersion: openchoreo.dev/v1alpha1
+kind: Resource
+metadata:
+  name: doclet-postgres
+  namespace: default
+spec:
+  owner:
+    projectName: doclet
+  type:
+    kind: ClusterResourceType
+    name: postgres
+  parameters:
+    database: doclet

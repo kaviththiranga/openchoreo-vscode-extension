@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "x-openchoreo-kind": "Workload",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_workloads.yaml",
   "title": "OpenChoreo Workload",
-  "description": "The developer's application contract -- what should run, not how it runs. Gets transformed into Kubernetes resources by ComponentType templates.",
+  "description": "Workload is the Schema for the workloads API.",
   "type": "object",
   "properties": {
     "apiVersion": {
@@ -22,253 +23,404 @@
         },
         "namespace": {
           "type": "string",
-          "description": "Namespace (organization)",
+          "description": "Namespace",
           "x-openchoreo-ref": "Namespace"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
-      "required": ["name"]
+      "required": [
+        "name"
+      ]
     },
     "spec": {
-      "type": "object",
-      "description": "Workload specification",
-      "additionalProperties": false,
       "properties": {
-        "owner": {
-          "type": "object",
-          "description": "Owner reference for the workload",
-          "required": ["projectName", "componentName"],
-          "properties": {
-            "projectName": {
-              "type": "string",
-              "description": "Name of the owning project",
-              "x-openchoreo-ref": "Project",
-              "minLength": 1
-            },
-            "componentName": {
-              "type": "string",
-              "description": "Name of the owning component",
-              "x-openchoreo-ref": "Component",
-              "minLength": 1
-            }
-          }
-        },
         "container": {
-          "type": "object",
-          "description": "Container specification",
-          "required": ["image"],
+          "description": "Container defines the container specification for this workload.",
           "properties": {
-            "image": {
-              "type": "string",
-              "description": "OCI image to run (digest or tag)"
+            "args": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             },
             "command": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "Container entrypoint"
-            },
-            "args": {
-              "type": "array",
-              "items": { "type": "string" },
-              "description": "Container arguments"
+              "description": "Container entrypoint & args.",
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
             },
             "env": {
-              "type": "array",
-              "description": "Environment variables",
+              "description": "Explicit environment variables.",
               "items": {
-                "type": "object",
-                "required": ["key"],
+                "description": "EnvVar represents an environment variable present in the container.",
                 "properties": {
                   "key": {
-                    "type": "string",
-                    "description": "Variable key/name"
+                    "description": "The environment variable key.",
+                    "type": "string"
                   },
                   "value": {
-                    "type": "string",
-                    "description": "Variable value"
+                    "description": "The literal value of the environment variable.\nMutually exclusive with valueFrom.",
+                    "type": "string"
                   },
                   "valueFrom": {
-                    "type": "object",
-                    "description": "Value source reference",
+                    "description": "Extract the environment variable value from another resource.\nMutually exclusive with value.",
                     "properties": {
                       "secretKeyRef": {
-                        "type": "object",
-                        "description": "Secret reference",
+                        "description": "Reference to a secret resource.",
                         "properties": {
-                          "name": {
-                            "type": "string",
-                            "description": "Secret name"
-                          },
                           "key": {
-                            "type": "string",
-                            "description": "Secret key"
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "name": {
+                            "minLength": 1,
+                            "type": "string"
                           }
-                        }
+                        },
+                        "required": [
+                          "key",
+                          "name"
+                        ],
+                        "type": "object",
+                        "additionalProperties": false
                       }
-                    }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
                   }
-                }
-              }
+                },
+                "required": [
+                  "key"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "type": "array"
             },
             "files": {
-              "type": "array",
-              "description": "File mount configurations",
+              "description": "File configurations.",
               "items": {
-                "type": "object",
-                "required": ["key", "mountPath"],
+                "description": "FileVar represents a file configuration in a container.",
                 "properties": {
                   "key": {
-                    "type": "string",
-                    "description": "File key/name"
+                    "description": "The file key/name.",
+                    "type": "string"
                   },
                   "mountPath": {
-                    "type": "string",
-                    "description": "Mount path in container"
+                    "description": "The mount path where the file will be mounted.",
+                    "type": "string"
                   },
                   "value": {
-                    "type": "string",
-                    "description": "File content"
+                    "description": "The literal content of the file.\nMutually exclusive with valueFrom.",
+                    "type": "string"
                   },
                   "valueFrom": {
-                    "type": "object",
-                    "description": "Value source reference",
+                    "description": "Extract the environment variable value from another resource.\nMutually exclusive with value.",
                     "properties": {
                       "secretKeyRef": {
-                        "type": "object",
-                        "description": "Secret reference",
+                        "description": "Reference to a secret resource.",
                         "properties": {
-                          "name": {
-                            "type": "string",
-                            "description": "Secret name"
-                          },
                           "key": {
-                            "type": "string",
-                            "description": "Secret key"
+                            "minLength": 1,
+                            "type": "string"
+                          },
+                          "name": {
+                            "minLength": 1,
+                            "type": "string"
                           }
-                        }
+                        },
+                        "required": [
+                          "key",
+                          "name"
+                        ],
+                        "type": "object",
+                        "additionalProperties": false
                       }
-                    }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
                   }
-                }
-              }
-            }
-          }
-        },
-        "endpoints": {
-          "type": "object",
-          "description": "Named endpoint specifications",
-          "additionalProperties": {
-            "type": "object",
-            "required": ["type", "port"],
-            "properties": {
-              "visibility": {
-                "type": "array",
-                "description": "Additional endpoint visibilities beyond implicit project visibility",
-                "items": {
-                  "type": "string",
-                  "enum": ["project", "namespace", "internal", "external"]
-                }
-              },
-              "type": {
-                "type": "string",
-                "description": "Protocol/technology of the endpoint",
-                "enum": ["HTTP", "gRPC", "GraphQL", "Websocket", "TCP", "UDP"]
-              },
-              "port": {
-                "type": "integer",
-                "description": "Port exposed by the endpoint",
-                "minimum": 1,
-                "maximum": 65535
-              },
-              "targetPort": {
-                "type": "integer",
-                "description": "Container listening port (defaults to port)",
-                "minimum": 1,
-                "maximum": 65535
-              },
-              "displayName": {
-                "type": "string",
-                "description": "Human-readable name for the endpoint"
-              },
-              "basePath": {
-                "type": "string",
-                "description": "Base path of the API exposed via the endpoint"
-              },
-              "schema": {
+                },
+                "required": [
+                  "key",
+                  "mountPath"
+                ],
                 "type": "object",
-                "description": "API definition schema",
-                "properties": {
-                  "type": {
-                    "type": "string"
-                  },
-                  "content": {
-                    "type": "string"
-                  }
-                }
-              }
+                "additionalProperties": false
+              },
+              "type": "array"
+            },
+            "image": {
+              "description": "OCI image to run (digest or tag).",
+              "minLength": 1,
+              "type": "string"
             }
-          }
+          },
+          "required": [
+            "image"
+          ],
+          "type": "object",
+          "additionalProperties": false
         },
         "dependencies": {
-          "type": "object",
-          "description": "Dependencies on other components' endpoints",
+          "description": "Dependencies define the dependencies of this workload on other components.",
           "properties": {
             "endpoints": {
-              "type": "array",
-              "description": "Endpoint connections to other components",
+              "description": "Endpoints define how this workload consumes endpoints from other components.",
               "items": {
-                "type": "object",
-                "required": ["component", "name", "visibility", "envBindings"],
+                "description": "WorkloadConnection represents a connection to another component's endpoint.",
                 "properties": {
-                  "project": {
-                    "type": "string",
-                    "description": "Target component's project name. If empty, defaults to the same project as the consumer."
-                  },
                   "component": {
+                    "description": "Component is the target component name.",
+                    "minLength": 1,
                     "type": "string",
-                    "description": "Target component name",
-                    "x-openchoreo-ref": "Component",
-                    "minLength": 1
-                  },
-                  "name": {
-                    "type": "string",
-                    "description": "Target endpoint name on the target component",
-                    "minLength": 1
-                  },
-                  "visibility": {
-                    "type": "string",
-                    "description": "Visibility level at which this connection consumes the endpoint",
-                    "enum": ["project", "namespace"]
+                    "x-openchoreo-ref": "Component"
                   },
                   "envBindings": {
-                    "type": "object",
-                    "description": "Maps resolved connection address components to environment variable names",
+                    "description": "EnvBindings maps semantic URL components to environment variable names.",
                     "properties": {
                       "address": {
-                        "type": "string",
-                        "description": "Env var name for the protocol-appropriate connection string"
-                      },
-                      "host": {
-                        "type": "string",
-                        "description": "Env var name for just the hostname"
-                      },
-                      "port": {
-                        "type": "string",
-                        "description": "Env var name for just the port number"
+                        "description": "Address is the env var name for the protocol-appropriate connection string.\nFor HTTP/HTTPS/WS/WSS: scheme://host:port/basePath\nFor gRPC/TCP/UDP: host:port",
+                        "type": "string"
                       },
                       "basePath": {
-                        "type": "string",
-                        "description": "Env var name for just the base path"
+                        "description": "BasePath is the optional env var name for just the base path.",
+                        "type": "string"
+                      },
+                      "host": {
+                        "description": "Host is the optional env var name for just the hostname.",
+                        "type": "string"
+                      },
+                      "port": {
+                        "description": "Port is the optional env var name for just the port number.",
+                        "type": "string"
                       }
-                    }
+                    },
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "name": {
+                    "description": "Name is the target endpoint name on the target component.",
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "project": {
+                    "description": "Project is the target component's project name.\nIf empty, defaults to the same project as the consumer.\nRequired when namespace is specified.",
+                    "type": "string"
+                  },
+                  "visibility": {
+                    "description": "Visibility is the visibility level at which this connection consumes the endpoint.",
+                    "enum": [
+                      "project",
+                      "namespace"
+                    ],
+                    "type": "string"
                   }
-                }
-              }
+                },
+                "required": [
+                  "component",
+                  "envBindings",
+                  "name",
+                  "visibility"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "maxItems": 50,
+              "type": "array"
+            },
+            "resources": {
+              "description": "Resources define how this workload consumes outputs from project-bound Resources.\nEach entry references a Resource by name and binds named outputs of the resolved\nResourceReleaseBinding to container env vars (envBindings) and file mounts (fileBindings).",
+              "items": {
+                "description": "WorkloadResourceDependency represents a dependency on a project-bound Resource. Output names\ndeclared on the referenced ResourceType are wired into the consuming container as env vars\n(envBindings) and file mounts (fileBindings). Outputs not listed in either map are ignored.",
+                "properties": {
+                  "envBindings": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "EnvBindings maps a ResourceType output name to a container environment variable name.\nThe output's source kind (value, secretKeyRef, configMapKeyRef) determines whether the\nresulting env var is a literal or a valueFrom reference.",
+                    "maxProperties": 50,
+                    "type": "object"
+                  },
+                  "fileBindings": {
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "FileBindings maps a ResourceType output name to a container mount path. The referenced\noutput's source kind must be secretKeyRef or configMapKeyRef; value-kind outputs cannot\nbe mounted as files because there is no DP-side object to mount.",
+                    "maxProperties": 50,
+                    "type": "object"
+                  },
+                  "ref": {
+                    "description": "Ref is the name of the Resource to consume. The Resource must live in the same project as\nthe consuming Component (cross-project consumption is deferred to a later release).",
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "ref"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "maxItems": 50,
+              "type": "array"
             }
-          }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "endpoints": {
+          "additionalProperties": {
+            "description": "WorkloadEndpoint represents a simple network endpoint for basic exposure.",
+            "properties": {
+              "basePath": {
+                "description": "BasePath is the base path of the API exposed via the endpoint.",
+                "type": "string"
+              },
+              "displayName": {
+                "description": "DisplayName is an optional human-readable name for the endpoint.",
+                "type": "string"
+              },
+              "port": {
+                "description": "Port exposed by the endpoint. If targetPort is not set, platform defaults to port for both.",
+                "format": "int32",
+                "maximum": 65535,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "schema": {
+                "description": "Schema for the endpoint API definition.",
+                "properties": {
+                  "content": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                },
+                "type": "object",
+                "additionalProperties": false
+              },
+              "targetPort": {
+                "description": "TargetPort maps to the container listening port. Optional — defaults to port.",
+                "format": "int32",
+                "maximum": 65535,
+                "minimum": 1,
+                "type": "integer"
+              },
+              "type": {
+                "description": "Type indicates the protocol/technology of the endpoint.",
+                "enum": [
+                  "HTTP",
+                  "gRPC",
+                  "GraphQL",
+                  "Websocket",
+                  "TCP",
+                  "UDP"
+                ],
+                "type": "string"
+              },
+              "visibility": {
+                "description": "Visibility is an array of additional endpoint visibilities beyond the implicit project visibility.\nEvery endpoint always gets project visibility. This array adds extra scopes.",
+                "items": {
+                  "description": "EndpointVisibility defines the visibility scope for an endpoint.\nIt determines which components can access the endpoint and how that access is enforced at runtime.",
+                  "enum": [
+                    "project",
+                    "namespace",
+                    "internal",
+                    "external"
+                  ],
+                  "type": "string"
+                },
+                "type": "array"
+              }
+            },
+            "required": [
+              "port",
+              "type"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "description": "Endpoints define simple network endpoints for basic port exposure.\nThe key is the endpoint name, and the value is the endpoint specification.",
+          "type": "object"
+        },
+        "owner": {
+          "properties": {
+            "componentName": {
+              "minLength": 1,
+              "type": "string",
+              "x-openchoreo-ref": "Component"
+            },
+            "projectName": {
+              "minLength": 1,
+              "type": "string",
+              "x-openchoreo-ref": "Project"
+            }
+          },
+          "required": [
+            "componentName",
+            "projectName"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "source": {
+          "description": "Source records the commit provenance of the image in Container, for Delivery\nInsights' Lead Time for Changes metric.",
+          "properties": {
+            "authoredAt": {
+              "description": "AuthoredAt is when the commit was authored, not when it was committed or\nbuilt. This is the timestamp Lead Time for Changes measures from.",
+              "format": "date-time",
+              "type": "string"
+            },
+            "branch": {
+              "description": "Branch is the VCS branch the commit was built from. Absent for a build pinned\nto a commit, which is not made from any particular branch. Not pattern-checked:\ngit ref names permit a wide character set, and rejecting a valid one would\nblock a deployment for a metadata field.",
+              "maxLength": 255,
+              "minLength": 1,
+              "type": "string"
+            },
+            "commit": {
+              "description": "Commit is the VCS commit SHA the running image was built from. Constrained to\nhex so that a tag or branch name passed here is rejected rather than recorded\nas a commit -- an easy mistake to make when --source-branch sits next to it,\nand one that produces provenance pointing at nothing. A prefix is accepted\nbecause external CI often has only a short SHA; native CI canonicalizes to the\nfull 40.",
+              "maxLength": 40,
+              "minLength": 7,
+              "pattern": "^[0-9a-fA-F]+$",
+              "type": "string"
+            },
+            "repository": {
+              "description": "Repository is the VCS repository URL the commit belongs to. Bounded but not\nformat-checked, since both https and scp-style SSH forms\n(git@host:org/repo.git) are legitimate here.",
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
         }
       },
-      "required": ["owner"]
+      "required": [
+        "container",
+        "owner"
+      ],
+      "type": "object",
+      "additionalProperties": false
     }
   },
-  "required": ["apiVersion", "kind", "metadata", "spec"]
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
 }

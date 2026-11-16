@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "WorkflowRun",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_workflowruns.yaml",
+  "title": "OpenChoreo WorkflowRun",
+  "description": "WorkflowRun is the Schema for the workflowruns API\nWorkflowRun represents a runtime execution instance of a Workflow.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "WorkflowRun"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the WorkflowRun"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace",
+          "x-openchoreo-ref": "Namespace"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "spec defines the desired state of WorkflowRun",
+      "properties": {
+        "ttlAfterCompletion": {
+          "description": "TTLAfterCompletion defines the time-to-live for this workflow run after completion.\nThis value is copied from the Workflow template.\nOnce the workflow completes, the run will be automatically deleted after this duration.\nFormat: duration string supporting days, hours, minutes, seconds without spaces (e.g., \"90d\", \"10d1h30m\", \"1h30m\")\nExamples: \"90d\", \"10d\", \"1h30m\", \"30m\", \"1d12h30m15s\"",
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string"
+        },
+        "workflow": {
+          "description": "Workflow configuration referencing the Workflow CR and providing schema values.",
+          "properties": {
+            "kind": {
+              "default": "ClusterWorkflow",
+              "description": "Kind is the kind of workflow (Workflow or ClusterWorkflow).",
+              "enum": [
+                "Workflow",
+                "ClusterWorkflow"
+              ],
+              "type": "string"
+            },
+            "name": {
+              "description": "Name references the Workflow or ClusterWorkflow CR to use for this execution.\nThe Workflow CR contains the schema definition and resource template.",
+              "minLength": 1,
+              "type": "string"
+            },
+            "parameters": {
+              "description": "Parameters contains the developer-provided values for the flexible parameter schema\ndefined in the referenced Workflow CR.\n\nThese values are validated against the Workflow's parameter schema.",
+              "type": "object"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "workflow"
+      ],
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
+}

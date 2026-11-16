@@ -15,6 +15,7 @@ import type { ResourceNodeData } from '../treeView/types';
 import { CRD_KIND_TO_SCAFFOLD, crdToYaml } from '../services/yamlService';
 import { ResourceService } from '../services/resourceService';
 import { buildPutRequest, fetchResource } from '../services/apiRoutes';
+import { kindSpec } from '../kinds/registry';
 import type { ComponentService } from '../services/componentService';
 import type { WorkflowRunService } from '../services/workflowRunService';
 import type { ReleaseBindingService } from '../services/releaseBindingService';
@@ -1130,7 +1131,9 @@ spec:
   );
 
   // Create resource scoped to Cluster Resources (cluster-scoped scaffolds, no namespace)
-  const CLUSTER_KINDS = ['ClusterComponentType', 'ClusterWorkflow', 'ClusterTrait', 'ClusterDataPlane', 'ClusterWorkflowPlane', 'ClusterObservabilityPlane'];
+  const CLUSTER_KINDS = Object.keys(CRD_KIND_TO_SCAFFOLD).filter(
+    (k) => kindSpec(k)?.scope === 'cluster',
+  );
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.createClusterResource',
@@ -1476,33 +1479,7 @@ async function openScaffold(
 
 /** Map CRD kind name to ResourceNodeType for URI construction. */
 function kindToNodeType(kind: string): string {
-  const map: Record<string, string> = {
-    Project: 'project',
-    Component: 'component',
-    ComponentType: 'component-type',
-    Trait: 'trait',
-    Environment: 'environment',
-    DataPlane: 'data-plane',
-    WorkflowPlane: 'workflow-plane',
-    Workflow: 'workflow',
-    Workload: 'workload',
-    DeploymentPipeline: 'deployment-pipeline',
-    SecretReference: 'secret-reference',
-    ObservabilityPlane: 'observability-plane',
-    ClusterComponentType: 'cluster-component-type',
-    ClusterWorkflow: 'cluster-workflow',
-    ClusterTrait: 'cluster-trait',
-    ClusterDataPlane: 'cluster-data-plane',
-    ClusterWorkflowPlane: 'cluster-workflow-plane',
-    ClusterObservabilityPlane: 'cluster-observability-plane',
-    AuthzRole: 'namespace-role',
-    AuthzRoleBinding: 'namespace-role-binding',
-    ReleaseBinding: 'release-binding',
-    WorkflowRun: 'workflow-run',
-    ClusterAuthzRole: 'cluster-role',
-    ClusterAuthzRoleBinding: 'cluster-role-binding',
-  };
-  return map[kind] ?? kind.toLowerCase();
+  return kindSpec(kind)?.nodeType ?? kind.toLowerCase();
 }
 
 type ApiClient = NonNullable<Awaited<ReturnType<ApiClientManager['getClient']>>>;

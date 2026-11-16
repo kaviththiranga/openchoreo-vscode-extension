@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ClusterAuthzRole",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_clusterauthzroles.yaml",
+  "title": "OpenChoreo ClusterAuthzRole",
+  "description": "ClusterAuthzRole is the Schema for the clusterauthzroles API",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ClusterAuthzRole"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the ClusterAuthzRole"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "ClusterAuthzRoleSpec defines the desired state of ClusterAuthzRole",
+      "properties": {
+        "actions": {
+          "description": "Actions is the list of actions this role can perform",
+          "example": [
+            "component:create"
+          ],
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "description": {
+          "description": "Description is a human-readable description of the role",
+          "type": "string"
+        }
+      },
+      "required": [
+        "actions"
+      ],
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
+}

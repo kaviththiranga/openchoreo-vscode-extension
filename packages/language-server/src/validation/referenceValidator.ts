@@ -50,10 +50,11 @@ export function validateReferences(
       const kinds = refKind.split('+');
       const allNames = kinds.flatMap((k) => resourceNames[k] ?? []);
 
-      // Only validate if we have names for at least one of the referenced kinds
-      const hasAnyNames = kinds.some((k) => (resourceNames[k]?.length ?? 0) > 0);
+      // Only validate when every referenced kind was loaded (a missing entry
+      // means its list failed, e.g. no permission) and at least one name exists
+      const allKindsLoaded = kinds.every((k) => resourceNames[k] !== undefined);
 
-      if (hasAnyNames && !allNames.includes(value)) {
+      if (allKindsLoaded && allNames.length > 0 && !allNames.includes(value)) {
         const range = getRange(item.value as Scalar, textDocument);
         if (range) {
           const kindLabel = kinds.join(' or ');

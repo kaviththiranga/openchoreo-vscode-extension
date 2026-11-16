@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "x-openchoreo-kind": "Workflow",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_workflows.yaml",
   "title": "OpenChoreo Workflow",
-  "description": "Defines a reusable workflow template for building or processing components.",
+  "description": "Workflow is the Schema for the workflows API\nWorkflow provides a template definition for workflow execution with schema and resource templates.",
   "type": "object",
   "properties": {
     "apiVersion": {
@@ -22,110 +23,161 @@
         },
         "namespace": {
           "type": "string",
-          "description": "Namespace (organization)",
+          "description": "Namespace",
           "x-openchoreo-ref": "Namespace"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
-      "required": ["name"]
+      "required": [
+        "name"
+      ]
     },
     "spec": {
-      "type": "object",
-      "description": "Workflow specification",
-      "additionalProperties": false,
-      "required": ["runTemplate"],
+      "description": "spec defines the desired state of Workflow",
       "properties": {
-        "workflowPlaneRef": {
-          "type": "object",
-          "description": "Reference to the WorkflowPlane or ClusterWorkflowPlane for this workflow's operations. Defaults to ClusterWorkflowPlane named \"default\" when omitted.",
-          "required": ["kind", "name"],
-          "properties": {
-            "kind": {
-              "type": "string",
-              "enum": ["WorkflowPlane", "ClusterWorkflowPlane"],
-              "description": "Kind of workflow plane"
-            },
-            "name": {
-              "type": "string",
-              "description": "Name of the workflow plane resource",
-              "x-openchoreo-ref": "WorkflowPlane"
-            }
-          }
-        },
-        "parameters": {
-          "type": "object",
-          "description": "Schema section for workflow parameters",
-          "properties": {
-            "openAPIV3Schema": {
-              "type": "object",
-              "description": "Schema using standard OpenAPI V3 / JSON Schema format",
-              "additionalProperties": true
-            }
-          }
-        },
-        "runTemplate": {
-          "type": "object",
-          "description": "Kubernetes resource template to render and apply for this workflow run",
-          "additionalProperties": true
-        },
-        "resources": {
-          "type": "array",
-          "description": "Additional resource templates to render and apply alongside the workflow run",
-          "items": {
-            "type": "object",
-            "required": ["id", "template"],
-            "properties": {
-              "id": {
-                "type": "string",
-                "description": "Unique identifier for this resource within the workflow"
-              },
-              "includeWhen": {
-                "type": "string",
-                "description": "CEL expression that determines whether this resource is rendered"
-              },
-              "template": {
-                "type": "object",
-                "description": "Kubernetes resource template with CEL expressions",
-                "additionalProperties": true
-              }
-            }
-          }
-        },
         "externalRefs": {
-          "type": "array",
-          "description": "External CR references resolved and injected into the CEL context under their id",
+          "description": "ExternalRefs declares references to external CRs that are resolved at runtime\nand injected into the CEL context under their id.\nIf a reference's name evaluates to empty, it is silently skipped.",
           "items": {
-            "type": "object",
-            "required": ["id", "apiVersion", "kind", "name"],
+            "description": "ExternalRef declares a reference to an external CR whose spec is resolved\nand injected into the CEL context under the given id.",
             "properties": {
-              "id": {
-                "type": "string",
-                "description": "Unique identifier; becomes the CEL context variable name",
-                "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
-                "minLength": 2,
-                "maxLength": 63
-              },
               "apiVersion": {
-                "type": "string",
-                "description": "API version of the referenced resource"
+                "description": "APIVersion is the API version of the referenced resource.",
+                "minLength": 1,
+                "type": "string"
+              },
+              "id": {
+                "description": "ID uniquely identifies this external reference within the workflow.\nThe resolved CR's spec is injected into the CEL context under this name.",
+                "maxLength": 63,
+                "minLength": 2,
+                "pattern": "^[a-z][a-z0-9-]*[a-z0-9]$",
+                "type": "string"
               },
               "kind": {
-                "type": "string",
-                "description": "Kind of the referenced resource",
-                "enum": ["SecretReference"]
+                "description": "Kind is the kind of the referenced resource.\nCurrently only SecretReference is supported.",
+                "enum": [
+                  "SecretReference"
+                ],
+                "type": "string"
               },
               "name": {
-                "type": "string",
-                "description": "Name of the referenced resource (supports CEL expressions)"
+                "description": "Name is the name of the referenced resource.\nSupports CEL expressions (e.g., ${parameters.repository.secretRef}).\nIf the name evaluates to empty, the reference is silently skipped.",
+                "minLength": 1,
+                "type": "string"
               }
+            },
+            "required": [
+              "apiVersion",
+              "id",
+              "kind",
+              "name"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "type": "array"
+        },
+        "parameters": {
+          "description": "Parameters defines the developer-facing parameters that can be configured\nwhen creating a WorkflowRun instance.",
+          "properties": {
+            "openAPIV3Schema": {
+              "description": "OpenAPIV3Schema defines the schema using standard OpenAPI V3 / JSON Schema format.",
+              "type": "object"
             }
-          }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "resources": {
+          "description": "Resources are additional templates that generate Kubernetes resources dynamically\nto be deployed alongside the workflow run (e.g., secrets, configmaps).\nTemplate variables are substituted with context and parameter values using CEL expressions.",
+          "items": {
+            "description": "WorkflowResource defines a template for generating Kubernetes resources\nto be deployed alongside the workflow run.",
+            "properties": {
+              "id": {
+                "description": "ID uniquely identifies this resource within the workflow.",
+                "minLength": 1,
+                "type": "string"
+              },
+              "includeWhen": {
+                "description": "IncludeWhen is a CEL expression that determines whether this resource should be rendered.\nIf the expression evaluates to false, the resource is skipped.\nIf empty, the resource is always included.\nExample: ${parameters.enableMetrics}",
+                "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                "type": "string"
+              },
+              "template": {
+                "description": "Template contains the Kubernetes resource with CEL expressions.\nCEL expressions are enclosed in ${...} and will be evaluated at runtime.",
+                "type": "object"
+              }
+            },
+            "required": [
+              "id",
+              "template"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "type": "array"
+        },
+        "runTemplate": {
+          "description": "RunTemplate is the Kubernetes resource template to be rendered and applied to the cluster.\nTemplate variables are substituted with context and parameter values.\nSupported template variables:\n  - ${metadata.workflowRunName} - WorkflowRun name (the execution instance)\n  - ${metadata.namespaceName} - Namespace name\n  - ${metadata.namespace} - Enforced workflow execution namespace (e.g., \"workflows-<namespaceName>\")\n  - ${metadata.labels['key']} - WorkflowRun labels\n  - ${parameters.*} - Developer-provided parameter values\n  - ${workflowplane.secretStore} - ESO ClusterSecretStore name from the WorkflowPlane\n  - ${externalRefs['<id>'].spec.*} - Resolved external CR specs (declared via externalRefs)\n\nNote: PE-controlled parameters should be hardcoded directly in the template.",
+          "type": "object"
         },
         "ttlAfterCompletion": {
-          "type": "string",
-          "description": "Time-to-live for WorkflowRun instances after completion (duration string like 10d1h30m)"
+          "description": "TTLAfterCompletion defines the time-to-live for WorkflowRun instances after completion.\nOnce a WorkflowRun completes, it will be automatically deleted after this duration.\nFormat: duration string supporting days, hours, minutes, seconds without spaces (e.g., \"90d\", \"10d1h30m\", \"1h30m\")\nExamples: \"90d\", \"10d\", \"1h30m\", \"30m\", \"1d12h30m15s\"\nIf empty, workflow runs are not automatically deleted.",
+          "pattern": "^(\\d+d)?(\\d+h)?(\\d+m)?(\\d+s)?$",
+          "type": "string"
+        },
+        "workflowPlaneRef": {
+          "default": {
+            "kind": "ClusterWorkflowPlane",
+            "name": "default"
+          },
+          "description": "WorkflowPlaneRef references the WorkflowPlane or ClusterWorkflowPlane for this workflow's operations.\nDefaults to ClusterWorkflowPlane named \"default\" when omitted.",
+          "properties": {
+            "kind": {
+              "description": "Kind is the kind of workflow plane (WorkflowPlane or ClusterWorkflowPlane)",
+              "enum": [
+                "WorkflowPlane",
+                "ClusterWorkflowPlane"
+              ],
+              "type": "string"
+            },
+            "name": {
+              "description": "Name is the name of the workflow plane resource",
+              "maxLength": 63,
+              "minLength": 1,
+              "type": "string",
+              "x-openchoreo-ref": "WorkflowPlane+ClusterWorkflowPlane"
+            }
+          },
+          "required": [
+            "kind",
+            "name"
+          ],
+          "type": "object",
+          "additionalProperties": false
         }
-      }
+      },
+      "required": [
+        "runTemplate"
+      ],
+      "type": "object",
+      "additionalProperties": false
     }
   },
-  "required": ["apiVersion", "kind", "metadata", "spec"]
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
 }

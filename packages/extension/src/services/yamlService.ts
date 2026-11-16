@@ -3,39 +3,6 @@
 
 import { stringify } from 'yaml';
 
-/** Resource types whose GET endpoints return full resource definitions for editing. */
-export const DEFINITION_RESOURCE_TYPES = new Set([
-  'namespace',
-  'component-type',
-  'resource-type',
-  'workflow',
-  'trait',
-  'project',
-  'component',
-  'environment',
-  'data-plane',
-  'workflow-plane',
-  'observability-plane',
-  'deployment-pipeline',
-  'workload',
-  'secret-reference',
-  'release-binding',
-  'resource',
-  'resource-release-binding',
-  'namespace-role',
-  'namespace-role-binding',
-  'cluster-role',
-  'cluster-role-binding',
-  // Cluster-scoped resources
-  'cluster-component-type',
-  'cluster-resource-type',
-  'cluster-workflow',
-  'cluster-trait',
-  'cluster-data-plane',
-  'cluster-workflow-plane',
-  'cluster-observability-plane',
-]);
-
 /**
  * Strips noisy Kubernetes metadata fields from a resource object,
  * leaving only the fields relevant for editing.

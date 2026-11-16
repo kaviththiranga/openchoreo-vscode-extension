@@ -1,61 +1,149 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "x-openchoreo-kind": "ClusterWorkflowPlane",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_clusterworkflowplanes.yaml",
   "title": "OpenChoreo ClusterWorkflowPlane",
-  "description": "Cluster-scoped workflow plane for CI/CD build infrastructure available across all namespaces.",
+  "description": "ClusterWorkflowPlane is the Schema for the clusterworkflowplanes API.\nIt is a cluster-scoped version of WorkflowPlane, allowing platform administrators\nto define workflow plane configurations that can be referenced across multiple namespaces.",
   "type": "object",
   "properties": {
-    "apiVersion": { "type": "string", "const": "openchoreo.dev/v1alpha1" },
-    "kind": { "type": "string", "const": "ClusterWorkflowPlane" },
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ClusterWorkflowPlane"
+    },
     "metadata": {
       "type": "object",
       "properties": {
-        "name": { "type": "string", "description": "Name of the ClusterWorkflowPlane" }
-      },
-      "required": ["name"]
-    },
-    "spec": {
-      "type": "object",
-      "description": "ClusterWorkflowPlane specification",
-      "additionalProperties": false,
-      "properties": {
-        "planeID": { "type": "string", "description": "Logical plane identifier for the physical cluster" },
-        "clusterAgent": {
+        "name": {
+          "type": "string",
+          "description": "Name of the ClusterWorkflowPlane"
+        },
+        "labels": {
           "type": "object",
-          "description": "Cluster agent configuration",
-          "properties": {
-            "clientCA": {
-              "type": "object",
-              "properties": {
-                "secretKeyRef": {
-                  "type": "object",
-                  "properties": {
-                    "name": { "type": "string" },
-                    "namespace": { "type": "string" },
-                    "key": { "type": "string" }
-                  }
-                },
-                "value": { "type": "string" }
-              }
-            }
+          "additionalProperties": {
+            "type": "string"
           }
         },
-        "secretStoreRef": {
+        "annotations": {
           "type": "object",
-          "properties": {
-            "name": { "type": "string" }
-          }
-        },
-        "observabilityPlaneRef": {
-          "type": "object",
-          "required": ["kind", "name"],
-          "properties": {
-            "kind": { "type": "string", "enum": ["ClusterObservabilityPlane"] },
-            "name": { "type": "string", "minLength": 1, "x-openchoreo-ref": "ClusterObservabilityPlane" }
+          "additionalProperties": {
+            "type": "string"
           }
         }
-      }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "ClusterWorkflowPlaneSpec defines the desired state of ClusterWorkflowPlane.\nThis is a cluster-scoped version of WorkflowPlaneSpec, allowing platform admins\nto define workflow planes that can be referenced across namespaces.",
+      "properties": {
+        "clusterAgent": {
+          "description": "ClusterAgent specifies the configuration for cluster agent-based communication\nThe cluster agent establishes a WebSocket connection to the control plane's cluster gateway\nThis field is mandatory - all workflow planes must use cluster agent communication",
+          "properties": {
+            "clientCA": {
+              "description": "ClientCA contains the CA certificate used to verify the agent's client certificate\nThis allows per-plane CA configuration for enhanced security",
+              "properties": {
+                "secretKeyRef": {
+                  "description": "SecretKeyRef is a reference to a secret containing the value",
+                  "properties": {
+                    "key": {
+                      "description": "Key is the key within the secret",
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Name of the secret",
+                      "type": "string"
+                    },
+                    "namespace": {
+                      "description": "Namespace of the secret (optional, defaults to same namespace as parent resource)",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "key",
+                    "name"
+                  ],
+                  "type": "object",
+                  "additionalProperties": false
+                },
+                "value": {
+                  "description": "Value is the inline value (optional fallback)",
+                  "type": "string"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "clientCA"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "observabilityPlaneRef": {
+          "description": "ObservabilityPlaneRef specifies the ClusterObservabilityPlane for this ClusterWorkflowPlane.\nSince this is a cluster-scoped resource, it can only reference cluster-scoped ClusterObservabilityPlane.\nNamespace-scoped ObservabilityPlane references are NOT supported for cluster-scoped resources.\n\nDefault behavior:\n- If not specified, the controller defaults to a ClusterObservabilityPlane named \"default\"\n- If the \"default\" ClusterObservabilityPlane does not exist, reconciliation fails with an error\n\nThe kind field must be \"ClusterObservabilityPlane\".",
+          "properties": {
+            "kind": {
+              "description": "Kind is the kind of observability plane. Must be ClusterObservabilityPlane.",
+              "enum": [
+                "ClusterObservabilityPlane"
+              ],
+              "type": "string"
+            },
+            "name": {
+              "description": "Name is the name of the ClusterObservabilityPlane resource",
+              "maxLength": 63,
+              "minLength": 1,
+              "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+              "type": "string",
+              "x-openchoreo-ref": "ClusterObservabilityPlane"
+            }
+          },
+          "required": [
+            "kind",
+            "name"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "planeID": {
+          "description": "PlaneID identifies the logical plane this CR connects to.\nMultiple ClusterWorkflowPlane CRs can share the same planeID to connect to the same physical cluster\nwhile maintaining separate configurations for multi-tenancy scenarios.\nThis field is required and must uniquely identify the physical cluster agent connection.\nFormat: lowercase alphanumeric characters, hyphens allowed, max 63 characters.\nExamples: \"shared-builder\", \"ci-cluster\", \"us-west-2\"",
+          "maxLength": 63,
+          "pattern": "^[a-z0-9]([-a-z0-9]*[a-z0-9])?$",
+          "type": "string"
+        },
+        "secretStoreRef": {
+          "description": "SecretStoreRef specifies the ESO ClusterSecretStore to use in the workflow plane",
+          "properties": {
+            "name": {
+              "description": "Name of the ClusterSecretStore resource in the data plane cluster",
+              "type": "string"
+            }
+          },
+          "required": [
+            "name"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "required": [
+        "clusterAgent",
+        "planeID"
+      ],
+      "type": "object",
+      "additionalProperties": false
     }
   },
-  "required": ["apiVersion", "kind", "metadata"]
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
 }

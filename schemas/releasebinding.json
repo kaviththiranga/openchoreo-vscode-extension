@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "x-openchoreo-kind": "ReleaseBinding",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_releasebindings.yaml",
   "title": "OpenChoreo ReleaseBinding",
-  "description": "Binds a component release to an environment, with optional environment-specific overrides.",
+  "description": "ReleaseBinding is the Schema for the releasebindings API.",
   "type": "object",
   "properties": {
     "apiVersion": {
@@ -22,129 +23,208 @@
         },
         "namespace": {
           "type": "string",
-          "description": "Namespace (organization)",
+          "description": "Namespace",
           "x-openchoreo-ref": "Namespace"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
         }
       },
-      "required": ["name"]
+      "required": [
+        "name"
+      ]
     },
     "spec": {
-      "type": "object",
-      "description": "ReleaseBinding specification",
-      "required": ["owner", "environment"],
+      "description": "ReleaseBindingSpec defines the desired state of ReleaseBinding.",
       "properties": {
-        "owner": {
-          "type": "object",
-          "description": "Owner identifies the component and project this ReleaseBinding belongs to",
-          "required": ["projectName", "componentName"],
-          "properties": {
-            "projectName": {
-              "type": "string",
-              "description": "Name of the project",
-              "x-openchoreo-ref": "Project"
-            },
-            "componentName": {
-              "type": "string",
-              "description": "Name of the component",
-              "x-openchoreo-ref": "Component"
-            }
-          }
+        "componentTypeEnvironmentConfigs": {
+          "description": "ComponentTypeEnvironmentConfigs for ComponentType environmentConfigs parameters\nThese values override the defaults defined in the Component for this specific environment",
+          "type": "object"
         },
         "environment": {
+          "description": "EnvironmentName is the name of the environment this binds the ComponentRelease to",
           "type": "string",
-          "description": "Target environment name",
           "x-openchoreo-ref": "Environment"
         },
-        "releaseName": {
-          "type": "string",
-          "description": "Reference to component release"
-        },
-        "componentTypeEnvironmentConfigs": {
-          "type": "object",
-          "description": "Environment-specific ComponentType parameter overrides. Keys match the parameters defined in the ComponentType schema.",
-          "additionalProperties": true
-        },
-        "traitEnvironmentConfigs": {
-          "type": "object",
-          "description": "Environment-specific trait environment configs. Keys are trait instance names, values are the trait's environment config overrides.",
-          "additionalProperties": true
-        },
-        "workloadOverrides": {
-          "type": "object",
-          "description": "Environment-specific workload overrides",
+        "owner": {
+          "description": "Owner identifies the component and project this ReleaseBinding belongs to",
           "properties": {
-            "container": {
-              "type": "object",
-              "description": "Container-level overrides",
-              "properties": {
-                "env": {
-                  "type": "array",
-                  "description": "Environment variable overrides",
-                  "items": {
-                    "type": "object",
-                    "required": ["key"],
-                    "properties": {
-                      "key": {
-                        "type": "string",
-                        "description": "Variable key/name"
-                      },
-                      "value": {
-                        "type": "string",
-                        "description": "Variable value"
-                      },
-                      "valueFrom": {
-                        "type": "object",
-                        "description": "Value source reference",
-                        "properties": {
-                          "secretKeyRef": {
-                            "type": "object",
-                            "properties": {
-                              "name": { "type": "string" },
-                              "key": { "type": "string" }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                },
-                "files": {
-                  "type": "array",
-                  "description": "File mount overrides",
-                  "items": {
-                    "type": "object",
-                    "required": ["key", "mountPath"],
-                    "properties": {
-                      "key": { "type": "string" },
-                      "mountPath": { "type": "string" },
-                      "value": { "type": "string" },
-                      "valueFrom": {
-                        "type": "object",
-                        "properties": {
-                          "secretKeyRef": {
-                            "type": "object",
-                            "properties": {
-                              "name": { "type": "string" },
-                              "key": { "type": "string" }
-                            }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
+            "componentName": {
+              "description": "ComponentName is the name of the component",
+              "minLength": 1,
+              "type": "string",
+              "x-openchoreo-ref": "Component"
+            },
+            "projectName": {
+              "description": "ProjectName is the name of the project that owns this component",
+              "minLength": 1,
+              "type": "string",
+              "x-openchoreo-ref": "Project"
             }
-          }
+          },
+          "required": [
+            "componentName",
+            "projectName"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "releaseName": {
+          "description": "ReleaseName is the name of the ComponentRelease to bind\nWhen ComponentSpec.AutoDeploy is enabled, this field will be handled by the controller",
+          "type": "string"
         },
         "state": {
-          "type": "string",
-          "description": "Controls the state of the Release created by this binding",
-          "enum": ["Active", "Undeploy"],
-          "default": "Active"
+          "default": "Active",
+          "description": "State controls the state of the Release created by this binding.\nActive: Resources are deployed normally\nUndeploy: Resources are removed from the data plane",
+          "enum": [
+            "Active",
+            "Undeploy"
+          ],
+          "type": "string"
+        },
+        "traitEnvironmentConfigs": {
+          "additionalProperties": {
+            "type": "object"
+          },
+          "description": "TraitEnvironmentConfigs provides environment-specific overrides for trait configurations\nKeyed by instanceName (which must be unique across all traits in the component)\nStructure: map[instanceName]overrideValues",
+          "type": "object"
+        },
+        "workloadOverrides": {
+          "description": "WorkloadOverrides provides environment-specific overrides for the entire workload spec\nThese values override the workload specification for this specific environment",
+          "properties": {
+            "container": {
+              "description": "Container override for env and file configurations.",
+              "properties": {
+                "env": {
+                  "description": "Explicit environment variables.",
+                  "items": {
+                    "description": "EnvVar represents an environment variable present in the container.",
+                    "properties": {
+                      "key": {
+                        "description": "The environment variable key.",
+                        "type": "string"
+                      },
+                      "value": {
+                        "description": "The literal value of the environment variable.\nMutually exclusive with valueFrom.",
+                        "type": "string"
+                      },
+                      "valueFrom": {
+                        "description": "Extract the environment variable value from another resource.\nMutually exclusive with value.",
+                        "properties": {
+                          "secretKeyRef": {
+                            "description": "Reference to a secret resource.",
+                            "properties": {
+                              "key": {
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "name": {
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name"
+                            ],
+                            "type": "object",
+                            "additionalProperties": false
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
+                },
+                "files": {
+                  "description": "File configurations.",
+                  "items": {
+                    "description": "FileVar represents a file configuration in a container.",
+                    "properties": {
+                      "key": {
+                        "description": "The file key/name.",
+                        "type": "string"
+                      },
+                      "mountPath": {
+                        "description": "The mount path where the file will be mounted.",
+                        "type": "string"
+                      },
+                      "value": {
+                        "description": "The literal content of the file.\nMutually exclusive with valueFrom.",
+                        "type": "string"
+                      },
+                      "valueFrom": {
+                        "description": "Extract the environment variable value from another resource.\nMutually exclusive with value.",
+                        "properties": {
+                          "secretKeyRef": {
+                            "description": "Reference to a secret resource.",
+                            "properties": {
+                              "key": {
+                                "minLength": 1,
+                                "type": "string"
+                              },
+                              "name": {
+                                "minLength": 1,
+                                "type": "string"
+                              }
+                            },
+                            "required": [
+                              "key",
+                              "name"
+                            ],
+                            "type": "object",
+                            "additionalProperties": false
+                          }
+                        },
+                        "type": "object",
+                        "additionalProperties": false
+                      }
+                    },
+                    "required": [
+                      "key",
+                      "mountPath"
+                    ],
+                    "type": "object",
+                    "additionalProperties": false
+                  },
+                  "type": "array"
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
+          "type": "object"
         }
-      }
+      },
+      "required": [
+        "environment",
+        "owner"
+      ],
+      "type": "object",
+      "additionalProperties": false
     }
   },
-  "required": ["apiVersion", "kind", "metadata", "spec"]
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
 }

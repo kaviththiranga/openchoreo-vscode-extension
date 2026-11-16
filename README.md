@@ -36,6 +36,16 @@ cd packages/language-server && pnpm lint
 cd packages/extension && pnpm package
 ```
 
+### Regenerating CRD schemas
+
+`schemas/*.json` are generated from the OpenChoreo CRDs at a release tag; resource
+references are kept in `schemas/refs.json` and re-applied on every run:
+
+```bash
+cd packages/extension
+node scripts/generate-schemas.mjs --openchoreo <path-to-openchoreo-checkout> --ref v1.3.3
+```
+
 ### Running in Development
 
 1. Open this repo in VSCode

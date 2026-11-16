@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ProjectReleaseBinding",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_projectreleasebindings.yaml",
+  "title": "OpenChoreo ProjectReleaseBinding",
+  "description": "ProjectReleaseBinding is the Schema for the projectreleasebindings API.\nPins a ProjectRelease to an Environment, owns the cell namespace for the\n(Project, Environment) tuple, and applies the inlined (Cluster)ProjectType\nresources to that namespace. Authored externally; the Project controller\nonly seeds an empty projectRelease pin and cascades deletion on project\nfinalize.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ProjectReleaseBinding"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the ProjectReleaseBinding"
+        },
+        "namespace": {
+          "type": "string",
+          "description": "Namespace",
+          "x-openchoreo-ref": "Namespace"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "ProjectReleaseBindingSpec defines the desired state of ProjectReleaseBinding.\nPins a ProjectRelease to an Environment and carries per-env overrides for\nthe schema declared on the inlined (Cluster)ProjectType environmentConfigs.\nOwns the cell namespace for (Project, Environment); applies the inlined\n(Cluster)ProjectType.spec.resources to that namespace.\nAn empty projectRelease pin is seeded once by the Project controller with\nthe project's latest release; advancing the pin afterwards is manual\n(e.g. via `occ project promote` or kubectl edit).",
+      "properties": {
+        "environment": {
+          "description": "Environment is the name of the Environment this binding targets.",
+          "minLength": 1,
+          "type": "string"
+        },
+        "environmentConfigs": {
+          "description": "EnvironmentConfigs provides per-environment values for the schema declared\non the inlined (Cluster)ProjectType environmentConfigs. Validated against\nthe schema on the referenced ProjectRelease by the binding controller;\nfailures surface via status.conditions."
+        },
+        "owner": {
+          "description": "Owner identifies the project this ProjectReleaseBinding belongs to.",
+          "properties": {
+            "projectName": {
+              "description": "ProjectName is the name of the project that owns this binding.",
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          "required": [
+            "projectName"
+          ],
+          "type": "object",
+          "additionalProperties": false
+        },
+        "projectRelease": {
+          "description": "ProjectRelease is the name of the ProjectRelease pinned by this binding.\nLeave unset to have the Project controller seed it once with the\nproject's latest release; the binding stays pending until the pin is\nset. A set pin is never touched by controllers — advancing it is left\nto whoever drives promotion (occ, GitOps, manual kubectl edit).",
+          "type": "string"
+        }
+      },
+      "required": [
+        "environment",
+        "owner"
+      ],
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
+}

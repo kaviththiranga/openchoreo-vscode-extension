@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ClusterProjectType",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_clusterprojecttypes.yaml",
+  "title": "OpenChoreo ClusterProjectType",
+  "description": "ClusterProjectType is the Schema for the clusterprojecttypes API.\nClusterProjectType is the cluster-scoped sibling of ProjectType. Projects in\nany namespace can reference a ClusterProjectType via Project.spec.type.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ClusterProjectType"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the ClusterProjectType"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "ClusterProjectTypeSpec defines the desired state of ClusterProjectType.\nCurrently mirrors ProjectTypeSpec; may diverge as cluster-scoped concerns emerge.",
+      "properties": {
+        "environmentConfigs": {
+          "description": "EnvironmentConfigs defines the per-env schema.\nValidates ProjectReleaseBinding.spec.environmentConfigs.",
+          "properties": {
+            "openAPIV3Schema": {
+              "description": "OpenAPIV3Schema defines the schema using standard OpenAPI V3 / JSON Schema format.",
+              "type": "object"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "parameters": {
+          "description": "Parameters is the schema for Project.spec.parameters values supplied by\nProject authors. Validated against this schema.",
+          "properties": {
+            "openAPIV3Schema": {
+              "description": "OpenAPIV3Schema defines the schema using standard OpenAPI V3 / JSON Schema format.",
+              "type": "object"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "resources": {
+          "description": "Resources are templates that generate namespace-scoped Kubernetes\nmanifests applied to the cell namespace owned by every\nProjectReleaseBinding of this type. Each entry has a unique id;\nincludeWhen and forEach control conditional and iterative rendering;\nCEL expressions in the template body are evaluated against\n${parameters.*}, ${environmentConfigs.*}, and ${metadata.*}.",
+          "items": {
+            "description": "ResourceTemplate defines a template for generating Kubernetes resources",
+            "properties": {
+              "forEach": {
+                "description": "ForEach enables generating multiple resources from a list using CEL expression\nExample: \"${spec.configurations}\" to iterate over a list",
+                "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                "type": "string"
+              },
+              "id": {
+                "description": "ID uniquely identifies this resource within the component type\nFor the primary workload resource, this must match the workloadType",
+                "minLength": 1,
+                "type": "string"
+              },
+              "includeWhen": {
+                "description": "IncludeWhen is a CEL expression that determines if this resource should be created\nIf not specified, the resource is always created\nExample: \"${spec.autoscaling.enabled}\"",
+                "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                "type": "string"
+              },
+              "targetPlane": {
+                "default": "dataplane",
+                "description": "TargetPlane specifies which plane this resource should be deployed to\nDefaults to \"dataplane\" if not specified",
+                "enum": [
+                  "dataplane",
+                  "observabilityplane"
+                ],
+                "type": "string"
+              },
+              "template": {
+                "description": "Template contains the Kubernetes resource with CEL expressions\nCEL expressions are enclosed in ${...} and will be evaluated at runtime",
+                "type": "object"
+              },
+              "var": {
+                "description": "Var is the loop variable name when using forEach\nExample: \"config\" will make each item available as ${config} in templates",
+                "pattern": "^[a-zA-Z_][a-zA-Z0-9_]*$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "template"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "validations": {
+          "description": "Validations are CEL-based rules evaluated during rendering.\nAll rules must evaluate to true for rendering to proceed.",
+          "items": {
+            "description": "ValidationRule defines a CEL-based validation rule evaluated during rendering.",
+            "properties": {
+              "message": {
+                "description": "Message is the error message shown when the rule evaluates to false.",
+                "minLength": 1,
+                "type": "string"
+              },
+              "rule": {
+                "description": "Rule is a CEL expression wrapped in ${...} that must evaluate to true.\nUses the same syntax as includeWhen and where fields.",
+                "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                "type": "string"
+              }
+            },
+            "required": [
+              "message",
+              "rule"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "resources"
+      ],
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
+}

@@ -1,0 +1,185 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "x-openchoreo-kind": "ClusterResourceType",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_clusterresourcetypes.yaml",
+  "title": "OpenChoreo ClusterResourceType",
+  "description": "ClusterResourceType is the Schema for the clusterresourcetypes API.\nClusterResourceType is the cluster-scoped sibling of ResourceType. Resources\nin any namespace can reference a ClusterResourceType via Resource.spec.type.",
+  "type": "object",
+  "properties": {
+    "apiVersion": {
+      "type": "string",
+      "const": "openchoreo.dev/v1alpha1"
+    },
+    "kind": {
+      "type": "string",
+      "const": "ClusterResourceType"
+    },
+    "metadata": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Name of the ClusterResourceType"
+        },
+        "labels": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "ClusterResourceTypeSpec defines the desired state of ClusterResourceType.\nCurrently mirrors ResourceTypeSpec; may diverge as cluster-scoped concerns emerge.",
+      "properties": {
+        "environmentConfigs": {
+          "description": "EnvironmentConfigs defines the per-env schema.\nValidates ResourceBinding.spec.resourceTypeEnvironmentConfigs.",
+          "properties": {
+            "openAPIV3Schema": {
+              "description": "OpenAPIV3Schema defines the schema using standard OpenAPI V3 / JSON Schema format.",
+              "type": "object"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "outputs": {
+          "description": "Outputs declares values that workloads consume via\nWorkload.spec.dependencies.resources[].envBindings or fileBindings.\nEach entry is identified by a unique name and picks exactly one of value,\nsecretKeyRef, or configMapKeyRef. Output value, name, and key fields support\n${...} CEL templating evaluated against metadata.*, parameters.*,\nenvironmentConfigs.*, and applied.<id>.status.*.",
+          "items": {
+            "description": "ResourceTypeOutput defines a single output of a ResourceType.\nExactly one of value, secretKeyRef, or configMapKeyRef must be set.",
+            "properties": {
+              "configMapKeyRef": {
+                "description": "ConfigMapKeyRef references a ConfigMap on the data plane.\nBoth name and key support ${...} CEL templating.",
+                "properties": {
+                  "key": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "name"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "name": {
+                "description": "Name uniquely identifies this output within the ResourceType. Referenced by\nWorkload.spec.dependencies.resources[].envBindings and fileBindings keys.",
+                "minLength": 1,
+                "type": "string"
+              },
+              "secretKeyRef": {
+                "description": "SecretKeyRef references a Secret on the data plane.\nUse for sensitive credentials (passwords, tokens, private keys).\nOnly the {name, key} reference transits to the control plane; the\nunderlying value never leaves the data plane.\nBoth name and key support ${...} CEL templating.",
+                "properties": {
+                  "key": {
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "name": {
+                    "minLength": 1,
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "key",
+                  "name"
+                ],
+                "type": "object",
+                "additionalProperties": false
+              },
+              "value": {
+                "description": "Value is a literal or ${...} CEL expression evaluating to a string.\nUse only for non-sensitive data (host, port, region, database name); the\nresolved value transits to the control plane.",
+                "type": "string"
+              }
+            },
+            "required": [
+              "name"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "type": "array"
+        },
+        "parameters": {
+          "description": "Parameters is the schema for Resource.spec.parameters values supplied by\nResource authors. Validated against this schema.",
+          "properties": {
+            "openAPIV3Schema": {
+              "description": "OpenAPIV3Schema defines the schema using standard OpenAPI V3 / JSON Schema format.",
+              "type": "object"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "resources": {
+          "description": "Resources are the Kubernetes manifests the ClusterResourceType provisioner\nemits on the data plane. Each entry has a unique id used by readyWhen and\noutputs CEL to reference applied.<id>.status.* fields.",
+          "items": {
+            "description": "ResourceTypeManifest defines a Kubernetes resource template that the\nResourceType provisioner emits on the data plane.",
+            "properties": {
+              "id": {
+                "description": "ID uniquely identifies this entry within the ResourceType.\nReferenced by readyWhen and outputs CEL via applied.<id>.status.*.",
+                "minLength": 1,
+                "type": "string"
+              },
+              "includeWhen": {
+                "description": "IncludeWhen is an optional CEL expression that determines whether this\nentry is rendered. Evaluated against metadata.*, parameters.*,\nenvironmentConfigs.*, and dataplane.*; applied.<id>.* is NOT available\nbecause the rendered objects haven't been applied yet. Must be\n${...}-wrapped and must evaluate to a boolean. If unset, the entry is\nalways rendered.\nExample: \"${parameters.tlsEnabled}\".",
+                "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                "type": "string"
+              },
+              "readyWhen": {
+                "description": "ReadyWhen is an optional ${...}-wrapped CEL expression that determines\nwhether this entry contributes to\nResourceBinding.status.conditions[ResourcesReady]. Evaluated against\nmetadata.*, parameters.*, environmentConfigs.*, dataplane.*, and\napplied.<id>.* once the manifest has been applied. If unset, falls back\nto RenderedRelease per-Kind health inference. Must evaluate to a boolean.\nExample: \"${applied.claim.status.conditions.exists(c, c.type == 'Ready' && c.status == 'True')}\".",
+                "pattern": "^\\$\\{[\\s\\S]+\\}\\s*$",
+                "type": "string"
+              },
+              "template": {
+                "description": "Template contains the Kubernetes resource with ${...} CEL expressions.\nAt render time the CEL context exposes metadata.*, parameters.*,\nenvironmentConfigs.*, and dataplane.*. applied.<id>.status.* is NOT\navailable during rendering because the rendered objects haven't been\napplied yet.",
+                "type": "object"
+              }
+            },
+            "required": [
+              "id",
+              "template"
+            ],
+            "type": "object",
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "retainPolicy": {
+          "default": "Delete",
+          "description": "RetainPolicy is the default retention for ResourceBindings of this type.\nPer-env override is available via ResourceBinding.spec.retainPolicy.",
+          "enum": [
+            "Delete",
+            "Retain"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "resources"
+      ],
+      "type": "object",
+      "additionalProperties": false
+    }
+  },
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata",
+    "spec"
+  ]
+}

@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "x-openchoreo-kind": "Environment",
+  "x-openchoreo-source": "openchoreo/openchoreo v1.3.3 config/crd/bases/openchoreo.dev_environments.yaml",
   "title": "OpenChoreo Environment",
-  "description": "Deployment target configuration bound to a DataPlane.",
+  "description": "Environment is the Schema for the environments API.",
   "type": "object",
   "properties": {
     "apiVersion": {
@@ -22,46 +23,473 @@
         },
         "namespace": {
           "type": "string",
-          "description": "Namespace (organization)",
+          "description": "Namespace",
           "x-openchoreo-ref": "Namespace"
-        }
-      },
-      "required": ["name"]
-    },
-    "spec": {
-      "type": "object",
-      "description": "Environment specification",
-      "additionalProperties": false,
-      "properties": {
-        "dataPlaneRef": {
+        },
+        "labels": {
           "type": "object",
-          "description": "Reference to the DataPlane or ClusterDataPlane for this environment. If not specified, defaults to a DataPlane named \"default\" in the same namespace. Immutable once set.",
-          "required": ["kind", "name"],
-          "properties": {
-            "kind": {
-              "type": "string",
-              "description": "Kind of data plane (DataPlane or ClusterDataPlane)",
-              "enum": ["DataPlane", "ClusterDataPlane"]
-            },
-            "name": {
-              "type": "string",
-              "description": "Name of the data plane resource",
-              "x-openchoreo-ref": "DataPlane"
-            }
+          "additionalProperties": {
+            "type": "string"
           }
         },
-        "isProduction": {
-          "type": "boolean",
-          "description": "Whether this is a production environment",
-          "default": false
+        "annotations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "spec": {
+      "description": "EnvironmentSpec defines the desired state of Environment.",
+      "properties": {
+        "dataPlaneRef": {
+          "description": "DataPlaneRef references the DataPlane or ClusterDataPlane for this environment.\nIf not specified, defaults to a DataPlane named \"default\" in the same namespace.\nImmutable once set.",
+          "properties": {
+            "kind": {
+              "description": "Kind is the kind of data plane (DataPlane or ClusterDataPlane)",
+              "enum": [
+                "DataPlane",
+                "ClusterDataPlane"
+              ],
+              "type": "string"
+            },
+            "name": {
+              "description": "Name is the name of the data plane resource",
+              "type": "string",
+              "x-openchoreo-ref": "DataPlane+ClusterDataPlane"
+            }
+          },
+          "required": [
+            "kind",
+            "name"
+          ],
+          "type": "object",
+          "additionalProperties": false
         },
         "gateway": {
+          "description": "GatewaySpec defines the gateway configuration for the data plane.",
+          "properties": {
+            "egress": {
+              "description": "Egress defines the egress gateway configuration.",
+              "properties": {
+                "external": {
+                  "description": "External defines the externally accessible gateway endpoint.",
+                  "properties": {
+                    "http": {
+                      "description": "HTTP defines the HTTP listener configuration.",
+                      "properties": {
+                        "host": {
+                          "description": "Host is the virtual host for this listener.",
+                          "type": "string"
+                        },
+                        "listenerName": {
+                          "description": "ListenerName is the name of the listener on the Gateway resource.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Port is the port number for this listener.",
+                          "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "https": {
+                      "description": "HTTPS defines the HTTPS listener configuration.",
+                      "properties": {
+                        "host": {
+                          "description": "Host is the virtual host for this listener.",
+                          "type": "string"
+                        },
+                        "listenerName": {
+                          "description": "ListenerName is the name of the listener on the Gateway resource.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Port is the port number for this listener.",
+                          "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "name": {
+                      "description": "Name is the name of the Gateway resource.",
+                      "type": "string"
+                    },
+                    "namespace": {
+                      "description": "Namespace is the namespace of the Gateway resource.",
+                      "type": "string"
+                    },
+                    "tls": {
+                      "description": "TLS defines the TLS listener configuration.",
+                      "properties": {
+                        "host": {
+                          "description": "Host is the virtual host for this listener.",
+                          "type": "string"
+                        },
+                        "listenerName": {
+                          "description": "ListenerName is the name of the listener on the Gateway resource.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Port is the port number for this listener.",
+                          "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "namespace"
+                  ],
+                  "type": "object",
+                  "additionalProperties": false
+                },
+                "internal": {
+                  "description": "Internal defines the internally accessible gateway endpoint.",
+                  "properties": {
+                    "http": {
+                      "description": "HTTP defines the HTTP listener configuration.",
+                      "properties": {
+                        "host": {
+                          "description": "Host is the virtual host for this listener.",
+                          "type": "string"
+                        },
+                        "listenerName": {
+                          "description": "ListenerName is the name of the listener on the Gateway resource.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Port is the port number for this listener.",
+                          "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "https": {
+                      "description": "HTTPS defines the HTTPS listener configuration.",
+                      "properties": {
+                        "host": {
+                          "description": "Host is the virtual host for this listener.",
+                          "type": "string"
+                        },
+                        "listenerName": {
+                          "description": "ListenerName is the name of the listener on the Gateway resource.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Port is the port number for this listener.",
+                          "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "name": {
+                      "description": "Name is the name of the Gateway resource.",
+                      "type": "string"
+                    },
+                    "namespace": {
+                      "description": "Namespace is the namespace of the Gateway resource.",
+                      "type": "string"
+                    },
+                    "tls": {
+                      "description": "TLS defines the TLS listener configuration.",
+                      "properties": {
+                        "host": {
+                          "description": "Host is the virtual host for this listener.",
+                          "type": "string"
+                        },
+                        "listenerName": {
+                          "description": "ListenerName is the name of the listener on the Gateway resource.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Port is the port number for this listener.",
+                          "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "namespace"
+                  ],
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            },
+            "ingress": {
+              "description": "Ingress defines the ingress gateway configuration.",
+              "properties": {
+                "external": {
+                  "description": "External defines the externally accessible gateway endpoint.",
+                  "properties": {
+                    "http": {
+                      "description": "HTTP defines the HTTP listener configuration.",
+                      "properties": {
+                        "host": {
+                          "description": "Host is the virtual host for this listener.",
+                          "type": "string"
+                        },
+                        "listenerName": {
+                          "description": "ListenerName is the name of the listener on the Gateway resource.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Port is the port number for this listener.",
+                          "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "https": {
+                      "description": "HTTPS defines the HTTPS listener configuration.",
+                      "properties": {
+                        "host": {
+                          "description": "Host is the virtual host for this listener.",
+                          "type": "string"
+                        },
+                        "listenerName": {
+                          "description": "ListenerName is the name of the listener on the Gateway resource.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Port is the port number for this listener.",
+                          "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "name": {
+                      "description": "Name is the name of the Gateway resource.",
+                      "type": "string"
+                    },
+                    "namespace": {
+                      "description": "Namespace is the namespace of the Gateway resource.",
+                      "type": "string"
+                    },
+                    "tls": {
+                      "description": "TLS defines the TLS listener configuration.",
+                      "properties": {
+                        "host": {
+                          "description": "Host is the virtual host for this listener.",
+                          "type": "string"
+                        },
+                        "listenerName": {
+                          "description": "ListenerName is the name of the listener on the Gateway resource.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Port is the port number for this listener.",
+                          "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "namespace"
+                  ],
+                  "type": "object",
+                  "additionalProperties": false
+                },
+                "internal": {
+                  "description": "Internal defines the internally accessible gateway endpoint.",
+                  "properties": {
+                    "http": {
+                      "description": "HTTP defines the HTTP listener configuration.",
+                      "properties": {
+                        "host": {
+                          "description": "Host is the virtual host for this listener.",
+                          "type": "string"
+                        },
+                        "listenerName": {
+                          "description": "ListenerName is the name of the listener on the Gateway resource.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Port is the port number for this listener.",
+                          "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "https": {
+                      "description": "HTTPS defines the HTTPS listener configuration.",
+                      "properties": {
+                        "host": {
+                          "description": "Host is the virtual host for this listener.",
+                          "type": "string"
+                        },
+                        "listenerName": {
+                          "description": "ListenerName is the name of the listener on the Gateway resource.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Port is the port number for this listener.",
+                          "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    },
+                    "name": {
+                      "description": "Name is the name of the Gateway resource.",
+                      "type": "string"
+                    },
+                    "namespace": {
+                      "description": "Namespace is the namespace of the Gateway resource.",
+                      "type": "string"
+                    },
+                    "tls": {
+                      "description": "TLS defines the TLS listener configuration.",
+                      "properties": {
+                        "host": {
+                          "description": "Host is the virtual host for this listener.",
+                          "type": "string"
+                        },
+                        "listenerName": {
+                          "description": "ListenerName is the name of the listener on the Gateway resource.",
+                          "type": "string"
+                        },
+                        "port": {
+                          "description": "Port is the port number for this listener.",
+                          "format": "int32",
+                          "maximum": 65535,
+                          "minimum": 1,
+                          "type": "integer"
+                        }
+                      },
+                      "required": [
+                        "host",
+                        "port"
+                      ],
+                      "type": "object",
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": [
+                    "name",
+                    "namespace"
+                  ],
+                  "type": "object",
+                  "additionalProperties": false
+                }
+              },
+              "type": "object",
+              "additionalProperties": false
+            }
+          },
           "type": "object",
-          "description": "Gateway configuration for this environment",
-          "additionalProperties": true
+          "additionalProperties": false
+        },
+        "isProduction": {
+          "type": "boolean"
         }
-      }
+      },
+      "type": "object",
+      "additionalProperties": false
     }
   },
-  "required": ["apiVersion", "kind", "metadata", "spec"]
+  "required": [
+    "apiVersion",
+    "kind",
+    "metadata"
+  ]
 }
