@@ -15,6 +15,11 @@
 - Completions for Project `spec.parameters` (from its ProjectType) and Resource `spec.parameters` (from its ResourceType); trait parameters now come from the trait under the cursor
 - References accept cluster-scoped targets (ClusterComponentType, ClusterDataPlane, …) and are only checked when every target kind could be listed, so missing permissions no longer cause false "not found" warnings
 - CEL variable checks apply only to ComponentType/Trait templates
+- **Run Locally Against Environment** (`occ remote`, OpenChoreo 1.3+): from a `workload.yaml` or `.openchoreo/` folder, open a shell wired to an environment's real dependencies, or keep tunnels open and print the environment for a debugger
+- **Open Shell** (`occ component exec`, 1.3+) and **View Runtime Logs** (observer logs query, last 15 min–24 h with an optional text filter) on components and their environments
+- **Run Now** for scheduled-task (cronjob) components from a release binding (1.3+)
+- Project Types and Cluster Project Types in the platform trees, Project Bindings under each project, and create templates for both type kinds (1.3)
+- New Project scaffolds include the `spec.type` reference that OpenChoreo 1.3 requires
 
 ## 0.1.1 — 2026-05-18
 

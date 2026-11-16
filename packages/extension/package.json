@@ -361,6 +361,30 @@
         "title": "Scaffold Component from this Project",
         "category": "OpenChoreo",
         "icon": "$(wand)"
+      },
+      {
+        "command": "openchoreo.runLocally",
+        "title": "Run Locally Against Environment",
+        "category": "OpenChoreo",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "openchoreo.openShell",
+        "title": "Open Shell",
+        "category": "OpenChoreo",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "openchoreo.viewRuntimeLogs",
+        "title": "View Runtime Logs",
+        "category": "OpenChoreo",
+        "icon": "$(output)"
+      },
+      {
+        "command": "openchoreo.runScheduledTaskNow",
+        "title": "Run Now (Scheduled Task)",
+        "category": "OpenChoreo",
+        "icon": "$(run)"
       }
     ],
     "menus": {
@@ -471,9 +495,31 @@
           "command": "openchoreo.addYamlToChat",
           "when": "webviewId == openchoreo.sidebar && nodeType && nodeType != 'no-connection' && nodeType != empty && nodeType != 'component-category' && nodeType != 'infra-category' && nodeType != 'resource-category'",
           "group": "4_chat"
+        },
+        {
+          "command": "openchoreo.viewRuntimeLogs",
+          "when": "webviewId == openchoreo.sidebar && nodeType == component || webviewId == openchoreo.sidebar && nodeType == 'release-binding'",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.openShell",
+          "when": "webviewId == openchoreo.sidebar && nodeType == component || webviewId == openchoreo.sidebar && nodeType == 'release-binding'",
+          "group": "2_observe"
+        },
+        {
+          "command": "openchoreo.runScheduledTaskNow",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'release-binding'",
+          "group": "3_deploy"
         }
       ],
-      "view/item/context": []
+      "view/item/context": [],
+      "explorer/context": [
+        {
+          "command": "openchoreo.runLocally",
+          "when": "resourceFilename =~ /^workload\\.ya?ml$/ || explorerResourceIsFolder && resourceFilename == .openchoreo",
+          "group": "openchoreo"
+        }
+      ]
     },
     "configuration": {
       "title": "OpenChoreo",

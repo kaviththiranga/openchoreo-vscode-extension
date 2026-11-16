@@ -12,7 +12,7 @@ import type { ApiClientManager } from '../api/apiClient';
 import type { CapabilityService } from '../services/capabilityService';
 import type { DeleteService } from '../services/deleteService';
 import type { ResourceNodeData } from '../treeView/types';
-import { CRD_KIND_TO_SCAFFOLD, crdToYaml } from '../services/yamlService';
+import { CRD_KIND_TO_SCAFFOLD, crdToYaml, scaffoldTemplate } from '../services/yamlService';
 import { ResourceService } from '../services/resourceService';
 import { buildPutRequest, fetchResource } from '../services/apiRoutes';
 import { kindSpec } from '../kinds/registry';
@@ -91,7 +91,7 @@ function runOccLogout(binaryPath: string): Promise<void> {
  * Resolve a command argument into a ResourceNodeData.
  * Works for both native tree view items and webview context menu contexts.
  */
-function resolveNode(
+export function resolveNode(
   arg: unknown,
   sidebarProvider?: SidebarViewProvider,
 ): ResourceNodeData | undefined {
@@ -125,6 +125,8 @@ export function registerCommands(
   serverInfo: ServerInfoService,
   sidebarProvider?: SidebarViewProvider,
 ): void {
+  activeServerInfo = serverInfo;
+
   // Refresh resources
   context.subscriptions.push(
     vscode.commands.registerCommand('openchoreo.refreshResources', async () => {
@@ -1182,6 +1184,8 @@ spec:
             'data-planes': 'DataPlane',
             'workflow-planes': 'WorkflowPlane',
             'component-types': 'ComponentType',
+            'resource-types': 'ResourceType',
+            'project-types': 'ProjectType',
             'workflows': 'Workflow',
             'traits': 'Trait',
             'secret-references': 'SecretReference',
@@ -1190,6 +1194,8 @@ spec:
             'namespace-role-bindings': 'AuthzRoleBinding',
             // Cluster-scoped
             'cluster-component-types': 'ClusterComponentType',
+            'cluster-resource-types': 'ClusterResourceType',
+            'cluster-project-types': 'ClusterProjectType',
             'cluster-workflows': 'ClusterWorkflow',
             'cluster-traits': 'ClusterTrait',
             'cluster-data-planes': 'ClusterDataPlane',
@@ -1434,7 +1440,10 @@ async function openScaffold(
   project?: string,
   customScaffold?: string,
 ): Promise<void> {
-  let scaffold = customScaffold ?? CRD_KIND_TO_SCAFFOLD[kind];
+  // Unknown server version → assume the current GA line the client targets.
+  let scaffold =
+    customScaffold ??
+    scaffoldTemplate(kind, (major, minor) => activeServerInfo?.supports(major, minor, true) ?? true);
   if (!scaffold) {
     return;
   }
@@ -1476,6 +1485,9 @@ async function openScaffold(
     eb.replace(fullRange, scaffold);
   });
 }
+
+/** Connected control plane info, for version-dependent scaffolds. */
+let activeServerInfo: ServerInfoService | undefined;
 
 /** Map CRD kind name to ResourceNodeType for URI construction. */
 function kindToNodeType(kind: string): string {

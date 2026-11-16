@@ -18,7 +18,8 @@ import { InfrastructureExplorerProvider } from './treeView/infrastructureExplore
 import { StatusBarManager } from './statusBar/statusBar';
 import { CapabilityService } from './services/capabilityService';
 import { DeleteService } from './services/deleteService';
-import { registerCommands } from './commands/commands';
+import { registerCommands, resolveNode } from './commands/commands';
+import { registerDevLoopCommands } from './commands/devLoopCommands';
 import { registerNamespaceSelector } from './commands/namespaceSelector';
 import { initLogger, log } from './logging/logger';
 import { ClusterExplorerProvider } from './treeView/clusterExplorer';
@@ -167,6 +168,15 @@ export async function activate(
     serverInfo,
     sidebarProvider,
   );
+
+  registerDevLoopCommands(context, {
+    authProvider,
+    apiClientManager,
+    serverInfo,
+    logOutputService,
+    resolveBinary: resolveOccBinary,
+    resolveNode: (arg) => resolveNode(arg, sidebarProvider),
+  });
 
   // Register namespace selector
   registerNamespaceSelector(context, authProvider, apiClientManager);

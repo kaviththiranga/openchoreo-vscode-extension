@@ -305,6 +305,59 @@ spec:
 `,
 
   // Cluster-scoped scaffolds (no namespace)
+  ProjectType: `apiVersion: openchoreo.dev/v1alpha1
+kind: ProjectType
+metadata:
+  name: my-project-type
+  namespace: "{{namespace}}"
+spec:
+  # Per-environment settings a ProjectReleaseBinding can fill in.
+  environmentConfigs:
+    openAPIV3Schema:
+      type: object
+      properties:
+        namespaceLabels:
+          type: object
+          additionalProperties:
+            type: string
+          default: {}
+  # Resources materialized in each environment's cell namespace.
+  resources:
+    - id: cell-namespace
+      template:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: \${metadata.namespace}
+          labels: \${oc_merge(metadata.labels, environmentConfigs.namespaceLabels)}
+`,
+
+  ClusterProjectType: `apiVersion: openchoreo.dev/v1alpha1
+kind: ClusterProjectType
+metadata:
+  name: my-cluster-project-type
+spec:
+  # Per-environment settings a ProjectReleaseBinding can fill in.
+  environmentConfigs:
+    openAPIV3Schema:
+      type: object
+      properties:
+        namespaceLabels:
+          type: object
+          additionalProperties:
+            type: string
+          default: {}
+  # Resources materialized in each environment's cell namespace.
+  resources:
+    - id: cell-namespace
+      template:
+        apiVersion: v1
+        kind: Namespace
+        metadata:
+          name: \${metadata.namespace}
+          labels: \${oc_merge(metadata.labels, environmentConfigs.namespaceLabels)}
+`,
+
   ClusterComponentType: `apiVersion: openchoreo.dev/v1alpha1
 kind: ClusterComponentType
 metadata:
@@ -451,3 +504,37 @@ spec:
   effect: allow
 `,
 };
+
+/**
+ * Templates that differ by OpenChoreo version, keyed by kind. The newest
+ * matching entry wins; kinds without an entry use CRD_KIND_TO_SCAFFOLD.
+ */
+const VERSIONED_SCAFFOLDS: Record<string, Array<{ since: [number, number]; template: string }>> = {
+  // 1.3 made Project.spec.type (a ProjectType reference) required.
+  Project: [
+    {
+      since: [1, 3],
+      template: `apiVersion: openchoreo.dev/v1alpha1
+kind: Project
+metadata:
+  name: my-project
+  namespace: "{{namespace}}"
+spec:
+  type:
+    kind: ClusterProjectType
+    name: default
+  deploymentPipelineRef:
+    name: standard-pipeline
+`,
+    },
+  ],
+};
+
+/** Scaffold for `kind` on a server that `supports(major, minor)` describes. */
+export function scaffoldTemplate(
+  kind: string,
+  supports: (major: number, minor: number) => boolean,
+): string | undefined {
+  const match = (VERSIONED_SCAFFOLDS[kind] ?? []).find((v) => supports(...v.since));
+  return match?.template ?? CRD_KIND_TO_SCAFFOLD[kind];
+}

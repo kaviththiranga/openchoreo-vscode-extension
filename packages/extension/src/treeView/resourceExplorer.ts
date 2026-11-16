@@ -1,6 +1,8 @@
 // Copyright 2026 The OpenChoreo Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import { kindSpecForNode } from '../kinds/registry';
+import { fetchKindNodes } from './kindList';
 import * as vscode from 'vscode';
 import { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
@@ -175,6 +177,13 @@ export class ResourceExplorerProvider
           return this.buildResourceChildren(element);
         case 'resource-releases':
           return this.fetchResourceReleases(client, element);
+        case 'project-release-bindings':
+          return fetchKindNodes(client, 'ProjectReleaseBinding', {
+            namespace: element.namespace!,
+            query: { project: element.project! },
+            contextValueFor: (t) => this.resolveContextValue(t),
+            nodeExtras: { project: element.project },
+          });
         case 'resource-release-bindings':
           return this.fetchResourceReleaseBindings(client, element);
         case 'workflow-run-steps':
@@ -196,19 +205,13 @@ export class ResourceExplorerProvider
     }
   }
 
-  private static readonly EDITABLE_TYPES: ReadonlySet<ResourceNodeType> =
-    new Set([
-      'project', 'component', 'deployment-pipeline', 'workload', 'release-binding',
-      'resource', 'resource-release-binding',
-    ]);
-
   /** Types that support creating child resources via inline "+" button. */
   private static readonly CREATABLE_TYPES: ReadonlySet<ResourceNodeType> =
     new Set(['project']);
 
   private resolveContextValue(type: ResourceNodeType): string {
     let value: string = type;
-    if (ResourceExplorerProvider.EDITABLE_TYPES.has(type)) {
+    if (kindSpecForNode(type)?.update) {
       value += '_editable';
     }
     if (this.capabilityService.canDelete(type)) {
@@ -298,6 +301,30 @@ export class ResourceExplorerProvider
       }
     } catch {
       // No /resources endpoint on this control plane — keep the rest of the tree intact.
+    }
+
+    // Project release bindings (OpenChoreo 1.3+): the project's per-environment
+    // deployment of its ProjectType resources. Skipped on older control planes.
+    try {
+      const { data: bindingData, error: bindingError } = await client.GET(
+        '/api/v1/namespaces/{namespaceName}/projectreleasebindings',
+        { params: { path: { namespaceName: ns }, query: { project: proj } } },
+      );
+      const count = bindingData?.items?.length ?? 0;
+      if (!bindingError && count > 0) {
+        children.push({
+          label: `Project Bindings (${count})`,
+          type: 'resource-category',
+          contextValue: 'resource-category',
+          icon: 'project-release-binding',
+          namespace: ns,
+          project: proj,
+          childrenMode: 'lazy',
+          lazyChildrenKey: 'project-release-bindings',
+        });
+      }
+    } catch {
+      // No /projectreleasebindings endpoint on this control plane.
     }
 
     if (children.length === 0) {

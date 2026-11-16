@@ -1,6 +1,8 @@
 // Copyright 2026 The OpenChoreo Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import { kindSpecForNode } from '../kinds/registry';
+import { fetchKindNodes } from './kindList';
 import * as vscode from 'vscode';
 import { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
@@ -156,6 +158,15 @@ export class InfrastructureExplorerProvider
         lazyChildrenKey: 'resource-types',
       },
       {
+        label: 'Project Types',
+        type: 'infra-category',
+        icon: 'project-type',
+        contextValue: 'infra-category_creatable',
+        namespace: ns,
+        childrenMode: 'lazy',
+        lazyChildrenKey: 'project-types',
+      },
+      {
         label: 'Workflows',
         type: 'infra-category',
         icon: 'workflow',
@@ -213,25 +224,9 @@ export class InfrastructureExplorerProvider
     ];
   }
 
-  private static readonly EDITABLE_TYPES: ReadonlySet<ResourceNodeType> =
-    new Set([
-      'component-type',
-      'resource-type',
-      'workflow',
-      'trait',
-      'environment',
-      'data-plane',
-      'workflow-plane',
-      'observability-plane',
-      'deployment-pipeline',
-      'secret-reference',
-      'namespace-role',
-      'namespace-role-binding',
-    ]);
-
   private resolveContextValue(type: ResourceNodeType): string {
     let value: string = type;
-    if (InfrastructureExplorerProvider.EDITABLE_TYPES.has(type)) {
+    if (kindSpecForNode(type)?.update) {
       value += '_editable';
     }
     if (this.capabilityService.canDelete(type)) {
@@ -261,6 +256,11 @@ export class InfrastructureExplorerProvider
           return this.fetchComponentTypes(element.namespace!);
         case 'resource-types':
           return this.fetchResourceTypes(element.namespace!);
+        case 'project-types':
+          return fetchKindNodes(await this.requireClient(), 'ProjectType', {
+            namespace: element.namespace!,
+            contextValueFor: (t) => this.resolveContextValue(t),
+          });
         case 'workflows':
           return this.fetchWorkflows(element.namespace!);
         case 'workflow-runs-by-workflow':

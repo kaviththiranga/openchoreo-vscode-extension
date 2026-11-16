@@ -1,6 +1,8 @@
 // Copyright 2026 The OpenChoreo Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import { kindSpecForNode } from '../kinds/registry';
+import { fetchKindNodes } from './kindList';
 import * as vscode from 'vscode';
 import { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
@@ -98,6 +100,14 @@ export class ClusterExplorerProvider
         lazyChildrenKey: 'cluster-resource-types',
       },
       {
+        label: 'Cluster Project Types',
+        type: 'infra-category',
+        icon: 'cluster-project-type',
+        contextValue: 'infra-category_creatable',
+        childrenMode: 'lazy',
+        lazyChildrenKey: 'cluster-project-types',
+      },
+      {
         label: 'Cluster Workflows',
         type: 'infra-category',
         icon: 'cluster-workflow',
@@ -165,22 +175,9 @@ export class ClusterExplorerProvider
     ];
   }
 
-  private static readonly EDITABLE_TYPES: ReadonlySet<ResourceNodeType> =
-    new Set([
-      'cluster-component-type',
-      'cluster-resource-type',
-      'cluster-workflow',
-      'cluster-trait',
-      'cluster-data-plane',
-      'cluster-workflow-plane',
-      'cluster-observability-plane',
-      'cluster-role',
-      'cluster-role-binding',
-    ]);
-
   private resolveContextValue(type: ResourceNodeType): string {
     let value: string = type;
-    if (ClusterExplorerProvider.EDITABLE_TYPES.has(type)) {
+    if (kindSpecForNode(type)?.update) {
       value += '_editable';
     }
     if (this.capabilityService.canDelete(type)) {
@@ -200,6 +197,10 @@ export class ClusterExplorerProvider
           return this.fetchClusterList('/api/v1/clustercomponenttypes', 'cluster-component-type');
         case 'cluster-resource-types':
           return this.fetchClusterList('/api/v1/clusterresourcetypes', 'cluster-resource-type');
+        case 'cluster-project-types':
+          return fetchKindNodes(await this.requireClient(), 'ClusterProjectType', {
+            contextValueFor: (t) => this.resolveContextValue(t),
+          });
         case 'cluster-workflows':
           return this.fetchClusterWorkflows();
         case 'cluster-traits':

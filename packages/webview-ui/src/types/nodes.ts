@@ -11,6 +11,7 @@ export type ResourceNodeType =
   | 'workflow-run' | 'component-release' | 'release-binding'
   | 'workload' | 'deployment-pipeline'
   | 'resource-category' | 'resource' | 'resource-release' | 'resource-release-binding'
+  | 'project-release-binding' | 'project-type' | 'cluster-project-type'
   | 'infra-category' | 'environment' | 'data-plane' | 'workflow-plane'
   | 'observability-plane' | 'component-type' | 'resource-type' | 'workflow' | 'trait'
   | 'secret-reference' | 'namespace-role' | 'namespace-role-binding'

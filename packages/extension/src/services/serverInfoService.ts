@@ -34,9 +34,12 @@ export class ServerInfoService implements vscode.Disposable {
     return this.version;
   }
 
-  /** True when the connected server is at least `major.minor` (see isAtLeast). */
-  supports(major: number, minor: number): boolean {
-    return isAtLeast(this.version, major, minor);
+  /**
+   * True when the connected server is at least `major.minor` (see isAtLeast).
+   * `fallback` answers while the version is unknown.
+   */
+  supports(major: number, minor: number, fallback = false): boolean {
+    return isAtLeast(this.version, major, minor, fallback);
   }
 
   async refresh(): Promise<void> {

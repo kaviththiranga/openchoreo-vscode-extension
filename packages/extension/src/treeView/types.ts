@@ -16,6 +16,7 @@ export type ResourceNodeType =
   | 'resource'
   | 'resource-release'
   | 'resource-release-binding'
+  | 'project-release-binding'
   // Infrastructure view nodes (namespace-scoped)
   | 'infra-category'
   | 'environment'
@@ -24,6 +25,7 @@ export type ResourceNodeType =
   | 'observability-plane'
   | 'component-type'
   | 'resource-type'
+  | 'project-type'
   | 'workflow'
   | 'trait'
   | 'secret-reference'
@@ -34,6 +36,7 @@ export type ResourceNodeType =
   // Infrastructure view nodes (cluster-scoped)
   | 'cluster-component-type'
   | 'cluster-resource-type'
+  | 'cluster-project-type'
   | 'cluster-workflow'
   | 'cluster-trait'
   | 'cluster-data-plane'

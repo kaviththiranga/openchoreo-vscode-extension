@@ -33,7 +33,9 @@ const MUI_ICON_MAP: Partial<Record<ResourceNodeType, string>> = {
   'component-type': 'category.svg',
   'cluster-component-type': 'category.svg',
   'resource-type': 'category.svg',
+  'project-type': 'category.svg',
   'cluster-resource-type': 'category.svg',
+  'cluster-project-type': 'category.svg',
   trait: 'extension.svg',
   'cluster-trait': 'extension.svg',
   workflow: 'play-circle-outline.svg',
@@ -63,6 +65,7 @@ const THEME_ICON_MAP: Record<ResourceNodeType, string> = {
   resource: 'database',
   'resource-release': 'tag',
   'resource-release-binding': 'link',
+  'project-release-binding': 'link',
   // Infrastructure view (namespace-scoped)
   'infra-category': 'symbol-folder',
   environment: 'openchoreo-cloud',
@@ -71,6 +74,7 @@ const THEME_ICON_MAP: Record<ResourceNodeType, string> = {
   'observability-plane': 'openchoreo-visibility',
   'component-type': 'openchoreo-category',
   'resource-type': 'openchoreo-category',
+  'project-type': 'openchoreo-category',
   workflow: 'openchoreo-play-circle-outline',
   trait: 'openchoreo-extension',
   'secret-reference': 'key',
@@ -81,6 +85,7 @@ const THEME_ICON_MAP: Record<ResourceNodeType, string> = {
   // Infrastructure view (cluster-scoped)
   'cluster-component-type': 'openchoreo-category',
   'cluster-resource-type': 'openchoreo-category',
+  'cluster-project-type': 'openchoreo-category',
   'cluster-workflow': 'openchoreo-play-circle-outline',
   'cluster-trait': 'openchoreo-extension',
   'cluster-data-plane': 'openchoreo-dns',

@@ -30,3 +30,5 @@ export const workspace = {
 export const Uri = {
   parse: (value: string) => ({ toString: () => value }),
 };
+
+export const commands = { registerCommand: () => ({ dispose: () => {} }) };
