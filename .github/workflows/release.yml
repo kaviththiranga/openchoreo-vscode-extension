@@ -9,6 +9,12 @@ name: Release
 on:
   push:
     tags: ['v*']
+  # Re-publish an existing tag, e.g. after adding a token secret.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Tag to release (e.g. v0.2.0)
+        required: true
 
 permissions:
   contents: write
@@ -19,8 +25,11 @@ jobs:
     env:
       VSCE_PAT: ${{ secrets.VSCE_PAT }}
       OVSX_PAT: ${{ secrets.OVSX_PAT }}
+      TAG: ${{ inputs.tag || github.ref_name }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag || github.ref }}
       - uses: pnpm/action-setup@v6
       - uses: actions/setup-node@v7
         with:
@@ -30,8 +39,8 @@ jobs:
       - name: Check the tag matches the extension version
         run: |
           version=$(node -p "require('./packages/extension/package.json').version")
-          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
-            echo "::error::Tag ${GITHUB_REF_NAME} does not match packages/extension version ${version}"
+          if [ "${TAG}" != "v${version}" ]; then
+            echo "::error::Tag ${TAG} does not match packages/extension version ${version}"
             exit 1
           fi
           echo "VERSION=${version}" >> "$GITHUB_ENV"
@@ -53,16 +62,19 @@ jobs:
             $0 ~ "^## " v "( |$)" { found = 1; next }
             found && /^## / { exit }
             found { print }
-          ' packages/extension/CHANGELOG.md > release-notes.md
+          ' packages/extension/CHANGELOG.md | sed '/./,$!d' > release-notes.md
           test -s release-notes.md || echo "See CHANGELOG.md" > release-notes.md
 
-      - name: Create GitHub release
+      - name: Create or update the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            "packages/extension/openchoreo-unofficial-${VERSION}.vsix" \
-            --title "$GITHUB_REF_NAME" --notes-file release-notes.md --verify-tag
+          vsix="packages/extension/openchoreo-unofficial-${VERSION}.vsix"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$vsix" --clobber
+          else
+            gh release create "$TAG" "$vsix" --title "$TAG" --notes-file release-notes.md --verify-tag
+          fi
 
       - name: Publish to the VS Code Marketplace
         if: env.VSCE_PAT != ''
