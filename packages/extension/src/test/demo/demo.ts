@@ -13,13 +13,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { CDPSession, ElectronApplication, Locator, Page } from 'playwright-core';
 
-export type Requirement = 'cluster' | 'copilot';
+export type Requirement = 'cluster' | 'copilot' | 'manual';
 
 export interface Scene {
   name: string;
   /** One line describing the footage, written to the capture index. */
   title: string;
-  /** Scenes needing a live cluster or a signed-in Copilot run only when DEMO_WITH lists them. */
+  /** Scenes needing a live cluster, a signed-in Copilot or a person at the window run only when DEMO_WITH lists them. */
   requires?: Requirement[];
   run(demo: Demo): Promise<void>;
 }

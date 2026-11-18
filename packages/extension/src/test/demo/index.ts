@@ -12,10 +12,20 @@ import { Demo, Recorder, type DemoOptions, type Requirement, type Scene } from '
 import { agentFixesYaml } from './scenes/agentFixesYaml';
 import { aiCustomizations } from './scenes/aiCustomizations';
 import { chatTools } from './scenes/chatTools';
+import { fixWithCopilot } from './scenes/fixWithCopilot';
+import { manual } from './scenes/manual';
 import { mcpServers } from './scenes/mcpServers';
 import { yamlAuthoring } from './scenes/yamlAuthoring';
 
-export const SCENES: Scene[] = [yamlAuthoring, mcpServers, aiCustomizations, chatTools, agentFixesYaml];
+export const SCENES: Scene[] = [
+  yamlAuthoring,
+  mcpServers,
+  aiCustomizations,
+  fixWithCopilot,
+  chatTools,
+  agentFixesYaml,
+  manual,
+];
 
 export interface RunOptions extends DemoOptions {
   only: string[];
@@ -41,6 +51,7 @@ export async function runScenes(app: ElectronApplication, page: Page, options: R
     await offCamera.command('View: Close All Editors');
     await offCamera.pause(300);
     await offCamera.command('Notifications: Clear All Notifications');
+    await page.evaluate(() => document.getElementById('oc-demo-cursor')?.remove());
     await offCamera.pause(500);
 
     const demo = new Demo(app, page, scene, options);

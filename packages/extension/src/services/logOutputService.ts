@@ -57,6 +57,11 @@ export class LogOutputService implements vscode.Disposable {
     ch.show(true);
   }
 
+  /** Append text to a channel without clearing it (e.g. a summary streamed after the logs). */
+  append(channelName: string, text: string): void {
+    this.getOrCreate(channelName).append(text);
+  }
+
   /** One-shot: clear channel and write all events. */
   showEvents(
     channelName: string,

@@ -164,4 +164,15 @@ describe('OpenChoreo extension (e2e)', () => {
       assert.match(yaml, /namespace: "?acme"?/);
     });
   });
+
+  it('offers a Copilot quick fix for OpenChoreo problems', async () => {
+    const doc = await open('workload-typo.yaml');
+    const diags = await diagnosticsFor(doc.uri, (d) => d.length > 0);
+    const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+      'vscode.executeCodeActionProvider', doc.uri, diags[0].range, vscode.CodeActionKind.QuickFix.value,
+    );
+    const fix = actions.find((a) => a.title === 'Fix with Copilot');
+    assert.ok(fix, `got: ${actions.map((a) => a.title).join(', ')}`);
+    assert.strictEqual(fix.command?.command, 'openchoreo.fixWithCopilot');
+  });
 });

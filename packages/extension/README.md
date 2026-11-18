@@ -350,7 +350,13 @@ Find them in **Chat: Open Customizations**. If you install the OpenChoreo agent 
 - **Add to Chat** — populates the chat input with a resource reference (e.g., `Regarding OpenChoreo Component "api-service" in Project "my-project" in Namespace "dev": `). Type your question after the colon and press Enter.
 - **Add YAML to Chat** — fetches the full resource YAML and populates the chat input with the content. Type your question and press Enter.
 
-Both actions open Copilot Chat without auto-submitting, so you can compose your question before sending.
+Both actions open Copilot Chat without auto-submitting, so you can compose your question before sending. **Add YAML to Chat** attaches the live resource as a file rather than pasting it into the prompt.
+
+**Troubleshoot with Copilot** — right-click a failed workflow run or a deployment (release binding) to ask the agent why it failed or isn't healthy; the prompt names the resource so the agent can read its status, events and logs through the OpenChoreo MCP servers.
+
+**Fix with Copilot** — OpenChoreo validation problems in the editor offer a *Fix with Copilot* quick fix (`Ctrl+.` / `Cmd+.`), which sends the file and the problems to chat.
+
+**Summarize with Copilot** — after **View Runtime Logs**, summarize the lines with your chat model (Copilot or a model you added); the summary is appended to the log output.
 
 ### Status Bar
 

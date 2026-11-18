@@ -7,6 +7,7 @@
 - Ship the official OpenChoreo agent skills (github.com/openchoreo/skills, mirrored at a pinned commit), **OpenChoreo Developer** and **OpenChoreo Platform Engineer** custom agents, and instructions for OpenChoreo resource YAML
 - Add the extension-managed occ binary to the integrated terminal's `PATH`
 - Chat tools for agents: **Validate OpenChoreo YAML** (`#openchoreoValidate`), **Get OpenChoreo Context** (`#openchoreoContext`) and **Scaffold OpenChoreo Resource** (`#openchoreoScaffold`)
+- **Troubleshoot with Copilot** on failed workflow runs and deployments, a **Fix with Copilot** quick fix for OpenChoreo validation problems, and **Summarize with Copilot** for runtime logs; **Add YAML to Chat** now attaches the resource instead of pasting it
 
 ## 0.2.1 — 2026-11-17
 

@@ -93,6 +93,7 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
     webviewSection: section,
     nodeType: node.type,
     contextValue: cv,
+    statusPhase: node.statusPhase,
     nodeId,
     isEditable: cv.includes('_editable'),
     isDeletable: cv.includes('_deletable'),

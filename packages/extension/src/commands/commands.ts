@@ -39,6 +39,7 @@ import {
 } from '../scaffolder/writer';
 import { downloadAndInstallOccCli } from '../cli/downloader';
 import { updateTerminalPath } from '../cli/terminalPath';
+import { openChat } from '../ai/chatHandoffs';
 import type { OccCliDetector } from '../auth/occCliDetector';
 
 /**
@@ -405,7 +406,7 @@ export function registerCommands(
     ),
   );
 
-  // Add full resource YAML to chat
+  // Add the resource's YAML to chat as an attachment (the openchoreo:// document)
   context.subscriptions.push(
     vscode.commands.registerCommand(
       'openchoreo.addYamlToChat',
@@ -414,43 +415,11 @@ export function registerCommands(
         if (!node) return;
         const name = node.resourceName ?? node.label;
         const kind = new ResourceService().getCrdKind(node.type) ?? node.type;
-        let ref = `Regarding OpenChoreo ${kind} "${name}"`;
+        let ref = `Regarding the attached OpenChoreo ${kind} "${name}"`;
         if (node.component && node.component !== name) ref += ` in Component "${node.component}"`;
         if (node.project && node.project !== name) ref += ` in Project "${node.project}"`;
         if (node.namespace) ref += ` in Namespace "${node.namespace}"`;
-
-        try {
-          const client = await apiClientManager.getClient();
-          if (!client) {
-            vscode.window.showWarningMessage('Not authenticated.');
-            return;
-          }
-
-          const data = await fetchResource(
-            client,
-            node.type,
-            node.namespace ?? null,
-            name,
-          );
-
-          if (data) {
-            const crd = data as Record<string, unknown>;
-            if (!crd.apiVersion) {
-              crd.apiVersion = 'openchoreo.dev/v1alpha1';
-              crd.kind = kind;
-            }
-            const yaml = crdToYaml(crd);
-
-            await vscode.commands.executeCommand('workbench.action.chat.open', {
-              query: `${ref}:\n\`\`\`yaml\n${yaml}\`\`\`\n`,
-              isPartialQuery: true,
-            });
-          }
-        } catch (err) {
-          vscode.window.showErrorMessage(
-            `Failed to fetch resource: ${err instanceof Error ? err.message : 'Unknown error'}`,
-          );
-        }
+        await openChat(`${ref}: `, { attach: [buildResourceUri(node)] });
       },
     ),
   );

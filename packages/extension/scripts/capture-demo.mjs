@@ -16,6 +16,9 @@
  *   DEMO_USER_DATA_DIR="$HOME/Library/Application Support/Code" \
  *   DEMO_EXTENSIONS_DIR="$HOME/.vscode/extensions" pnpm demo:capture
  *
+ * DEMO_WITH=manual DEMO_MANUAL_SECONDS=90 records 90s of you using the window,
+ * for footage no scene scripts yet (needs a display).
+ *
  * Other settings: DEMO_WORKSPACE (folder to open), DEMO_SIZE (window, default
  * 1600x900), DEMO_SCALE (default 2), DEMO_VIDEO_WIDTH (default 1920),
  * DEMO_KEYCAST=0, DEMO_CAPTIONS=1, VSCODE_VERSION, DEMO_VSCODE_EXECUTABLE.

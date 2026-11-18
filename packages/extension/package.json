@@ -389,6 +389,18 @@
         "title": "Run Now (Scheduled Task)",
         "category": "OpenChoreo",
         "icon": "$(run)"
+      },
+      {
+        "command": "openchoreo.troubleshootWithCopilot",
+        "title": "Troubleshoot with Copilot",
+        "category": "OpenChoreo",
+        "icon": "$(sparkle)"
+      },
+      {
+        "command": "openchoreo.fixWithCopilot",
+        "title": "Fix with Copilot",
+        "category": "OpenChoreo",
+        "icon": "$(sparkle)"
       }
     ],
     "menus": {
@@ -491,6 +503,11 @@
           "group": "3_destructive"
         },
         {
+          "command": "openchoreo.troubleshootWithCopilot",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'workflow-run' && statusPhase =~ /^(Failed|Error)$/ || webviewId == openchoreo.sidebar && nodeType == 'release-binding'",
+          "group": "4_chat@0"
+        },
+        {
           "command": "openchoreo.addToChat",
           "when": "webviewId == openchoreo.sidebar && nodeType && nodeType != 'no-connection' && nodeType != empty && nodeType != 'component-category' && nodeType != 'infra-category' && nodeType != 'resource-category'",
           "group": "4_chat"
@@ -522,6 +539,16 @@
           "command": "openchoreo.runLocally",
           "when": "resourceFilename =~ /^workload\\.ya?ml$/ || explorerResourceIsFolder && resourceFilename == .openchoreo",
           "group": "openchoreo"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "openchoreo.troubleshootWithCopilot",
+          "when": "false"
+        },
+        {
+          "command": "openchoreo.fixWithCopilot",
+          "when": "false"
         }
       ]
     },

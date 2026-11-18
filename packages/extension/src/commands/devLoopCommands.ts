@@ -3,6 +3,7 @@
 
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { summarizeLogs } from '../ai/logSummary';
 import {
   createObservabilityClientWithUrl,
   ObservabilityUrlResolver,
@@ -157,11 +158,30 @@ export function registerDevLoopCommands(context: vscode.ExtensionContext, deps: 
       const level = entry.level ? `${entry.level} ` : '';
       return { timestamp: entry.timestamp, log: `${pod}${level}${entry.log ?? ''}` };
     });
-    deps.logOutputService.showLogs(`OpenChoreo Logs: ${target.component} (${target.environment})`, entries);
+    const channel = `OpenChoreo Logs: ${target.component} (${target.environment})`;
+    deps.logOutputService.showLogs(channel, entries);
     if (entries.length === 0) {
       vscode.window.showInformationMessage(`No logs for ${target.component} in ${target.environment} in that window.`);
-    } else if ((data?.total ?? 0) > entries.length) {
-      vscode.window.showInformationMessage(`Showing the first ${entries.length} of ${data?.total} matching lines.`);
+      return;
+    }
+    const truncated = (data?.total ?? 0) > entries.length;
+    const choice = await vscode.window.showInformationMessage(
+      truncated
+        ? `Showing the first ${entries.length} of ${data?.total} matching lines.`
+        : `Showing ${entries.length} log lines.`,
+      'Summarize with Copilot',
+    );
+    if (choice === 'Summarize with Copilot') {
+      await vscode.window.withProgress(
+        { location: vscode.ProgressLocation.Notification, title: 'Summarizing logs…', cancellable: true },
+        (_progress, token) =>
+          summarizeLogs(
+            `component ${target.component} in environment ${target.environment}`,
+            entries.map((e) => `${e.timestamp ?? ''} ${e.log}`),
+            (text) => deps.logOutputService.append(channel, text),
+            token,
+          ),
+      );
     }
   });
 
