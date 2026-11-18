@@ -2,7 +2,7 @@
 
 Community-maintained by Kavith Lokuhewage, an OpenChoreo contributor. Learn about OpenChoreo at <https://openchoreo.dev>.
 
-IDE-native tooling for the [OpenChoreo](https://openchoreo.dev) developer platform — resource management, CRD editing with intelligent completions, and AI-powered workflows via MCP.
+IDE-native tooling for the [OpenChoreo](https://openchoreo.dev) developer platform — resource management, CRD editing with intelligent completions, and AI: OpenChoreo MCP servers registered from your login, the official OpenChoreo agent skills, custom agents and chat tools for Copilot, and one-click troubleshooting and fixes (see [Copilot Chat Integration](#copilot-chat-integration)).
 
 ## Prerequisites
 
@@ -388,6 +388,13 @@ View diagnostic information in **Output > OpenChoreo**:
 | `openchoreo.cliPath` | `""` | Path to the `occ` binary. Overrides the extension-managed download and the `PATH` lookup |
 | `openchoreo.autoRefresh` | `false` | Automatically refresh resource tree on changes |
 | `openchoreo.autoRefreshInterval` | `30` | Auto-refresh interval in seconds |
+| `openchoreo.mcp.toolsets` | developer toolsets | Control-plane toolsets offered by `openchoreo-cp`; an empty list offers all of them |
+| `openchoreo.mcp.platformEngineerTools` | `false` | Also register `openchoreo-pe` (platform-engineer toolset) and the Platform Engineer agent |
+| `openchoreo.mcp.observability` | `true` | Register the observer (`openchoreo-obs`) and SRE agent (`openchoreo-sre`) MCP servers |
+| `openchoreo.mcp.observerUrl` | `""` | Observer base URL; overrides discovery (for roles that can't read observability planes) |
+| `openchoreo.mcp.sreAgentUrl` | `""` | SRE agent base URL; overrides discovery |
+| `openchoreo.ai.bundledSkills` | `true` | Offer the bundled OpenChoreo agent skills to chat; turn off if you install the OpenChoreo agent plugin yourself |
+| `openchoreo.addCliToTerminalPath` | `true` | Put the occ binary the extension uses on the integrated terminal's `PATH` |
 
 ## Supported Resource Types
 
@@ -429,7 +436,10 @@ AuthzRole, AuthzRoleBinding (in Namespace Resources), ClusterAuthzRole, ClusterA
 | `OpenChoreo: Download occ CLI` | Download and verify the pinned `occ` CLI into extension storage |
 | `OpenChoreo: View Definition` | View K8s resource YAML definition (tree context menu) |
 | `OpenChoreo: Add to Chat` | Add resource reference to Copilot Chat (tree context menu) |
-| `OpenChoreo: Add YAML to Chat` | Add full resource YAML to Copilot Chat (tree context menu) |
+| `OpenChoreo: Add YAML to Chat` | Attach the resource's YAML to Copilot Chat (tree context menu) |
+| `OpenChoreo: Troubleshoot with Copilot` | Ask the agent why a failed workflow run or a deployment isn't healthy (tree context menu) |
+| `OpenChoreo: Fix with Copilot` | Send OpenChoreo validation problems in the file to chat (quick fix, `Ctrl+.` / `Cmd+.`) |
+| `OpenChoreo: Use with Other AI Agents…` | MCP server URLs and setup commands for Claude Code and other agents |
 
 ## Architecture
 
@@ -447,16 +457,21 @@ packages/
 │   │   ├── filesystem/  # Virtual filesystem (openchoreo://)
 │   │   ├── commands/    # Command handlers & namespace selector
 │   │   ├── services/    # RBAC, delete, resource, YAML services
-│   │   ├── mcp/         # MCP server auto-registration
+│   │   ├── mcp/         # MCP server registration (VS Code and Cursor) and discovery
+│   │   ├── ai/          # Chat tools, chat hand-offs, log summaries, other-agents guide
 │   │   ├── statusBar/   # Status bar with custom icon font
 │   │   └── logging/     # Output channel logger
 │   ├── resources/
 │   │   ├── openchoreo.svg           # Activity bar icon
 │   │   ├── openchoreo-icons.woff2   # Custom icon font (generated)
 │   │   ├── openchoreo-icons.json    # Codepoint map (generated)
-│   │   └── icons/                   # Material UI SVG source icons
+│   │   ├── icons/                   # Material UI SVG source icons
+│   │   └── ai/                      # Custom agents and chat instructions
+│   ├── skills/                      # OpenChoreo agent skills, mirrored at build (not in git)
 │   └── scripts/
 │       ├── generate-schemas.mjs     # Regenerate schemas/ from OpenChoreo CRDs
+│       ├── sync-skills.mjs          # Mirror openchoreo/skills at the pinned commit
+│       ├── capture-demo.mjs         # Demo screenshots and recordings
 │       └── update-icon-font.mjs     # Sync font codepoints to package.json
 ├── webview-ui/          # Preact-based sidebar webview
 │   ├── src/
