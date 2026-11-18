@@ -43,7 +43,8 @@
   "activationEvents": [
     "onLanguage:yaml",
     "onFileSystem:openchoreo",
-    "onView:openchoreo.sidebar"
+    "onView:openchoreo.sidebar",
+    "onStartupFinished"
   ],
   "main": "./dist/extension.js",
   "contributes": {
@@ -175,6 +176,14 @@
           "id": "openchoreo.sidebar",
           "type": "webview",
           "name": "Explorer"
+        }
+      ],
+      "explorer": [
+        {
+          "id": "openchoreo.gitops",
+          "name": "OpenChoreo GitOps",
+          "when": "openchoreo.gitopsRepository",
+          "icon": "$(git-merge)"
         }
       ]
     },
@@ -467,6 +476,24 @@
         "title": "Manage Local Tunnels",
         "category": "OpenChoreo",
         "icon": "$(plug)"
+      },
+      {
+        "command": "openchoreo.gitopsCheckSync",
+        "title": "Check Sync with Cluster",
+        "category": "OpenChoreo",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "openchoreo.gitopsGenerateReleases",
+        "title": "Generate Releases in Repository…",
+        "category": "OpenChoreo",
+        "icon": "$(tag)"
+      },
+      {
+        "command": "openchoreo.gitopsPromote",
+        "title": "Promote in Repository…",
+        "category": "OpenChoreo",
+        "icon": "$(arrow-up)"
       }
     ],
     "menus": {
@@ -477,7 +504,23 @@
           "group": "navigation@90"
         }
       ],
-      "view/title": [],
+      "view/title": [
+        {
+          "command": "openchoreo.gitopsGenerateReleases",
+          "when": "view == openchoreo.gitops",
+          "group": "navigation@1"
+        },
+        {
+          "command": "openchoreo.gitopsPromote",
+          "when": "view == openchoreo.gitops",
+          "group": "navigation@2"
+        },
+        {
+          "command": "openchoreo.gitopsCheckSync",
+          "when": "view == openchoreo.gitops",
+          "group": "navigation@3"
+        }
+      ],
       "webview/context": [
         {
           "command": "openchoreo.createComponent",
@@ -635,7 +678,13 @@
           "group": "1_actions@9"
         }
       ],
-      "view/item/context": [],
+      "view/item/context": [
+        {
+          "command": "openchoreo.compareWithCluster",
+          "when": "view == openchoreo.gitops && viewItem =~ /^gitopsEntry/",
+          "group": "inline"
+        }
+      ],
       "explorer/context": [
         {
           "command": "openchoreo.runLocally",
@@ -689,6 +738,18 @@
         {
           "command": "openchoreo.manageTunnels",
           "when": "openchoreo.tunnelsOpen"
+        },
+        {
+          "command": "openchoreo.gitopsCheckSync",
+          "when": "openchoreo.gitopsRepository"
+        },
+        {
+          "command": "openchoreo.gitopsGenerateReleases",
+          "when": "openchoreo.gitopsRepository"
+        },
+        {
+          "command": "openchoreo.gitopsPromote",
+          "when": "openchoreo.gitopsRepository"
         }
       ],
       "editor/context": [

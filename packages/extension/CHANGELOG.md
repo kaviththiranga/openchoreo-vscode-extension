@@ -9,6 +9,11 @@
 - Run Locally and Debug Against Environment ask for the environment name when your role can't list environments
 - **Compare with Cluster** for OpenChoreo YAML files and **Compare with Repository** for sidebar resources, diffing desired state without status or server-set metadata
 - Resources managed by Flux or Argo CD are badged in the sidebar; saving, applying, promoting, deploying or deleting them through the API asks first and offers **Change in Repository**, which edits the GitOps repository instead. New settings `openchoreo.gitops.mode` and `openchoreo.gitops.allowDirectChanges`
+- **OpenChoreo GitOps view** with each declared resource's sync state and cluster-only resources; **Generate Releases in Repository…** and **Promote in Repository…** run occ in file-system mode and offer a branch, commit and pull request
+- **Go to Definition** for references between OpenChoreo resources (to the repository file, or the resource on the cluster); reference validation accepts resources declared in the repository
+- The extension now activates once VS Code has started, so linked components and the GitOps view appear without opening a YAML file first
+- Fix: client-credentials logins (service accounts) showed "Session expired" once the token lapsed; the extension now mints a new token like occ does
+- Fix: with `openchoreo.configPath` set to another `.openchoreo/config`, the occ commands the extension runs now use that login
 
 ## 0.3.0 — 2026-11-18
 

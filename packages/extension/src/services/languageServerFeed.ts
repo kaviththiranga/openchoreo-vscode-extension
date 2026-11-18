@@ -44,6 +44,8 @@ export async function pushResourceNames(
   langClient: LanguageClient,
   apiClientManager: ApiClientManager,
   authProvider: OccConfigAuthProvider,
+  /** Names declared in the workspace's GitOps repository, by kind. */
+  repoNames?: (namespace: string | undefined) => Record<string, string[]>,
 ): Promise<void> {
   try {
     const client = await apiClientManager.getClient();
@@ -70,6 +72,12 @@ export async function pushResourceNames(
         if (r.data) resources['Namespace'] = (r.data.items ?? []).map(itemName).filter((n): n is string => !!n);
       }),
     ]);
+
+    // Resources declared in Git but not synced yet are valid references too. Only kinds the
+    // cluster could list are merged, so a kind we can't check still never warns.
+    for (const [kind, names] of Object.entries(repoNames?.(ns) ?? {})) {
+      if (resources[kind]) resources[kind] = [...new Set([...resources[kind], ...names])];
+    }
 
     log.debug(`Pushing resource names to language server: ${Object.entries(resources).map(([k, v]) => `${k}(${v.length})`).join(', ')}`);
     langClient.sendNotification('openchoreo/updateResources', resources);

@@ -9,7 +9,10 @@ import type { OpenChoreoFileSystemProvider } from '../filesystem/fileSystemProvi
 import type { ResourceNodeData } from '../treeView/types';
 import { fetchLive, registerCompareCommands } from './compare';
 import { confirmApiWrite, gitopsOwner } from './managed';
+import { registerDefinitions } from './definitions';
+import { registerGenerateCommands } from './generate';
 import { GitOpsRepoIndex } from './repoIndex';
+import { GitOpsSyncView } from './syncView';
 
 export function registerGitOps(
   context: vscode.ExtensionContext,
@@ -18,6 +21,7 @@ export function registerGitOps(
     apiClientManager: ApiClientManager;
     fsProvider: OpenChoreoFileSystemProvider;
     resolveNode: (arg: unknown) => ResourceNodeData | undefined;
+    resolveBinary: () => string;
     onModeChange: () => void;
   },
 ): GitOpsRepoIndex {
@@ -31,6 +35,14 @@ export function registerGitOps(
     namespace: () => deps.authProvider.getContextInfo()?.namespace,
     resolveNode: deps.resolveNode,
   });
+
+  const syncView = new GitOpsSyncView(repoIndex, deps.apiClientManager, deps.authProvider);
+  context.subscriptions.push(
+    syncView,
+    vscode.commands.registerCommand('openchoreo.gitopsCheckSync', () => syncView.check(true)),
+  );
+  registerGenerateCommands(context, { repoIndex, resolveBinary: deps.resolveBinary });
+  registerDefinitions(context, { repoIndex, namespace: () => deps.authProvider.getContextInfo()?.namespace });
 
   deps.fsProvider.writeGuard = async (resource, isNew) => {
     const kind = String(resource.kind);

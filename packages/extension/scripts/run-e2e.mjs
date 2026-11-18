@@ -56,6 +56,17 @@ const launchArgs = [
 ];
 if (process.platform === 'linux' && !process.env.DISPLAY) launchArgs.push('--ozone-platform=headless');
 
+// The suite needs no cluster: keep it away from the developer's occ login unless
+// the live checks (OPENCHOREO_E2E_RESOURCE) ask for it.
+if (!process.env.OPENCHOREO_E2E_RESOURCE) {
+  const userDir = path.join(profile, 'user-data', 'User');
+  fs.mkdirSync(userDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(userDir, 'settings.json'),
+    JSON.stringify({ 'openchoreo.configPath': path.join(profile, 'no-occ-login', '.openchoreo', 'config') }),
+  );
+}
+
 try {
   await runTests({
     version: process.env.VSCODE_VERSION ?? 'stable',

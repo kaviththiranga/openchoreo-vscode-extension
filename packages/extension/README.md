@@ -196,6 +196,10 @@ If you manage OpenChoreo resources from a Git repository synced by Flux, Argo CD
 - **GitOps-managed resources** — resources that carry Flux (`kustomize.toolkit.fluxcd.io/*`, `helm.toolkit.fluxcd.io/*`) or Argo CD (`argocd.argoproj.io/*`) markers get a merge badge in the sidebar. Saving, applying, promoting, deploying or deleting one through the API asks first, because the next sync reverts the change. **Change in Repository** makes the change in the GitOps repository instead: it edits the document that declares the resource, keeping its comments and layout, or creates a file next to related resources, and leaves the edit unsaved for you to review and commit
 - Set `openchoreo.gitops.mode` to `all` when manifests are applied without such markers (by CI, for example), and turn off `openchoreo.gitops.allowDirectChanges` to allow changes only through the repository
 
+- **OpenChoreo GitOps view** (in the Explorer) — every resource the repository declares, by namespace and kind, marked as matching the cluster, differing, or not on the cluster yet, plus resources of the same kinds that exist only on the cluster. **Check Sync with Cluster** re-checks; the inline button compares one resource
+- **Generate Releases in Repository…** and **Promote in Repository…** — run `occ componentrelease generate` / `occ releasebinding generate` in file-system mode for all components, a project or one component, write the ComponentReleases or ReleaseBindings into the repository, then **Commit on a New Branch** and **Push and Open Pull Request** (through the GitHub Pull Requests extension when installed, else the host's compare page). Promotion takes each component's release from the previous environment in the pipeline, as the OpenChoreo bulk-promote workflow does
+- **Go to Definition** on references — a Component's `componentType`, `traits` and `workflow`, `owner.projectName`/`componentName`, a binding's `environment` and `releaseName`, a Project's `deploymentPipelineRef` and type, pipeline environments, and plane references jump to the file that declares the target, or open it from the cluster. Reference validation also accepts resources declared in the repository that aren't synced yet
+
 A workspace folder counts as a GitOps repository when it declares OpenChoreo resources other than an app's own `workload.yaml` and `.openchoreo/` files.
 
 ### Generate Release
@@ -490,6 +494,9 @@ AuthzRole, AuthzRoleBinding (in Namespace Resources), ClusterAuthzRole, ClusterA
 | `OpenChoreo: Roll Back…` | Bind an environment to an earlier release (tree context menu) |
 | `OpenChoreo: Debug Against Environment` | Start a launch configuration with tunnels to an environment's dependencies (Explorer context menu, Command Palette; 1.3+) |
 | `OpenChoreo: Manage Local Tunnels` | Close open `occ remote` tunnels or show their output (status bar) |
+| `OpenChoreo: Check Sync with Cluster` | Re-check the GitOps view against the cluster |
+| `OpenChoreo: Generate Releases in Repository…` | Generate ComponentReleases into the GitOps repository with occ (file-system mode) |
+| `OpenChoreo: Promote in Repository…` | Generate ReleaseBindings for an environment into the GitOps repository with occ |
 | `OpenChoreo: Linked Component Actions…` | Actions for the components built from the open folder (status bar) |
 
 ## Architecture

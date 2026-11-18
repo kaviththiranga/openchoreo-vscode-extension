@@ -137,6 +137,21 @@ export class GitOpsRepoIndex implements vscode.Disposable {
     return matches;
   }
 
+  /** Workspace folders that are GitOps repositories. */
+  repositoryFolders(): vscode.Uri[] {
+    return [...this.repoFolders].map((u) => vscode.Uri.parse(u));
+  }
+
+  /** Resource names the repository declares, by kind, for a namespace (and cluster-scoped kinds). */
+  namesByKind(namespace: string | undefined): Record<string, string[]> {
+    const names: Record<string, string[]> = {};
+    for (const e of this.entries()) {
+      if (namespace && e.namespace && e.namespace !== namespace) continue;
+      (names[e.kind] ??= []).includes(e.name) || names[e.kind].push(e.name);
+    }
+    return names;
+  }
+
   entries(): RepoEntry[] {
     return [...this.byFile.values()].flat().filter((e) => this.isInRepository(e.uri));
   }

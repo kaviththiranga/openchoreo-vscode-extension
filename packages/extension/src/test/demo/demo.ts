@@ -13,7 +13,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { CDPSession, ElectronApplication, Locator, Page } from 'playwright-core';
 
-export type Requirement = 'cluster' | 'copilot' | 'manual';
+export type Requirement = 'cluster' | 'copilot' | 'manual' | 'gitops-workspace';
 
 export interface Scene {
   name: string;

@@ -209,6 +209,19 @@ describe('OpenChoreo extension (e2e)', () => {
       assert.strictEqual(tab.modified.toString(), fixture('project.yaml').toString());
     });
 
+    it('goes to the definition of a referenced resource in the repository', async () => {
+      const doc = await open('project.yaml');
+      const line = doc.getText().split('\n').findIndex((l) => /^\s+name: standard/.test(l));
+      const position = new vscode.Position(line, doc.lineAt(line).text.indexOf('standard') + 2);
+      let targets: Array<vscode.Location | vscode.LocationLink> = [];
+      for (let i = 0; i < 20 && targets.length === 0; i++) {
+        targets = await vscode.commands.executeCommand('vscode.executeDefinitionProvider', doc.uri, position);
+        if (targets.length === 0) await new Promise((r) => setTimeout(r, 250));
+      }
+      const uris = targets.map((t) => ('targetUri' in t ? t.targetUri : t.uri).toString());
+      assert.ok(uris.includes(fixture('gitops/pipelines/standard.yaml').toString()), `got: ${uris.join(', ')}`);
+    });
+
     it('defaults to guarding resources that GitOps tools label', () => {
       const config = vscode.workspace.getConfiguration('openchoreo.gitops');
       assert.strictEqual(config.get('mode'), 'detect');

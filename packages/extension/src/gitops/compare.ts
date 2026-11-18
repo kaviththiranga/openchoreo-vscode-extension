@@ -182,7 +182,11 @@ export function registerCompareCommands(
     vscode.commands.registerCommand('openchoreo.compareWithCluster', async (arg?: unknown) => {
       try {
         const editor = vscode.window.activeTextEditor;
-        if (arg instanceof vscode.Uri) {
+        const viewEntry = (arg as { kind?: string; entry?: RepoEntry } | undefined)?.kind === 'entry' ? (arg as { entry: RepoEntry }).entry : undefined;
+        if (viewEntry) {
+          const document = await vscode.workspace.openTextDocument(viewEntry.uri);
+          await compareFile(viewEntry.uri, document.offsetAt(new vscode.Position(viewEntry.line, 0)));
+        } else if (arg instanceof vscode.Uri) {
           const offset = editor?.document.uri.toString() === arg.toString() ? editor.document.offsetAt(editor.selection.active) : undefined;
           await compareFile(arg, offset);
         } else if (editor) {

@@ -16,6 +16,7 @@
  *   DEMO_USER_DATA_DIR="$HOME/Library/Application Support/Code" \
  *   DEMO_EXTENSIONS_DIR="$HOME/.vscode/extensions" pnpm demo:capture
  *
+ * DEMO_WITH=gitops-workspace (with DEMO_WORKSPACE on a throwaway sample-gitops clone) adds the GitOps authoring scene.
  * DEMO_WITH=manual DEMO_MANUAL_SECONDS=90 records 90s of you using the window,
  * for footage no scene scripts yet (needs a display).
  *

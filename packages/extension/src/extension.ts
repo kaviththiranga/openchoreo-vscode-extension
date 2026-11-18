@@ -166,6 +166,7 @@ export async function activate(
     apiClientManager,
     fsProvider,
     resolveNode: (arg) => resolveNode(arg, sidebarProvider),
+    resolveBinary: resolveOccBinary,
     onModeChange: () => sidebarProvider.refreshAll(),
   });
 
@@ -223,7 +224,7 @@ export async function activate(
   client = startLanguageServer(context);
   const pushAll = async () => {
     try {
-      await pushResourceNames(client, apiClientManager, authProvider);
+      await pushResourceNames(client, apiClientManager, authProvider, (ns) => repoIndex.namesByKind(ns));
       await pushResourceSchemas(client, apiClientManager, authProvider);
     } catch (err) {
       log.error('Failed to push resource data to language server', err);
@@ -231,8 +232,13 @@ export async function activate(
   };
   // Push resource data once the server is initialized
   setTimeout(pushAll, 2000);
+  let repoPushTimer: ReturnType<typeof setTimeout> | undefined;
   context.subscriptions.push(
     authProvider.onDidChangeSession(pushAll),
+    repoIndex.onDidChange(() => {
+      if (repoPushTimer) clearTimeout(repoPushTimer);
+      repoPushTimer = setTimeout(() => void pushResourceNames(client, apiClientManager, authProvider, (ns) => repoIndex.namesByKind(ns)), 2000);
+    }),
   );
 
   // Resolve the security-enabled flag for the current control plane before
