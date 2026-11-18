@@ -4,7 +4,9 @@
 import { describe, expect, it } from 'vitest';
 import * as vscode from 'vscode';
 import { parseDocument, type Node as YamlNode } from 'yaml';
-import { parseGenerateOutput, scopes } from '../gitops/generate';
+import * as fs from 'fs';
+import { parse } from 'yaml';
+import { fileSystemConfig, parseGenerateOutput, runOcc, scopes } from '../gitops/generate';
 import { referenceAt, scalarAt } from '../gitops/definitions';
 import { isSubset } from '../gitops/syncView';
 import type { RepoEntry } from '../gitops/repoIndex';
@@ -40,15 +42,42 @@ Summary: 0 bindings generated, 1 errors
     expect(result.summary).toBe('0 bindings generated, 1 errors');
   });
 
+  it('reads releasebinding output', () => {
+    // releasebinding says "Created:" where componentrelease says "Generated:".
+    const out = 'Created: /repo/namespaces/gitops-demo/projects/shop/components/greeter/release-bindings/greeter-development.yaml\n\nSummary: 1 bindings generated, 0 errors\n';
+    expect(parseGenerateOutput(out).generated).toHaveLength(1);
+  });
+
+  it('writes a file-system context for the namespace', () => {
+    expect(parse(fileSystemConfig('gitops-demo', '/repo'))).toEqual({
+      currentContext: 'gitops',
+      contexts: [{ name: 'gitops', namespace: 'gitops-demo', mode: 'file-system', rootDirectoryPath: '/repo' }],
+    });
+  });
+
+  const fork = `${process.env.HOME}/git/openchoreo-sample-gitops`;
+  it.skipIf(!fs.existsSync(`${fork}/namespaces/gitops-demo`))('runs occ releasebinding for a namespace it has no flag for', async () => {
+    const out = await runOcc(
+      'occ',
+      ['releasebinding', 'generate', '--project', 'shop', '--target-env', 'staging', '--use-pipeline', 'standard', '--dry-run', '--mode', 'file-system', '--root-dir', fork],
+      fork,
+      'gitops-demo',
+      () => {},
+    );
+    expect(out).toContain('greeter');
+    expect(out).not.toMatch(/not found in namespace "default"/);
+  });
+
   it('offers all, per-project and per-component scopes', () => {
     const entry = (kind: string, name: string, path: string) =>
-      ({ kind, name, uri: vscode.Uri.file(path), docIndex: 0, line: 0 }) as unknown as RepoEntry;
+      ({ kind, name, namespace: 'default', uri: vscode.Uri.file(path), docIndex: 0, line: 0 }) as unknown as RepoEntry;
     const list = scopes([
       entry('Project', 'doclet', '/r/namespaces/default/projects/doclet/project.yaml'),
       entry('Component', 'frontend', '/r/namespaces/default/projects/doclet/components/frontend/component.yaml'),
     ]);
     expect(list.map((s) => s.args)).toEqual([['--all'], ['--project', 'doclet'], ['--project', 'doclet', '--component', 'frontend']]);
     expect(list.map((s) => s.slug)).toEqual(['all', 'doclet', 'doclet-frontend']);
+    expect(list.map((s) => s.namespace)).toEqual(['default', 'default', 'default']);
   });
 });
 

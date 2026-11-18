@@ -7,9 +7,11 @@
  * them to an environment. Then a branch, a commit and a pull request.
  */
 import { spawn } from 'child_process';
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import { occEnv } from '../cli/cliPath';
+import { stringify } from 'yaml';
 import { getGitApi } from '../git/gitApi';
 import type { GitOpsRepoIndex, RepoEntry } from './repoIndex';
 import { repositoryWebUrl } from '../workspace/repositoryFields';
@@ -24,7 +26,8 @@ export interface GenerateResult {
 export function parseGenerateOutput(output: string): GenerateResult {
   const result: GenerateResult = { generated: [], errors: [] };
   for (const line of output.split(/\r?\n/)) {
-    const generated = /^(?:Generated|Updated|Wrote):\s+(.+)$/.exec(line.trim());
+    // componentrelease says "Generated:", releasebinding "Created:" or "Updated:".
+    const generated = /^(?:Generated|Created|Updated|Wrote):\s+(.+)$/.exec(line.trim());
     if (generated) result.generated.push(generated[1]);
     else if (/^Error\b/.test(line.trim())) result.errors.push(line.trim());
     else if (/^Summary:/.test(line.trim())) result.summary = line.trim().replace(/^Summary:\s*/, '');
@@ -37,15 +40,23 @@ export interface Scope {
   args: string[];
   /** For branch names, e.g. "doclet" or "doclet-frontend". */
   slug: string;
+  /** The namespace the scope's resources live in, when it is a single one. */
+  namespace?: string;
 }
 
 /** The scopes occ can generate for: everything, a project, or one component. */
 export function scopes(entries: RepoEntry[]): Scope[] {
   const projects = [...new Set(entries.filter((e) => e.kind === 'Project').map((e) => e.name))].sort();
   const components = entries.filter((e) => e.kind === 'Component');
+  const namespaces = [...new Set(components.map((c) => c.namespace).filter((n): n is string => !!n))];
   return [
-    { label: '$(globe) All components', args: ['--all'], slug: 'all' },
-    ...projects.map((p) => ({ label: `$(project) Project ${p}`, args: ['--project', p], slug: p })),
+    { label: '$(globe) All components', args: ['--all'], slug: 'all', namespace: namespaces.length === 1 ? namespaces[0] : undefined },
+    ...projects.map((p) => ({
+      label: `$(project) Project ${p}`,
+      args: ['--project', p],
+      slug: p,
+      namespace: entries.find((e) => e.kind === 'Project' && e.name === p)?.namespace,
+    })),
     ...components
       .map((c) => ({ c, project: projectOf(c) }))
       .filter(({ project }) => !!project)
@@ -54,6 +65,7 @@ export function scopes(entries: RepoEntry[]): Scope[] {
         label: `$(symbol-misc) Component ${c.name}`,
         args: ['--project', project!, '--component', c.name],
         slug: `${project}-${c.name}`,
+        namespace: c.namespace,
       })),
   ];
 }
@@ -84,14 +96,23 @@ export function registerGenerateCommands(
     return vscode.window.showQuickPick(scopes(entries), { title, placeHolder: 'For which components?' });
   };
 
-  const run = async (root: vscode.Uri, args: string[], title: string): Promise<GenerateResult | undefined> => {
+  const run = async (root: vscode.Uri, args: string[], title: string, namespace?: string): Promise<GenerateResult | undefined> => {
+    if (!namespace) {
+      const namespaces = [...new Set(deps.repoIndex.entries().map((e) => e.namespace).filter((n): n is string => !!n))].sort();
+      namespace = namespaces.length === 1 ? namespaces[0] : await pickOrType(namespaces, 'Which namespace?');
+      if (!namespace) return undefined;
+    }
     const fullArgs = [...args, '--mode', 'file-system', '--root-dir', root.fsPath];
-    channel.appendLine(`$ occ ${fullArgs.join(' ')}`);
+    channel.appendLine(`$ occ ${fullArgs.join(' ')}  # namespace ${namespace}`);
     const output = await vscode.window.withProgress({ location: vscode.ProgressLocation.Notification, title }, () =>
-      runOcc(deps.resolveBinary(), fullArgs, root.fsPath, (chunk) => channel.append(chunk)),
+      runOcc(deps.resolveBinary(), fullArgs, root.fsPath, namespace!, (chunk) => channel.append(chunk)),
     );
     const result = parseGenerateOutput(output);
     if (result.generated.length === 0) {
+      if (result.errors.some((e) => /component type .* not found|trait .* not found/i.test(e))) {
+        // occ renders releases from the repository, so the types must be declared there too.
+        result.errors.unshift('Declare the ComponentType or ClusterComponentType (and Traits) the components use in the repository, e.g. under platform-shared/.');
+      }
       const SHOW = 'Show Output';
       const choice = await vscode.window.showWarningMessage(
         `Nothing generated${result.summary ? `: ${result.summary}` : '.'}${result.errors[0] ? ` ${result.errors[0]}` : ''}`,
@@ -123,7 +144,7 @@ export function registerGenerateCommands(
       if (!root) return noRepository();
       const scope = await pickScope(root, 'Generate ComponentReleases');
       if (!scope) return;
-      const result = await run(root, ['componentrelease', 'generate', ...scope.args], 'Generating releases…');
+      const result = await run(root, ['componentrelease', 'generate', ...scope.args], 'Generating releases…', scope.namespace);
       if (result) await offerCommit(root, result, `release/${scope.slug}-${stamp()}`, `chore: release ${scope.slug}`);
     }),
 
@@ -143,6 +164,7 @@ export function registerGenerateCommands(
         root,
         ['releasebinding', 'generate', '--target-env', environment, '--use-pipeline', pipeline, ...scope.args],
         `Promoting to ${environment}…`,
+        scope.namespace,
       );
       if (result) await offerCommit(root, result, `promote/${scope.slug}-${environment}-${stamp()}`, `chore: promote ${scope.slug} to ${environment}`);
     }),
@@ -160,10 +182,18 @@ function noRepository(): void {
 
 const stamp = () => new Date().toISOString().replace(/[-:T]/g, '').slice(0, 12);
 
-function runOcc(binary: string, args: string[], cwd: string, onOutput: (chunk: string) => void): Promise<string> {
-  return new Promise((resolve) => {
+/**
+ * Run occ in file-system mode for a namespace. Not every generate command
+ * takes --namespace (releasebinding doesn't), but all read the current
+ * context's, so occ gets a throwaway home whose only context names it.
+ */
+export function runOcc(binary: string, args: string[], cwd: string, namespace: string, onOutput: (chunk: string) => void): Promise<string> {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'openchoreo-occ-'));
+  fs.mkdirSync(path.join(home, '.openchoreo'));
+  fs.writeFileSync(path.join(home, '.openchoreo', 'config'), fileSystemConfig(namespace, cwd), { mode: 0o600 });
+  return new Promise<string>((resolve) => {
     let output = '';
-    const child = spawn(binary, args, { cwd, env: occEnv() });
+    const child = spawn(binary, args, { cwd, env: { ...process.env, HOME: home, USERPROFILE: home } });
     const collect = (chunk: Buffer) => {
       output += String(chunk);
       onOutput(String(chunk));
@@ -172,6 +202,14 @@ function runOcc(binary: string, args: string[], cwd: string, onOutput: (chunk: s
     child.stderr.on('data', collect);
     child.on('error', (err) => resolve(`Error: ${err.message}`));
     child.on('close', () => resolve(output));
+  }).finally(() => fs.rmSync(home, { recursive: true, force: true }));
+}
+
+/** An occ config with one file-system context for the namespace. */
+export function fileSystemConfig(namespace: string, rootDirectoryPath: string): string {
+  return stringify({
+    currentContext: 'gitops',
+    contexts: [{ name: 'gitops', namespace, mode: 'file-system', rootDirectoryPath }],
   });
 }
 
