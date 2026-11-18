@@ -84,7 +84,7 @@ jobs:
       - name: Publish to Open VSX
         if: env.OVSX_PAT != ''
         working-directory: packages/extension
-        run: npx ovsx publish "openchoreo-unofficial-${VERSION}.vsix" -p "$OVSX_PAT"
+        run: npx ovsx@1.3.0 publish "openchoreo-unofficial-${VERSION}.vsix" -p "$OVSX_PAT"
 
       - name: Note skipped publishing
         if: env.VSCE_PAT == '' || env.OVSX_PAT == ''

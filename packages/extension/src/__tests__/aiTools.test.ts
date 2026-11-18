@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { formatValidation } from '../ai/format';
 import { splitDocuments } from '../ai/tools';
+import { otherAgentsGuide } from '../ai/otherAgents';
 
 const at = (line: number, character: number, message: string, severity = 2) => ({
   range: { start: { line, character } },
@@ -37,5 +38,14 @@ describe('formatValidation', () => {
       'a.yaml (Project): no problems found.',
     );
     expect(formatValidation('b.yaml', [{ kind: null, diagnostics: [], lineOffset: 0 }])).toMatch(/no OpenChoreo resource/);
+  });
+});
+
+describe('otherAgentsGuide', () => {
+  it('lists the servers with Claude Code commands and points at the skills', () => {
+    const guide = otherAgentsGuide([{ name: 'openchoreo-cp', url: 'http://cp/mcp?toolsets=a,b' }]);
+    expect(guide).toContain("claude mcp add --transport http openchoreo-cp 'http://cp/mcp?toolsets=a,b'");
+    expect(guide).toContain('npx skills add openchoreo/skills');
+    expect(otherAgentsGuide([])).toMatch(/Sign in with "OpenChoreo: Login" first/);
   });
 });

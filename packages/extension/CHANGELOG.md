@@ -8,6 +8,8 @@
 - Add the extension-managed occ binary to the integrated terminal's `PATH`
 - Chat tools for agents: **Validate OpenChoreo YAML** (`#openchoreoValidate`), **Get OpenChoreo Context** (`#openchoreoContext`) and **Scaffold OpenChoreo Resource** (`#openchoreoScaffold`)
 - **Troubleshoot with Copilot** on failed workflow runs and deployments, a **Fix with Copilot** quick fix for OpenChoreo validation problems, and **Summarize with Copilot** for runtime logs; **Add YAML to Chat** now attaches the resource instead of pasting it
+- Register the MCP servers in Cursor through its MCP API, and add **OpenChoreo: Use with Other AI Agents…** with setup commands for Claude Code and the skills
+- Fix: the occ CLI was reported missing when `occ version` took over 3 seconds (it also asks the server for its version)
 
 ## 0.2.1 — 2026-11-17
 

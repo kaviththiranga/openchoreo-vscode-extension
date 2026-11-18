@@ -58,7 +58,7 @@ export function registerLanguageModelTools(context: vscode.ExtensionContext, dep
     vscode.lm.registerTool<Record<string, never>>(TOOL_NAMES.context, {
       prepareInvocation: () => ({ invocationMessage: 'Reading the OpenChoreo session' }),
       async invoke() {
-        return text(JSON.stringify(describeContext(deps), null, 2));
+        return text(JSON.stringify(await describeContext(deps), null, 2));
       },
     }),
 
@@ -114,7 +114,7 @@ export function splitDocuments(source: string): Array<{ text: string; line: numb
   return docs.filter((d) => d.text.trim().length > 0);
 }
 
-function describeContext(deps: ToolDeps): Record<string, unknown> {
+async function describeContext(deps: ToolDeps): Promise<Record<string, unknown>> {
   const session = deps.authProvider.getSession();
   const version = deps.serverInfo.getVersion();
   const editor = vscode.window.activeTextEditor?.document;
@@ -136,7 +136,7 @@ function describeContext(deps: ToolDeps): Record<string, unknown> {
       projectTypes: deps.serverInfo.supports(1, 3),
       releaseLines: deps.serverInfo.supports(1, 4),
     },
-    mcpServers: registeredMcpServers(),
+    mcpServers: await registeredMcpServers(),
     activeEditor: editor
       ? { file: editor.uri.scheme === 'file' ? editor.uri.fsPath : editor.uri.toString(), ...resource }
       : undefined,

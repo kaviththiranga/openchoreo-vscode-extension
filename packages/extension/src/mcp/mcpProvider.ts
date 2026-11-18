@@ -7,16 +7,21 @@ import type { AuthSession, OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
 import { log } from '../logging/logger';
 import { discoverObservabilityEndpoints, type ObservabilityEndpoints } from './mcpDiscovery';
-import { buildMcpServerSpecs, DEVELOPER_TOOLSETS } from './mcpServers';
+import { buildMcpServerSpecs, DEVELOPER_TOOLSETS, type McpServerSpec } from './mcpServers';
+import { cursorMcpApi, registerWithCursor } from './cursorMcp';
 
 /** How long the first server list waits for observability discovery. */
 const DISCOVERY_WAIT_MS = 4000;
 
-let lastServers: Array<{ name: string; url: string }> = [];
+let computeServers: (() => Promise<McpServerSpec[]>) | undefined;
 
-/** The servers most recently offered to VS Code, for the context tool. */
-export function registeredMcpServers(): Array<{ name: string; url: string }> {
-  return lastServers;
+/**
+ * The OpenChoreo MCP servers for the current session, as they are (or would
+ * be) offered to the editor. Names and URLs only, never the token.
+ */
+export async function registeredMcpServers(): Promise<Array<{ name: string; url: string }>> {
+  const specs = (await computeServers?.().catch(() => [])) ?? [];
+  return specs.map((s) => ({ name: s.label, url: s.url }));
 }
 
 /**
@@ -30,9 +35,10 @@ export function registerMcpServers(
   authProvider: OccConfigAuthProvider,
   apiClientManager: ApiClientManager,
 ): void {
-  // Check if the MCP API is available (VSCode 1.99+)
-  if (!vscode.lm?.registerMcpServerDefinitionProvider) {
-    log.debug('MCP server registration not available (requires VSCode 1.99+)');
+  // Cursor has its own MCP API; VS Code's needs 1.99+.
+  const cursorMcp = cursorMcpApi();
+  if (!cursorMcp && !vscode.lm?.registerMcpServerDefinitionProvider) {
+    log.debug('MCP server registration not available (requires VSCode 1.99+ or Cursor)');
     return;
   }
 
@@ -98,45 +104,53 @@ export function registerMcpServers(
       };
     };
 
-    const provider: vscode.McpServerDefinitionProvider = {
-      onDidChangeMcpServerDefinitions: onDidChangeEmitter.event,
-
-      async provideMcpServerDefinitions(): Promise<vscode.McpServerDefinition[]> {
-        try {
-          const session = authProvider.getSession();
-          if (!session) {
-            log.debug('MCP: no session, returning empty server list');
-            return [];
-          }
-          // Auth-disabled clusters have no token. Sending an empty Bearer
-          // header makes some HTTP servers 401 before the MCP handshake,
-          // which causes Copilot Chat to drop the server from the catalog.
-          const token = session.securityEnabled ? await authProvider.getToken() : undefined;
-          const config = vscode.workspace.getConfiguration('openchoreo.mcp');
-          const specs = buildMcpServerSpecs({
-            controlPlaneUrl: session.controlPlaneUrl,
-            token: token || undefined,
-            toolsets: config.get<string[]>('toolsets', DEVELOPER_TOOLSETS),
-            platformEngineerTools: config.get<boolean>('platformEngineerTools', false),
-            ...(await observability(session, token || undefined)),
-          });
-          lastServers = specs.map((s) => ({ name: s.label, url: s.url }));
-          log.debug(
-            `MCP servers providing: ${specs.map((s) => `${s.label}=${s.url}`).join(', ')} ` +
-              `(auth: ${session.securityEnabled ? 'bearer' : 'disabled'})`,
-          );
-          return specs.map(
-            (s) => new vscode.McpHttpServerDefinition(s.label, vscode.Uri.parse(s.url), s.headers),
-          );
-        } catch (err) {
-          log.error('MCP: error in provideMcpServerDefinitions', err);
-          return [];
-        }
-      },
+    const computeSpecs = async (): Promise<McpServerSpec[]> => {
+      const session = authProvider.getSession();
+      if (!session) {
+        log.debug('MCP: no session, returning empty server list');
+        return [];
+      }
+      // Auth-disabled clusters have no token. Sending an empty Bearer
+      // header makes some HTTP servers 401 before the MCP handshake,
+      // which causes Copilot Chat to drop the server from the catalog.
+      const token = session.securityEnabled ? await authProvider.getToken() : undefined;
+      const config = vscode.workspace.getConfiguration('openchoreo.mcp');
+      const specs = buildMcpServerSpecs({
+        controlPlaneUrl: session.controlPlaneUrl,
+        token: token || undefined,
+        toolsets: config.get<string[]>('toolsets', DEVELOPER_TOOLSETS),
+        platformEngineerTools: config.get<boolean>('platformEngineerTools', false),
+        ...(await observability(session, token || undefined)),
+      });
+      log.debug(
+        `MCP servers providing: ${specs.map((s) => `${s.label}=${s.url}`).join(', ')} ` +
+          `(auth: ${session.securityEnabled ? 'bearer' : 'disabled'})`,
+      );
+      return specs;
     };
 
-    const disposable = vscode.lm.registerMcpServerDefinitionProvider('openchoreo', provider);
-    context.subscriptions.push(disposable);
+    computeServers = computeSpecs;
+
+    if (cursorMcp) {
+      context.subscriptions.push(registerWithCursor(cursorMcp, computeSpecs, onDidChangeEmitter.event));
+    } else {
+      const provider: vscode.McpServerDefinitionProvider = {
+        onDidChangeMcpServerDefinitions: onDidChangeEmitter.event,
+
+        async provideMcpServerDefinitions(): Promise<vscode.McpServerDefinition[]> {
+          try {
+            const specs = await computeSpecs();
+            return specs.map(
+              (s) => new vscode.McpHttpServerDefinition(s.label, vscode.Uri.parse(s.url), s.headers),
+            );
+          } catch (err) {
+            log.error('MCP: error in provideMcpServerDefinitions', err);
+            return [];
+          }
+        },
+      };
+      context.subscriptions.push(vscode.lm.registerMcpServerDefinitionProvider('openchoreo', provider));
+    }
     context.subscriptions.push(onDidChangeEmitter);
 
     // Re-provide when the session changes (token refresh, context or namespace switch)
@@ -151,7 +165,8 @@ export function registerMcpServers(
       }),
     );
 
-    log.info('OpenChoreo MCP server provider registered');
+    log.info(`OpenChoreo MCP servers registered with ${cursorMcp ? 'Cursor' : 'VS Code'}`);
+    if (cursorMcp) return;
 
     // First-run nudge: VS Code does not auto-start newly-registered MCP
     // servers (security feature, no programmatic override). Show a one-time

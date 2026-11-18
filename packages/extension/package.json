@@ -401,6 +401,12 @@
         "title": "Fix with Copilot",
         "category": "OpenChoreo",
         "icon": "$(sparkle)"
+      },
+      {
+        "command": "openchoreo.setUpOtherAgents",
+        "title": "Use with Other AI Agents…",
+        "category": "OpenChoreo",
+        "icon": "$(link-external)"
       }
     ],
     "menus": {

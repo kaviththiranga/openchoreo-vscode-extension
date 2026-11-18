@@ -81,3 +81,5 @@ Apache-2.0
 1. Bump `version` in `packages/extension/package.json` and add a `## <version> — <date>` section to `packages/extension/CHANGELOG.md`.
 2. Push to `main`, then push a matching tag: `git tag v<version> && git push origin v<version>`.
 3. The **Release** workflow builds, runs unit and end-to-end tests, creates the GitHub release with the `.vsix` and the changelog section as notes, and publishes to the VS Code Marketplace (`VSCE_PAT` secret) and Open VSX (`OVSX_PAT` secret) when those secrets are set.
+
+One-time Open VSX setup (Cursor, Windsurf, VSCodium and other VS Code forks install from there): sign in at <https://open-vsx.org> with GitHub, link an Eclipse account and sign the publisher agreement, create an access token, claim the namespace with `npx ovsx@1.3.0 create-namespace KavithLokuhewage -p <token>`, then save the token with `gh secret set OVSX_PAT`.

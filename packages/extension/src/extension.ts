@@ -29,6 +29,7 @@ import { getOccBinaryPath } from './cli/cliPath';
 import { registerTerminalPath } from './cli/terminalPath';
 import { registerLanguageModelTools } from './ai/tools';
 import { registerChatHandoffs } from './ai/chatHandoffs';
+import { registerOtherAgentsGuide } from './ai/otherAgents';
 import { setExtensionUri } from './treeView/shared';
 import { ComponentService } from './services/componentService';
 import { WorkflowRunService } from './services/workflowRunService';
@@ -218,6 +219,7 @@ export async function activate(
 
   // Troubleshoot and fix-it hand-offs from the tree and the editor to chat
   registerChatHandoffs(context, (arg) => resolveNode(arg, sidebarProvider));
+  registerOtherAgentsGuide(context);
 
   // Periodic token pre-refresh — ensures tokens stay fresh for MCP and API calls.
   // getToken() checks expiry and refreshes if needed, writing back to occ config.

@@ -14,6 +14,7 @@ import { aiCustomizations } from './scenes/aiCustomizations';
 import { chatTools } from './scenes/chatTools';
 import { fixWithCopilot } from './scenes/fixWithCopilot';
 import { manual } from './scenes/manual';
+import { otherAgents } from './scenes/otherAgents';
 import { mcpServers } from './scenes/mcpServers';
 import { yamlAuthoring } from './scenes/yamlAuthoring';
 
@@ -22,6 +23,7 @@ export const SCENES: Scene[] = [
   mcpServers,
   aiCustomizations,
   fixWithCopilot,
+  otherAgents,
   chatTools,
   agentFixesYaml,
   manual,

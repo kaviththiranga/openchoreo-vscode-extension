@@ -340,6 +340,10 @@ The control plane offers more than 128 tools when every toolset is on, and chat 
 
 Find them in **Chat: Open Customizations**. If you install the OpenChoreo agent plugin yourself, turn off `openchoreo.ai.bundledSkills` to avoid duplicate skills. The occ binary the extension manages is added to the integrated terminal's `PATH` (`openchoreo.addCliToTerminalPath`), so commands that agents and skills run find it.
 
+**Cursor**: the extension registers the same servers through Cursor's MCP API. Cursor has been reported to drop the `Authorization` header for extension-registered servers, so on clusters with authentication these servers may fail to connect until Cursor fixes it; clusters with authentication disabled work.
+
+**Other agents**: **OpenChoreo: Use with Other AI Agents…** shows your MCP server URLs with ready-to-run commands for Claude Code, and how to install the OpenChoreo skills into other agents.
+
 **MCP Server Auto-Registration**:
 - URLs derived from your occ CLI control plane configuration and the namespace's observability planes (not hardcoded)
 - Authentication token passed automatically from your session
