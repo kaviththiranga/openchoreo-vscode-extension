@@ -12,6 +12,7 @@ smoke-detector.mjs
 out/**
 test-fixtures/**
 .vscode-test/**
+demo-output/**
 *.vsix
 **/*.map
 **/*.test.ts

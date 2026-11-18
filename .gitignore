@@ -5,3 +5,4 @@ out/
 .turbo/
 .vscode-test/
 *.tsbuildinfo
+demo-output/

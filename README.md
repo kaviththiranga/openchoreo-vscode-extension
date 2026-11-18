@@ -31,6 +31,9 @@ pnpm test
 # End-to-end tests in a real VS Code (after pnpm build; Linux CI wraps this in xvfb-run)
 cd packages/extension && pnpm test:e2e
 
+# Demo footage: an MP4 per scene plus 2x screenshots in packages/extension/demo-output/
+cd packages/extension && pnpm demo:capture
+
 # Type check
 cd packages/extension && pnpm lint
 cd packages/language-server && pnpm lint
@@ -38,6 +41,16 @@ cd packages/language-server && pnpm lint
 # Package VSIX
 cd packages/extension && pnpm package
 ```
+
+### Demo footage
+
+`pnpm demo:capture` drives a real VS Code through the scenes in `packages/extension/src/test/demo/scenes/` with Playwright and writes `demo-output/<timestamp>/`: one 1920×1080 MP4 per scene, 2x screenshots, and an `index.md` describing each capture. A scene that fails stops with a `failure` screenshot, so the scenes double as UI tests. CI uploads the footage as the `demo-footage` artifact.
+
+- `DEMO_WITH=cluster` adds scenes that use your occ login; `DEMO_WITH=cluster,copilot` adds chat scenes, which need a signed-in VS Code profile (`DEMO_USER_DATA_DIR`, `DEMO_EXTENSIONS_DIR`; close that VS Code first).
+- `DEMO_VSIX=<file>` records the packaged build, so the title bar doesn't read "Extension Development Host". Use it for final footage.
+- `DEMO_SCENES=a,b` captures only those scenes; `DEMO_CAPTIONS=1` overlays captions, `DEMO_KEYCAST=0` hides the key overlay. See `scripts/capture-demo.mjs` for the rest.
+
+Add a scene for every user-visible feature: write it in `scenes/`, then list it in `src/test/demo/index.ts`.
 
 ### Regenerating CRD schemas
 
