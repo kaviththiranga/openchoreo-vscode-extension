@@ -494,6 +494,11 @@
         "title": "Promote in Repository…",
         "category": "OpenChoreo",
         "icon": "$(arrow-up)"
+      },
+      {
+        "command": "openchoreo.restartLanguageServer",
+        "title": "Restart Language Server",
+        "category": "OpenChoreo"
       }
     ],
     "menus": {
@@ -770,7 +775,7 @@
         },
         "openchoreo.cliPath": {
           "type": "string",
-          "default": "",
+          "default": "/Users/rukshanrwso2.com/WSO2_Projects/project_681/OpenChoreoLSP-MCPToolkit/occ_with_linter/openchoreo/bin/occ",
           "description": "Path to the occ CLI binary. When set, overrides both the extension-managed download and the system PATH lookup. Useful for pointing at a custom build."
         },
         "openchoreo.autoRefresh": {
@@ -987,9 +992,9 @@
     "demo:capture": "node scripts/capture-demo.mjs",
     "generate:icons": "fantasticon && node scripts/update-icon-font.mjs",
     "clean": "rm -rf dist out",
-    "prepackage": "node scripts/sync-skills.mjs --required && cp -r ../../schemas ./schemas && mkdir -p ./language-server/dist && cp ../language-server/dist/server.js ./language-server/dist/server.js && mkdir -p ./webview-ui/dist && cp ../webview-ui/dist/* ./webview-ui/dist/",
+    "prepackage": "node scripts/sync-skills.mjs --required && mkdir -p ./webview-ui/dist && cp ../webview-ui/dist/* ./webview-ui/dist/",
     "package": "pnpm build && vsce package --no-dependencies --allow-missing-repository --skip-license",
-    "postpackage": "rm -rf ./schemas ./language-server ./webview-ui"
+    "postpackage": "rm -rf ./webview-ui"
   },
   "dependencies": {
     "@openchoreo/openchoreo-client-node": "^1.3.3",

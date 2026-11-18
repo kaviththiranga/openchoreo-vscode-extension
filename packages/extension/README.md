@@ -576,3 +576,28 @@ The extension reads the control plane version from `/version` when it connects.
 ## License
 
 Apache-2.0
+
+
+## Unified CLI language server
+
+This build starts the unified `occ lsp --stdio` through the VS Code Language Client. The original Node language-server source is retained, but it is not launched or packaged. No CLI or LSP executable is bundled.
+
+Set `openchoreo.cliPath` to the unified executable and run `occ login` in the extension host environment. This development build temporarily defaults to:
+
+```text
+/Users/rukshanrwso2.com/WSO2_Projects/project_681/OpenChoreoLSP-MCPToolkit/occ_with_linter/openchoreo/bin/occ
+```
+
+An explicit setting takes priority. Clear the temporary machine-specific default before distributing the extension. With an empty setting, existing behavior is preserved: an available managed CLI is preferred over PATH. Older managed releases may support login without supporting `lsp`; configure a unified build explicitly in that case.
+
+Use **OpenChoreo: Restart Language Server** after authentication or executable changes. Startup does not initiate login or download automatically, and failures do not trigger restart loops. Existing user-invoked Login and download actions remain available. Inspect **Output → OpenChoreo Language Server** for CLI stderr and startup details.
+
+For remote VS Code sessions, install and authenticate `occ` remotely. The CLI uses its default `~/.openchoreo/config`; the extension's `openchoreo.configPath` override does not redirect CLI authentication.
+
+Cluster names and schemas are sent only after initialization. Both snapshots are cleared before refresh and on logout; late results from an obsolete context or client are discarded. Slow cluster API requests cannot block shutdown. The chat YAML validation tool uses temporary LSP documents and consumes their diagnostics, rather than calling the original Node server's private validation request.
+
+The current Go server rejects standard LSP shutdown. The extension attempts graceful shutdown, then awaits child-process termination before starting another server. Its Go implementation is unchanged by this integration.
+
+### Verification
+
+Run `pnpm --filter openchoreo-unofficial test`, `pnpm --filter openchoreo-unofficial lint`, and `pnpm build`. For an interactive check, start **Run Extension** with F5, open OpenChoreo YAML and an explorer resource, check completion/hover/diagnostics, switch namespace, then log out, log in, and restart the language server. Confirm chat YAML validation works and disabling the extension terminates the server.

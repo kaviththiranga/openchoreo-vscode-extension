@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
-import * as path from 'path';
+import { spawn, type ChildProcess } from 'child_process';
 import {
   LanguageClient,
   LanguageClientOptions,
   ServerOptions,
-  TransportKind,
+  CloseAction,
+  ErrorAction,
 } from 'vscode-languageclient/node';
 import { OccConfigAuthProvider } from './auth/authProvider';
 import { OccCliDetector } from './auth/occCliDetector';
@@ -43,13 +44,16 @@ import { WorkflowRunService } from './services/workflowRunService';
 import { ReleaseBindingService } from './services/releaseBindingService';
 import { LogOutputService } from './services/logOutputService';
 import { ServerInfoService } from './services/serverInfoService';
+import { LanguageServerValidation } from './services/languageServerValidation';
 import { pushResourceNames, pushResourceSchemas } from './services/languageServerFeed';
 import {
   OpenChoreoFileSystemProvider,
   FS_SCHEME,
 } from './filesystem/fileSystemProvider';
 
-let client: LanguageClient;
+import { checkOccLsp, OccLanguageServer, terminateServerProcess, type ManagedLanguageClient } from './services/occLanguageServer';
+
+let languageServer: OccLanguageServer | undefined;
 
 export async function activate(
   context: vscode.ExtensionContext,
@@ -220,26 +224,36 @@ export async function activate(
   // Register namespace selector
   registerNamespaceSelector(context, authProvider, apiClientManager);
 
-  // Start language server and push resource names for dynamic completions
-  client = startLanguageServer(context);
-  const pushAll = async () => {
-    try {
-      await pushResourceNames(client, apiClientManager, authProvider, (ns) => repoIndex.namesByKind(ns));
-      await pushResourceSchemas(client, apiClientManager, authProvider);
-    } catch (err) {
-      log.error('Failed to push resource data to language server', err);
-    }
-  };
-  // Push resource data once the server is initialized
-  setTimeout(pushAll, 2000);
+  languageServer = new OccLanguageServer({
+    resolveBinary: resolveOccBinary,
+    checkBinary: checkOccLsp,
+    createClient: createLanguageClient,
+    refresh: async (client, current) => {
+      await Promise.all([
+        pushResourceNames(client, apiClientManager, authProvider, current, (ns) => repoIndex.namesByKind(ns)),
+        pushResourceSchemas(client, apiClientManager, authProvider, current),
+      ]);
+    },
+    report: (message) => { void vscode.window.showErrorMessage(message); },
+  });
   let repoPushTimer: ReturnType<typeof setTimeout> | undefined;
   context.subscriptions.push(
-    authProvider.onDidChangeSession(pushAll),
     repoIndex.onDidChange(() => {
       if (repoPushTimer) clearTimeout(repoPushTimer);
-      repoPushTimer = setTimeout(() => void pushResourceNames(client, apiClientManager, authProvider, (ns) => repoIndex.namesByKind(ns)), 2000);
+      repoPushTimer = setTimeout(() => void languageServer?.refresh(), 2000);
+    }),
+    { dispose: () => { if (repoPushTimer) clearTimeout(repoPushTimer); } },
+    vscode.commands.registerCommand('openchoreo.restartLanguageServer', () => languageServer?.restart()),
+    authProvider.onDidChangeSession(() => {
+      if (authProvider.getSession()) {
+        void languageServer?.refresh();
+      } else {
+        void languageServer?.stop().catch(() => log.debug('Could not stop the language server after logout.'));
+      }
     }),
   );
+  // Startup failures must not interrupt the explorer or authentication UI.
+  void languageServer.start();
 
   // Resolve the security-enabled flag for the current control plane before
   // MCP registration so the first provideMcpServerDefinitions() call has a
@@ -255,7 +269,10 @@ export async function activate(
   registerTerminalPath(context);
 
   // Chat tools for what only the editor knows (validation, session, scaffolds)
-  registerLanguageModelTools(context, { client: () => client, authProvider, serverInfo });
+  registerLanguageModelTools(context, {
+    validate: (text) => languageServer ? languageServer.validate(text) : Promise.reject(new Error('Language server is not running.')),
+    authProvider, serverInfo,
+  });
 
   // Troubleshoot and fix-it hand-offs from the tree and the editor to chat
   registerChatHandoffs(context, (arg) => resolveNode(arg, sidebarProvider));
@@ -315,56 +332,55 @@ export async function activate(
 }
 
 export async function deactivate(): Promise<void> {
-  if (client) {
-    await client.stop();
-  }
+  await languageServer?.dispose();
+  languageServer = undefined;
 }
 
-function startLanguageServer(
-  context: vscode.ExtensionContext,
-): LanguageClient {
-  // Check bundled copy first (VSIX), then monorepo sibling (F5 dev)
-  const bundledServer = path.join(context.extensionPath, 'language-server', 'dist', 'server.js');
-  const repoServer = path.join(context.extensionPath, '..', 'language-server', 'dist', 'server.js');
-  const nodeFs = require('fs');
-  const serverModule = nodeFs.existsSync(bundledServer) ? bundledServer : repoServer;
-
-  const serverOptions: ServerOptions = {
-    run: { module: serverModule, transport: TransportKind.ipc },
-    debug: {
-      module: serverModule,
-      transport: TransportKind.ipc,
-      options: { execArgv: ['--nolazy', '--inspect=6009'] },
-    },
+function createLanguageClient(binary: string, onClosed: () => void): ManagedLanguageClient {
+  let process: ChildProcess | undefined;
+  // The Language Client invokes this factory. Keep the child handle so failed
+  // protocol shutdown cannot leave a server behind during restart.
+  const serverOptions: ServerOptions = async () => {
+    process = spawn(binary, ['lsp', '--stdio'], { stdio: 'pipe', windowsHide: true });
+    return process;
   };
-
-  // Resolve schemas path — check local copy first (VSIX), then monorepo root (F5 dev)
-  const localSchemas = path.join(context.extensionPath, 'schemas');
-  const repoSchemas = path.join(context.extensionPath, '..', '..', 'schemas');
-  const fs = require('fs');
-  const schemasPath = fs.existsSync(localSchemas) ? localSchemas : repoSchemas;
-
+  const validation = new LanguageServerValidation((method, params) => client.isRunning() ? client.sendNotification(method, params) : Promise.reject(new Error('Language server stopped.')));
+  const watcher = vscode.workspace.createFileSystemWatcher('**/*.yaml');
   const clientOptions: LanguageClientOptions = {
     documentSelector: [
       { scheme: 'file', language: 'yaml' },
       { scheme: 'untitled', language: 'yaml' },
       { scheme: FS_SCHEME },
     ],
-    initializationOptions: {
-      schemasPath,
+    synchronize: { fileEvents: watcher },
+    middleware: {
+      handleDiagnostics: (uri, diagnostics, next) => {
+        const consumed = validation.accept(uri.toString(), diagnostics.map(d => ({
+          message: d.message, severity: d.severity + 1,
+          range: { start: { line: d.range.start.line, character: d.range.start.character } },
+        })));
+        if (!consumed) next(uri, diagnostics);
+      },
     },
-    synchronize: {
-      fileEvents: vscode.workspace.createFileSystemWatcher('**/*.yaml'),
+    errorHandler: {
+      error: () => ({ action: ErrorAction.Shutdown }),
+      closed: () => { validation.dispose(); onClosed(); return { action: CloseAction.DoNotRestart }; },
     },
   };
-
-  const client = new LanguageClient(
-    'openchoreoLanguageServer',
-    'OpenChoreo Language Server',
-    serverOptions,
-    clientOptions,
-  );
-
-  client.start();
-  return client;
+  const client = new LanguageClient('openchoreoLanguageServer', 'OpenChoreo Language Server', serverOptions, clientOptions);
+  return {
+    validate: (text) => validation.validate(text),
+    start: () => client.start(),
+    stop: async () => {
+      try { await client.stop(); }
+      catch { log.debug('Graceful LSP shutdown failed; terminating its child process.'); }
+      finally { await terminateServerProcess(process); }
+    },
+    dispose: async () => {
+      try { await client.dispose(); }
+      finally { validation.dispose(); watcher.dispose(); await terminateServerProcess(process); }
+    },
+    isRunning: () => client.isRunning(),
+    sendNotification: (method, params) => client.sendNotification(method, params),
+  };
 }

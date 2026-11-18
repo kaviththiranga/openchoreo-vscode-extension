@@ -1,7 +1,7 @@
 // Copyright 2026 The OpenChoreo Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import type { LanguageClient } from 'vscode-languageclient/node';
+import type { ManagedLanguageClient } from './occLanguageServer';
 import type { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
 import {
@@ -41,15 +41,16 @@ const itemName = (i: Item) => i.metadata?.name;
  * failed is left out, which tells the server not to check against it.
  */
 export async function pushResourceNames(
-  langClient: LanguageClient,
+  langClient: ManagedLanguageClient,
   apiClientManager: ApiClientManager,
   authProvider: OccConfigAuthProvider,
+  current: () => boolean = () => true,
   /** Names declared in the workspace's GitOps repository, by kind. */
   repoNames?: (namespace: string | undefined) => Record<string, string[]>,
 ): Promise<void> {
   try {
     const client = await apiClientManager.getClient();
-    if (!client) return;
+    if (!client || !current()) return;
     const ns = authProvider.getContextInfo()?.namespace;
     const resources: Record<string, string[]> = {};
 
@@ -80,9 +81,9 @@ export async function pushResourceNames(
     }
 
     log.debug(`Pushing resource names to language server: ${Object.entries(resources).map(([k, v]) => `${k}(${v.length})`).join(', ')}`);
-    langClient.sendNotification('openchoreo/updateResources', resources);
+    if (current() && langClient.isRunning()) await langClient.sendNotification('openchoreo/updateResources', resources);
   } catch {
-    // Non-fatal — completions just won't have dynamic values
+    log.debug('Could not refresh cluster resource-name suggestions.');
   }
 }
 
@@ -92,13 +93,14 @@ export async function pushResourceNames(
  * and push them for cross-document completions.
  */
 export async function pushResourceSchemas(
-  langClient: LanguageClient,
+  langClient: ManagedLanguageClient,
   apiClientManager: ApiClientManager,
   authProvider: OccConfigAuthProvider,
+  current: () => boolean = () => true,
 ): Promise<void> {
   try {
     const client = await apiClientManager.getClient();
-    if (!client) {
+    if (!client || !current()) {
       log.debug('pushResourceSchemas: no API client');
       return;
     }
@@ -129,8 +131,8 @@ export async function pushResourceSchemas(
 
     const total = Object.values(schemas).reduce((sum, m) => sum + Object.keys(m).length, 0);
     log.debug(`Pushing resource schemas: ${total} total — ${Object.entries(schemas).map(([k, m]) => `${k}(${Object.keys(m).length})`).join(', ')}`);
-    langClient.sendNotification('openchoreo/updateResourceSchemas', schemas);
+    if (current() && langClient.isRunning()) await langClient.sendNotification('openchoreo/updateResourceSchemas', schemas);
   } catch {
-    // Non-fatal
+    log.debug('Could not refresh cluster schema suggestions.');
   }
 }

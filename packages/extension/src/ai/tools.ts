@@ -9,7 +9,7 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
-import type { LanguageClient } from 'vscode-languageclient/node';
+import type { TextValidation } from '../services/languageServerValidation';
 import type { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ServerInfoService } from '../services/serverInfoService';
 import { CRD_KIND_TO_SCAFFOLD, scaffoldTemplate } from '../services/yamlService';
@@ -23,7 +23,7 @@ export const TOOL_NAMES = {
 } as const;
 
 export interface ToolDeps {
-  client: () => LanguageClient | undefined;
+  validate: (text: string) => Promise<TextValidation>;
   authProvider: OccConfigAuthProvider;
   serverInfo: ServerInfoService;
 }
@@ -41,14 +41,10 @@ export function registerLanguageModelTools(context: vscode.ExtensionContext, dep
       }),
       async invoke({ input }) {
         const source = await readSource(input);
-        const client = deps.client();
-        if (!client) throw new Error('The OpenChoreo language server is not running yet. Try again shortly.');
         const documents = splitDocuments(source.text);
         const results: ValidationResult[] = [];
         for (const doc of documents) {
-          const result = await client.sendRequest<Omit<ValidationResult, 'lineOffset'>>('openchoreo/validate', {
-            text: doc.text,
-          });
+          const result = await deps.validate(doc.text);
           results.push({ ...result, lineOffset: doc.line });
         }
         return text(formatValidation(source.label, results));
