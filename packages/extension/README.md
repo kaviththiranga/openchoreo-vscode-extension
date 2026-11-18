@@ -49,20 +49,20 @@ The extension and occ CLI share the same config file (`~/.openchoreo/config`). T
 
 ### MCP Authentication
 
-When registered with VSCode Copilot Chat, the OpenChoreo MCP server receives the current Bearer token via HTTP headers. The token is refreshed automatically via the periodic refresh timer and session change events — ensuring MCP requests always use a valid token.
+Every OpenChoreo MCP server the extension registers receives the current Bearer token via HTTP headers. The token is refreshed automatically via the periodic refresh timer and session change events — ensuring MCP requests always use a valid token.
 
-For clusters installed with **authentication disabled**, the extension registers the MCP server without an `Authorization` header and adds `?filterByAuthz=false` to the URL so the platform's per-user tool filter doesn't hide the catalog. The OpenChoreo control plane still enforces its own authorization independently.
+For clusters installed with **authentication disabled**, the extension registers the servers without an `Authorization` header and adds `?filterByAuthz=false` to control-plane URLs so the platform's per-user tool filter doesn't hide the catalog. The OpenChoreo control plane still enforces its own authorization independently.
 
-### Enabling the MCP Server in Copilot Chat
+### Enabling the MCP Servers in Copilot Chat
 
 VS Code does **not** auto-start newly-registered MCP servers — this is a security feature of the MCP API, not something the extension can override. After the OpenChoreo extension activates:
 
 1. Open the Command Palette → **MCP: List Servers**.
-2. Find **OpenChoreo Platform** in the list.
+2. Find **openchoreo-cp** (and **openchoreo-obs**, **openchoreo-sre**, **openchoreo-pe** if registered) in the list.
 3. Click **Start** (you only need to do this once per machine).
 4. Open Copilot Chat → tools picker — the OpenChoreo tools are now available.
 
-If "OpenChoreo Platform" doesn't appear in the list at all, check that you are logged in via `occ login` and that the OpenChoreo Output panel shows a line like `MCP server providing: <url>`.
+If the servers don't appear in the list at all, check that you are logged in via `occ login` and that the OpenChoreo Output panel shows a line like `MCP servers providing: openchoreo-cp=<url>`.
 
 ### Security Notes
 
@@ -313,12 +313,21 @@ Inside `metadata.labels:` and `metadata.annotations:`, the extension suggests co
 
 ### Copilot Chat Integration
 
-On VSCode 1.99+ with GitHub Copilot, the extension automatically registers the OpenChoreo Platform MCP server, giving Copilot Chat access to all OpenChoreo tools (resource CRUD, build triggers, observability queries, etc.).
+On VSCode 1.99+ with GitHub Copilot, the extension registers the OpenChoreo MCP servers, named like the servers in the [OpenChoreo skills](https://github.com/openchoreo/skills):
+
+| Server | Tools | Registered |
+|---|---|---|
+| `openchoreo-cp` | Developer toolsets: namespaces, projects, components, workloads, resources, deployments, builds, endpoints (1.4+) | Always |
+| `openchoreo-pe` | Platform-engineer toolset: environments, pipelines, component types, traits, workflows, planes, authorization | When `openchoreo.mcp.platformEngineerTools` is on |
+| `openchoreo-obs` | Observer: logs, metrics, traces, alerts, incidents | When an environment in the current namespace has an observability plane, or the platform advertises one |
+| `openchoreo-sre` | SRE agent: root-cause reports and analysis | When the observability plane has an SRE agent |
+
+The control plane offers more than 128 tools when every toolset is on, and chat requests are limited to 128, so the developer and platform-engineer toolsets are separate servers. Choose the control-plane toolsets with `openchoreo.mcp.toolsets`. If your role cannot read observability planes, set `openchoreo.mcp.observerUrl` / `openchoreo.mcp.sreAgentUrl`, or turn the observability servers off with `openchoreo.mcp.observability`.
 
 **MCP Server Auto-Registration**:
-- URL derived from your occ CLI control plane configuration (not hardcoded)
+- URLs derived from your occ CLI control plane configuration and the namespace's observability planes (not hardcoded)
 - Authentication token passed automatically from your session
-- Re-registers when you switch context or namespace
+- Re-registers when you switch context or namespace, or change an `openchoreo.mcp.*` setting
 
 **Add to Chat** — right-click any resource in the tree to add it as context to Copilot Chat:
 

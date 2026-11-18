@@ -205,7 +205,7 @@ export async function activate(
   void serverInfo.refresh();
 
   // Register OpenChoreo MCP servers for Copilot Chat
-  registerMcpServers(context, authProvider);
+  registerMcpServers(context, authProvider, apiClientManager);
 
   // Periodic token pre-refresh — ensures tokens stay fresh for MCP and API calls.
   // getToken() checks expiry and refreshes if needed, writing back to occ config.

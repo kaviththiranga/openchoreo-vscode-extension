@@ -543,6 +543,42 @@
           "type": "number",
           "default": 30,
           "description": "Auto-refresh interval in seconds"
+        },
+        "openchoreo.mcp.toolsets": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "namespace",
+            "project",
+            "component",
+            "resource",
+            "deployment",
+            "build",
+            "endpoint"
+          ],
+          "markdownDescription": "Control-plane toolsets offered by the `openchoreo-cp` MCP server. Known toolsets: `namespace`, `project`, `component`, `resource`, `deployment`, `build`, `endpoint` (1.4+), `pe`. An empty list offers every toolset the server enables. Keep the list short: chat requests are limited to 128 tools."
+        },
+        "openchoreo.mcp.platformEngineerTools": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Also register `openchoreo-pe`, an MCP server with the platform-engineer toolset (environments, pipelines, component types, traits, workflows, planes, authorization). Tools you are not permitted to use are hidden."
+        },
+        "openchoreo.mcp.observability": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Register the observer (`openchoreo-obs`: logs, metrics, traces, alerts) and SRE agent (`openchoreo-sre`: root-cause reports) MCP servers found through the current namespace's environments."
+        },
+        "openchoreo.mcp.observerUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Observer base URL for `openchoreo-obs`, e.g. `https://observer.example.com`. Overrides discovery; set it when your role cannot read observability planes."
+        },
+        "openchoreo.mcp.sreAgentUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "SRE agent base URL for `openchoreo-sre`. Overrides discovery."
         }
       }
     },
@@ -554,6 +590,7 @@
     "lint": "tsc --noEmit",
     "test": "vitest run",
     "test:e2e": "node scripts/run-e2e.mjs",
+    "demo:capture": "node scripts/capture-demo.mjs",
     "generate:icons": "fantasticon && node scripts/update-icon-font.mjs",
     "clean": "rm -rf dist out",
     "prepackage": "cp -r ../../schemas ./schemas && mkdir -p ./language-server/dist && cp ../language-server/dist/server.js ./language-server/dist/server.js && mkdir -p ./webview-ui/dist && cp ../webview-ui/dist/* ./webview-ui/dist/",
@@ -579,6 +616,7 @@
     "esbuild": "^0.24.0",
     "fantasticon": "^4.1.0",
     "mocha": "^11.7.1",
+    "playwright-core": "1.64.1",
     "typescript": "^5.7.0",
     "vitest": "^2.1.0"
   }
