@@ -19,7 +19,8 @@ export interface OccCliInfo {
   versionDetails?: string;
 }
 
-const DETECT_TIMEOUT_MS = 3000;
+// `occ version` also asks the server for its version, which can take seconds.
+const DETECT_TIMEOUT_MS = 10_000;
 
 /**
  * Parse `occ version` output to extract the client version.
