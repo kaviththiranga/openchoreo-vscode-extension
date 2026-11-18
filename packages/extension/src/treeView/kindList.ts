@@ -4,10 +4,16 @@
 import type { ApiClientManager } from '../api/apiClient';
 import { collectionPathParams, kindSpec } from '../kinds/registry';
 import type { ResourceNodeData, ResourceNodeType } from './types';
+import { markGitOps } from './shared';
 
 type Client = NonNullable<Awaited<ReturnType<ApiClientManager['getClient']>>>;
 type ListItem = {
-  metadata?: { name?: string; deletionTimestamp?: string };
+  metadata?: {
+    name?: string;
+    deletionTimestamp?: string;
+    labels?: Record<string, string>;
+    annotations?: Record<string, string>;
+  };
   spec?: { environment?: string };
 };
 
@@ -55,7 +61,7 @@ export async function fetchKindNodes(
     const isDeleting = !!item.metadata?.deletionTimestamp;
     const env = item.spec?.environment;
     const name = item.metadata?.name ?? 'unknown';
-    return {
+    return markGitOps({
       label: name,
       type: nodeType,
       contextValue: isDeleting ? nodeType : opts.contextValueFor(nodeType),
@@ -64,7 +70,7 @@ export async function fetchKindNodes(
       resourceName: name,
       childrenMode: 'none' as const,
       ...opts.nodeExtras,
-    };
+    }, item.metadata);
   });
 }
 

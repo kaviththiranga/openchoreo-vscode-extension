@@ -13,6 +13,7 @@ import { agentFixesYaml } from './scenes/agentFixesYaml';
 import { aiCustomizations } from './scenes/aiCustomizations';
 import { chatTools } from './scenes/chatTools';
 import { fixWithCopilot } from './scenes/fixWithCopilot';
+import { gitopsCompare } from './scenes/gitopsCompare';
 import { manual } from './scenes/manual';
 import { otherAgents } from './scenes/otherAgents';
 import { mcpServers } from './scenes/mcpServers';
@@ -24,6 +25,7 @@ export const SCENES: Scene[] = [
   aiCustomizations,
   fixWithCopilot,
   otherAgents,
+  gitopsCompare,
   chatTools,
   agentFixesYaml,
   manual,

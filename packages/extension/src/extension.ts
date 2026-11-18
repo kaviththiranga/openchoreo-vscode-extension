@@ -31,6 +31,10 @@ import { registerLanguageModelTools } from './ai/tools';
 import { registerChatHandoffs } from './ai/chatHandoffs';
 import { registerOtherAgentsGuide } from './ai/otherAgents';
 import { setExtensionUri } from './treeView/shared';
+import { registerGitOps } from './gitops';
+import { ComponentSourceService } from './workspace/componentSources';
+import { ComponentLinkService } from './workspace/componentLinks';
+import { registerLinkedComponentCommands } from './workspace/linkedComponentCommands';
 import { ComponentService } from './services/componentService';
 import { WorkflowRunService } from './services/workflowRunService';
 import { ReleaseBindingService } from './services/releaseBindingService';
@@ -152,6 +156,16 @@ export async function activate(
     }),
   );
 
+  // GitOps: index the workspace's GitOps repository, compare it with the
+  // cluster, and guard API writes to resources a GitOps tool manages
+  const repoIndex = registerGitOps(context, {
+    authProvider,
+    apiClientManager,
+    fsProvider,
+    resolveNode: (arg) => resolveNode(arg, sidebarProvider),
+    onModeChange: () => sidebarProvider.refreshAll(),
+  });
+
   // Register commands
   registerCommands(
     context,
@@ -171,7 +185,15 @@ export async function activate(
     occCliDetector,
     serverInfo,
     sidebarProvider,
+    repoIndex,
   );
+
+  // Link workspace folders to the components built from them
+  const componentSources = new ComponentSourceService(authProvider, apiClientManager);
+  const componentLinks = new ComponentLinkService(authProvider, componentSources);
+  context.subscriptions.push(componentLinks);
+  registerLinkedComponentCommands(context, componentLinks);
+  void componentLinks.start();
 
   registerDevLoopCommands(context, {
     authProvider,

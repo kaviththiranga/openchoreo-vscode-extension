@@ -29,6 +29,7 @@ export const workspace = {
 
 export const Uri = {
   parse: (value: string) => ({ toString: () => value }),
+  file: (fsPath: string) => ({ fsPath, path: fsPath, scheme: 'file', toString: () => `file://${fsPath}` }),
 };
 
 export const commands = { registerCommand: () => ({ dispose: () => {} }) };

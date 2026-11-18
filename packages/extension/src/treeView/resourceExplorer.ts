@@ -13,7 +13,8 @@ import type {
   ResourceNode,
 } from '../services/releaseBindingService';
 import type { ResourceNodeData, ResourceNodeType } from './types';
-import { toTreeItem } from './shared';
+import { markGitOps, toTreeItem } from './shared';
+import { ownerExtra, ownerFromExtra } from '../gitops/managed';
 import { stringify } from 'yaml';
 
 type Client = NonNullable<
@@ -127,7 +128,7 @@ export class ResourceExplorerProvider
 
       return projectItems.map((p) => {
         const isDeleting = !!(p as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-        return {
+        return markGitOps({
           label: (p.metadata?.name as string),
           type: 'project' as const,
           contextValue: isDeleting ? 'project' : this.resolveContextValue('project'),
@@ -137,7 +138,7 @@ export class ResourceExplorerProvider
           resourceName: p.metadata?.name as string,
           childrenMode: 'lazy' as const,
           lazyChildrenKey: 'project-children',
-        };
+        }, p.metadata);
       });
     } catch (error) {
       return [
@@ -266,7 +267,7 @@ export class ResourceExplorerProvider
       const hasWorkflow = !!(comp as { spec?: { workflow?: { name?: string } } })?.spec?.workflow?.name;
       let cv = isDeleting ? 'component' : this.resolveContextValue('component');
       if (hasWorkflow) cv += '_buildable';
-      children.push({
+      children.push(markGitOps({
         label: compName,
         type: 'component',
         contextValue: cv,
@@ -277,7 +278,7 @@ export class ResourceExplorerProvider
         resourceName: compName,
         childrenMode: 'lazy',
         lazyChildrenKey: 'component-children',
-      });
+      }, comp.metadata, element.extra));
     }
 
     // Fetch resources for this project. Silently skip the branch if the
@@ -374,7 +375,7 @@ export class ResourceExplorerProvider
     if (workload) {
       const wlName = (workload.metadata?.name as string) ?? 'unknown';
       const isDeleting = !!(workload as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      children.push({
+      children.push(markGitOps({
         label: 'Workload',
         type: 'workload',
         contextValue: isDeleting ? 'workload' : this.resolveContextValue('workload'),
@@ -382,7 +383,7 @@ export class ResourceExplorerProvider
         ...base,
         resourceName: wlName,
         childrenMode: 'none',
-      });
+      }, workload.metadata, element.extra));
     } else {
       children.push({
         label: 'Workload',
@@ -425,6 +426,7 @@ export class ResourceExplorerProvider
       type: 'component-category',
       contextValue: 'component-category',
       ...base,
+      extra: ownerExtra(ownerFromExtra(element.extra)),
       childrenMode: 'lazy',
       lazyChildrenKey: 'release-bindings',
     });
@@ -536,6 +538,11 @@ export class ResourceExplorerProvider
     ]);
 
     const bindings = bindingsRes.data?.items ?? [];
+    const metaByName = new Map(bindings.map((b) => [b.metadata?.name as string, b.metadata]));
+    const mark = (n: ResourceNodeData) =>
+      n.type === 'release-binding' || n.type === 'release-binding-placeholder'
+        ? markGitOps(n, n.resourceName ? metaByName.get(n.resourceName) : undefined, element.extra)
+        : n;
     const pipelineName = (projectRes.data as { spec?: { deploymentPipelineRef?: { name?: string } } })
       ?.spec?.deploymentPipelineRef?.name;
 
@@ -602,7 +609,7 @@ export class ResourceExplorerProvider
           childrenMode: 'lazy' as const,
           lazyChildrenKey: 'k8s-resource-tree',
         };
-      });
+      }).map(mark);
     }
 
     // Merge pipeline environments with bindings
@@ -666,7 +673,7 @@ export class ResourceExplorerProvider
       }
     }
 
-    return nodes;
+    return nodes.map(mark);
   }
 
   private async fetchProjectResources(

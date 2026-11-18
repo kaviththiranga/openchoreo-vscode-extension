@@ -165,6 +165,23 @@ Work against a real environment without leaving the editor:
 - **View Runtime Logs** — right-click a Component or one of its environments → choose a window (15 minutes to 24 hours) and an optional text filter; logs are read from the environment's observability plane and shown in an Output channel with pod and level. Works wherever the environment's data plane has an observability plane with an observer
 - **Run Now** — right-click a deployed environment of a scheduled-task (cronjob) component to start a one-off Job from its schedule
 
+### Linked Components
+
+Open the source of a component and the extension finds which OpenChoreo components it builds: it matches the folder's git remotes and its path in the repository against each component's repository URL and app path. The workflow marks those parameters with `x-openchoreo-component-parameter-repository-*` schema keys, the same ones auto-build and the Backstage portal use, so it works whatever the workflow calls them.
+
+A status bar item with a link icon and the component name appears in the status bar (the component the active file belongs to comes first). Click it to open the Component YAML, build it, view runtime logs, open a shell, run its workload locally, or open the repository. Components without a build workflow (external CI or prebuilt images) have no repository to match.
+
+### GitOps
+
+If you manage OpenChoreo resources from a Git repository synced by Flux, Argo CD or a CI job, open that repository in the window:
+
+- **Compare with Cluster** — right-click an OpenChoreo YAML file (or use the editor title button in a GitOps repository) to diff it with what the cluster runs. The cluster side leaves out status and server-set metadata and follows the file's key order, so only real differences show. The resource at the cursor is compared in multi-document files
+- **Compare with Repository** — right-click a resource in the sidebar to diff it with the file that declares it
+- **GitOps-managed resources** — resources that carry Flux (`kustomize.toolkit.fluxcd.io/*`, `helm.toolkit.fluxcd.io/*`) or Argo CD (`argocd.argoproj.io/*`) markers get a merge badge in the sidebar. Saving, applying, promoting, deploying or deleting one through the API asks first, because the next sync reverts the change. **Change in Repository** makes the change in the GitOps repository instead: it edits the document that declares the resource, keeping its comments and layout, or creates a file next to related resources, and leaves the edit unsaved for you to review and commit
+- Set `openchoreo.gitops.mode` to `all` when manifests are applied without such markers (by CI, for example), and turn off `openchoreo.gitops.allowDirectChanges` to allow changes only through the repository
+
+A workspace folder counts as a GitOps repository when it declares OpenChoreo resources other than an app's own `workload.yaml` and `.openchoreo/` files.
+
 ### Generate Release
 
 Right-click a Component → "Generate Release" to create an immutable release snapshot from the current component state (ComponentType + Traits + Workload configuration). Optionally provide a release name or let the server auto-generate one.
@@ -395,6 +412,8 @@ View diagnostic information in **Output > OpenChoreo**:
 | `openchoreo.mcp.sreAgentUrl` | `""` | SRE agent base URL; overrides discovery |
 | `openchoreo.ai.bundledSkills` | `true` | Offer the bundled OpenChoreo agent skills to chat; turn off if you install the OpenChoreo agent plugin yourself |
 | `openchoreo.addCliToTerminalPath` | `true` | Put the occ binary the extension uses on the integrated terminal's `PATH` |
+| `openchoreo.gitops.mode` | `detect` | Which resources are GitOps-managed: those with Flux or Argo CD markers (`detect`), every resource (`all`), or none (`off`) |
+| `openchoreo.gitops.allowDirectChanges` | `true` | Offer **Continue Anyway** when changing a GitOps-managed resource through the API |
 
 ## Supported Resource Types
 
@@ -440,6 +459,9 @@ AuthzRole, AuthzRoleBinding (in Namespace Resources), ClusterAuthzRole, ClusterA
 | `OpenChoreo: Troubleshoot with Copilot` | Ask the agent why a failed workflow run or a deployment isn't healthy (tree context menu) |
 | `OpenChoreo: Fix with Copilot` | Send OpenChoreo validation problems in the file to chat (quick fix, `Ctrl+.` / `Cmd+.`) |
 | `OpenChoreo: Use with Other AI Agents…` | MCP server URLs and setup commands for Claude Code and other agents |
+| `OpenChoreo: Compare with Cluster` | Diff an OpenChoreo YAML file with the resource on the cluster (Explorer, editor context menu, editor title in a GitOps repository) |
+| `OpenChoreo: Compare with Repository` | Diff a sidebar resource with the GitOps repository file that declares it (tree context menu) |
+| `OpenChoreo: Linked Component Actions…` | Actions for the components built from the open folder (status bar) |
 
 ## Architecture
 

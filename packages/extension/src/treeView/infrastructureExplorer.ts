@@ -8,7 +8,7 @@ import { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
 import type { CapabilityService } from '../services/capabilityService';
 import type { ResourceNodeData, ResourceNodeType } from './types';
-import { toTreeItem } from './shared';
+import { markGitOps, toTreeItem } from './shared';
 
 type Client = NonNullable<
   Awaited<ReturnType<ApiClientManager['getClient']>>
@@ -312,7 +312,7 @@ export class InfrastructureExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'environment' as const,
         contextValue: isDeleting ? 'environment' : this.resolveContextValue('environment'),
@@ -320,7 +320,7 @@ export class InfrastructureExplorerProvider
         namespace: ns,
         resourceName: item.metadata?.name as string,
         childrenMode: 'none' as const,
-      };
+      }, item.metadata);
     });
   }
 
@@ -344,7 +344,7 @@ export class InfrastructureExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'data-plane' as const,
         contextValue: isDeleting ? 'data-plane' : this.resolveContextValue('data-plane'),
@@ -352,7 +352,7 @@ export class InfrastructureExplorerProvider
         namespace: ns,
         resourceName: item.metadata?.name as string,
         childrenMode: 'none' as const,
-      };
+      }, item.metadata);
     });
   }
 
@@ -376,7 +376,7 @@ export class InfrastructureExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'workflow-plane' as const,
         contextValue: isDeleting ? 'workflow-plane' : this.resolveContextValue('workflow-plane'),
@@ -384,7 +384,7 @@ export class InfrastructureExplorerProvider
         namespace: ns,
         resourceName: item.metadata?.name as string,
         childrenMode: 'none' as const,
-      };
+      }, item.metadata);
     });
   }
 
@@ -415,7 +415,7 @@ export class InfrastructureExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'observability-plane' as const,
         contextValue: isDeleting ? 'observability-plane' : this.resolveContextValue('observability-plane'),
@@ -423,7 +423,7 @@ export class InfrastructureExplorerProvider
         namespace: ns,
         resourceName: item.metadata?.name as string,
         childrenMode: 'none' as const,
-      };
+      }, item.metadata);
     });
   }
 
@@ -452,7 +452,7 @@ export class InfrastructureExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'component-type' as const,
         contextValue: isDeleting ? 'component-type' : this.resolveContextValue('component-type'),
@@ -460,7 +460,7 @@ export class InfrastructureExplorerProvider
         namespace: ns,
         resourceName: item.metadata?.name as string,
         childrenMode: 'none' as const,
-      };
+      }, item.metadata);
     });
   }
 
@@ -489,7 +489,7 @@ export class InfrastructureExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'resource-type' as const,
         contextValue: isDeleting ? 'resource-type' : this.resolveContextValue('resource-type'),
@@ -497,7 +497,7 @@ export class InfrastructureExplorerProvider
         namespace: ns,
         resourceName: item.metadata?.name as string,
         childrenMode: 'none' as const,
-      };
+      }, item.metadata);
     });
   }
 
@@ -521,7 +521,7 @@ export class InfrastructureExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'workflow' as const,
         contextValue: isDeleting ? 'workflow' : this.resolveContextValue('workflow'),
@@ -530,7 +530,7 @@ export class InfrastructureExplorerProvider
         resourceName: item.metadata?.name as string,
         childrenMode: 'lazy' as const,
         lazyChildrenKey: 'workflow-runs-by-workflow',
-      };
+      }, item.metadata);
     });
   }
 
@@ -630,7 +630,7 @@ export class InfrastructureExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'trait' as const,
         contextValue: isDeleting ? 'trait' : this.resolveContextValue('trait'),
@@ -638,7 +638,7 @@ export class InfrastructureExplorerProvider
         namespace: ns,
         resourceName: item.metadata?.name as string,
         childrenMode: 'none' as const,
-      };
+      }, item.metadata);
     });
   }
 
@@ -669,7 +669,7 @@ export class InfrastructureExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'secret-reference' as const,
         contextValue: isDeleting ? 'secret-reference' : this.resolveContextValue('secret-reference'),
@@ -677,7 +677,7 @@ export class InfrastructureExplorerProvider
         namespace: ns,
         resourceName: item.metadata?.name as string,
         childrenMode: 'none' as const,
-      };
+      }, item.metadata);
     });
   }
 
@@ -706,7 +706,7 @@ export class InfrastructureExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'namespace-role' as const,
         contextValue: isDeleting ? 'namespace-role' : this.resolveContextValue('namespace-role'),
@@ -714,7 +714,7 @@ export class InfrastructureExplorerProvider
         namespace: ns,
         resourceName: item.metadata?.name as string,
         childrenMode: 'none' as const,
-      };
+      }, item.metadata);
     });
   }
 
@@ -745,7 +745,7 @@ export class InfrastructureExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'namespace-role-binding' as const,
         contextValue: isDeleting ? 'namespace-role-binding' : this.resolveContextValue('namespace-role-binding'),
@@ -753,7 +753,7 @@ export class InfrastructureExplorerProvider
         namespace: ns,
         resourceName: item.metadata?.name as string,
         childrenMode: 'none' as const,
-      };
+      }, item.metadata);
     });
   }
 

@@ -1,6 +1,9 @@
 // Copyright 2026 The OpenChoreo Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import type { GitOpsRepoIndex } from '../gitops/repoIndex';
+import { confirmApiWrite, gitopsOwner, ownerFromExtra, type GitOpsOwner } from '../gitops/managed';
+import { fetchLive } from '../gitops/compare';
 import * as vscode from 'vscode';
 import { spawn } from 'child_process';
 import { parse as parseYaml, stringify } from 'yaml';
@@ -126,8 +129,10 @@ export function registerCommands(
   occCliDetector: OccCliDetector,
   serverInfo: ServerInfoService,
   sidebarProvider?: SidebarViewProvider,
+  repoIndex?: GitOpsRepoIndex,
 ): void {
   activeServerInfo = serverInfo;
+  activeRepoIndex = repoIndex;
 
   // Refresh resources
   context.subscriptions.push(
@@ -500,6 +505,8 @@ export function registerCommands(
             component: node.component,
             environment: targetEnv,
             releaseName,
+            action: 'Promote',
+            owner: ownerFromExtra(node.extra),
           });
         } catch (error) {
           vscode.window.showErrorMessage(
@@ -553,6 +560,8 @@ export function registerCommands(
             component: node.component,
             environment: node.extra.environment,
             releaseName: picked.label,
+            action: 'Deploy',
+            owner: ownerFromExtra(node.extra),
           });
         } catch (error) {
           vscode.window.showErrorMessage(
@@ -618,6 +627,8 @@ export function registerCommands(
             component: node.component ?? '',
             environment: picked.label,
             releaseName: node.resourceName,
+            action: 'Deploy',
+            owner: ownerFromExtra(node.extra),
           });
         } catch (error) {
           vscode.window.showErrorMessage(
@@ -948,6 +959,17 @@ spec:
         }
 
         const displayName = node.resourceName ?? node.label;
+        const deleteKind = new ResourceService().getCrdKind(node.type) ?? node.type;
+        const decision = await confirmApiWrite(
+          { kind: deleteKind, name: displayName, owner: ownerFromExtra(node.extra) },
+          'Delete',
+          !!repoIndex?.hasRepository,
+        );
+        if (decision === 'cancel') return;
+        if (decision === 'repository') {
+          await revealInRepository(repoIndex, deleteKind, displayName, node.namespace, 'Remove this document, then commit and push to delete it.');
+          return;
+        }
         const answer = await vscode.window.showWarningMessage(
           `Are you sure you want to delete ${node.type} '${displayName}'? This cannot be undone.`,
           { modal: true },
@@ -1028,6 +1050,29 @@ spec:
               'Not authenticated. Run "occ login" first.',
             );
             return;
+          }
+
+          const inRepository = !!repoIndex?.isInRepository(editor.document.uri);
+          const live = await fetchLiveQuietly(apiClientManager, kind, name, ns);
+          const owner = gitopsOwner((live?.metadata ?? undefined) as Parameters<typeof gitopsOwner>[0]);
+          if (inRepository && !owner) {
+            const go = await vscode.window.showWarningMessage(
+              `Apply ${kind} "${name}" straight to the cluster?`,
+              {
+                modal: true,
+                detail: 'This file is in your GitOps repository. Applying it skips review and the sync; commit and push it to change the cluster through GitOps.',
+              },
+              'Apply Anyway',
+            );
+            if (go !== 'Apply Anyway') return;
+          } else {
+            const decision = await confirmApiWrite({ kind, name, owner, isNew: !live }, 'Apply', !inRepository && !!repoIndex?.hasRepository);
+            if (decision === 'cancel') return;
+            if (decision === 'repository' && repoIndex) {
+              const file = await repoIndex.writeResource(resource, live);
+              if (file) vscode.window.showInformationMessage(`The change is in ${vscode.workspace.asRelativePath(file)}, ready to commit.`);
+              return;
+            }
           }
 
           const putReq = buildPutRequest(kind, name, ns, resource);
@@ -1454,6 +1499,7 @@ async function openScaffold(
 }
 
 /** Connected control plane info, for version-dependent scaffolds. */
+let activeRepoIndex: GitOpsRepoIndex | undefined;
 let activeServerInfo: ServerInfoService | undefined;
 
 /** Map CRD kind name to ResourceNodeType for URI construction. */
@@ -1477,6 +1523,9 @@ async function openOrUpdateReleaseBinding(
     component: string;
     environment: string;
     releaseName: string;
+    action?: string;
+    /** Owner of the component or source binding, when a GitOps tool manages it. */
+    owner?: GitOpsOwner;
   },
 ): Promise<void> {
   const { namespace: ns, project, component, environment, releaseName } = opts;
@@ -1489,6 +1538,43 @@ async function openOrUpdateReleaseBinding(
   const existing = (data?.items ?? []).find(
     (b) => (b as { spec?: { environment?: string } }).spec?.environment === environment,
   );
+
+  const desired: Record<string, unknown> = existing
+    ? {
+        apiVersion: 'openchoreo.dev/v1alpha1',
+        kind: 'ReleaseBinding',
+        ...(existing as Record<string, unknown>),
+        spec: { ...((existing as { spec?: object }).spec ?? {}), releaseName },
+      }
+    : {
+        apiVersion: 'openchoreo.dev/v1alpha1',
+        kind: 'ReleaseBinding',
+        metadata: { name: `${component}-${environment}`, namespace: ns },
+        spec: { owner: { projectName: project, componentName: component }, environment, releaseName },
+      };
+  const decision = await confirmApiWrite(
+    {
+      kind: 'ReleaseBinding',
+      name: (existing?.metadata?.name as string) ?? `${component}-${environment}`,
+      owner: gitopsOwner(existing?.metadata as Parameters<typeof gitopsOwner>[0]) ?? opts.owner,
+      isNew: !existing,
+    },
+    opts.action ?? 'Deploy',
+    !!activeRepoIndex?.hasRepository,
+  );
+  if (decision === 'cancel') return;
+  if (decision === 'repository' && activeRepoIndex) {
+    const before = existing
+      ? { apiVersion: 'openchoreo.dev/v1alpha1', kind: 'ReleaseBinding', ...(existing as Record<string, unknown>) }
+      : undefined;
+    const file = await activeRepoIndex.writeResource(desired, before);
+    if (file) {
+      vscode.window.showInformationMessage(
+        `${releaseName} → ${environment} is in ${vscode.workspace.asRelativePath(file)}. Review it, then commit and push for ${opts.owner?.tool ?? 'your GitOps tool'} to sync it.`,
+      );
+    }
+    return;
+  }
 
   if (existing) {
     // Open the existing binding with updated releaseName
@@ -1543,5 +1629,39 @@ async function openOrUpdateReleaseBinding(
       },
     }, { lineWidth: 0 });
     openScaffold('ReleaseBinding', fsProvider, ns, project, scaffold);
+  }
+}
+
+/** Open the repository file that declares a resource, with a hint about what to do there. */
+async function revealInRepository(
+  repoIndex: GitOpsRepoIndex | undefined,
+  kind: string,
+  name: string,
+  namespace: string | undefined,
+  hint: string,
+): Promise<void> {
+  const [entry] = repoIndex?.find(kind, name, namespace) ?? [];
+  if (!entry) {
+    vscode.window.showInformationMessage(`${kind} "${name}" isn't declared in the GitOps repository open in this window.`);
+    return;
+  }
+  const editor = await vscode.window.showTextDocument(entry.uri, { preview: false });
+  const start = new vscode.Position(entry.line, 0);
+  editor.selection = new vscode.Selection(start, start);
+  editor.revealRange(new vscode.Range(start, start), vscode.TextEditorRevealType.InCenter);
+  vscode.window.showInformationMessage(hint);
+}
+
+/** The live resource, or undefined when it doesn't exist or can't be read. */
+async function fetchLiveQuietly(
+  apiClientManager: ApiClientManager,
+  kind: string,
+  name: string,
+  namespace: string,
+): Promise<Record<string, unknown> | undefined> {
+  try {
+    return await fetchLive(apiClientManager, { kind, name, namespace: namespace || undefined });
+  } catch {
+    return undefined;
   }
 }

@@ -377,6 +377,13 @@ body {
   min-width: 0;
 }
 
+.tree-gitops {
+  color: var(--vscode-descriptionForeground);
+  font-size: 12px;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
 .tree-description {
   color: var(--vscode-descriptionForeground);
   font-size: 0.9em;

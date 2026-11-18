@@ -413,10 +413,34 @@
         "title": "Use with Other AI Agents…",
         "category": "OpenChoreo",
         "icon": "$(link-external)"
+      },
+      {
+        "command": "openchoreo.compareWithCluster",
+        "title": "Compare with Cluster",
+        "category": "OpenChoreo",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "openchoreo.compareWithRepository",
+        "title": "Compare with Repository",
+        "category": "OpenChoreo",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "openchoreo.linkedComponentActions",
+        "title": "Linked Component Actions…",
+        "category": "OpenChoreo",
+        "icon": "$(link)"
       }
     ],
     "menus": {
-      "editor/title": [],
+      "editor/title": [
+        {
+          "command": "openchoreo.compareWithCluster",
+          "when": "openchoreo.gitopsRepository && resourceScheme == file && resourceLangId == yaml",
+          "group": "navigation@90"
+        }
+      ],
       "view/title": [],
       "webview/context": [
         {
@@ -543,6 +567,21 @@
           "command": "openchoreo.runScheduledTaskNow",
           "when": "webviewId == openchoreo.sidebar && nodeType == 'release-binding'",
           "group": "3_deploy"
+        },
+        {
+          "command": "openchoreo.compareWithRepository",
+          "when": "webviewId == openchoreo.sidebar && openchoreo.gitopsRepository && isEditable",
+          "group": "2_observe@9"
+        },
+        {
+          "command": "openchoreo.compareWithRepository",
+          "when": "webviewId == openchoreo.sidebar && openchoreo.gitopsRepository && isGitOpsManaged",
+          "group": "2_observe@9"
+        },
+        {
+          "command": "openchoreo.compareWithRepository",
+          "when": "webviewId == openchoreo.sidebar && openchoreo.gitopsRepository && nodeType == 'component-release'",
+          "group": "2_observe@9"
         }
       ],
       "view/item/context": [],
@@ -550,6 +589,11 @@
         {
           "command": "openchoreo.runLocally",
           "when": "resourceFilename =~ /^workload\\.ya?ml$/ || explorerResourceIsFolder && resourceFilename == .openchoreo",
+          "group": "openchoreo"
+        },
+        {
+          "command": "openchoreo.compareWithCluster",
+          "when": "resourceExtname =~ /^\\.ya?ml$/",
           "group": "openchoreo"
         }
       ],
@@ -561,6 +605,21 @@
         {
           "command": "openchoreo.fixWithCopilot",
           "when": "false"
+        },
+        {
+          "command": "openchoreo.compareWithRepository",
+          "when": "false"
+        },
+        {
+          "command": "openchoreo.linkedComponentActions",
+          "when": "openchoreo.linkedComponent"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "openchoreo.compareWithCluster",
+          "when": "resourceScheme == file && resourceLangId == yaml",
+          "group": "openchoreo@1"
         }
       ]
     },
@@ -632,6 +691,26 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Add the occ CLI the extension uses to the `PATH` of integrated terminals, so commands run by agents and skills find it."
+        },
+        "openchoreo.gitops.mode": {
+          "type": "string",
+          "enum": [
+            "detect",
+            "all",
+            "off"
+          ],
+          "default": "detect",
+          "enumDescriptions": [
+            "Treat resources that carry Flux or Argo CD labels as GitOps-managed.",
+            "Treat every OpenChoreo resource as GitOps-managed (manifests applied by CI or another tool leave no labels).",
+            "Never warn before changing resources through the API."
+          ],
+          "markdownDescription": "Which resources are managed through GitOps. Saving, applying, promoting, deploying or deleting a GitOps-managed resource through the API asks first, and offers to make the change in the GitOps repository open in the window instead."
+        },
+        "openchoreo.gitops.allowDirectChanges": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Offer **Continue Anyway** when changing a GitOps-managed resource through the API. Turn off to allow changes only through the GitOps repository."
         }
       }
     },

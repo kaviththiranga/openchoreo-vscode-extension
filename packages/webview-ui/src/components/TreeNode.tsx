@@ -101,6 +101,7 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
     isPromotable: cv.includes('_promotable'),
     isDeployable: cv.includes('_deployable'),
     isBuildable: cv.includes('_buildable'),
+    isGitOpsManaged: cv.includes('_gitops'),
     preventDefaultContextMenuItems: true,
   });
 
@@ -146,6 +147,14 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
 
         {node.description && (
           <span class="tree-description">{node.description}</span>
+        )}
+
+        {cv.includes('_gitops') && (
+          <i
+            class="codicon codicon-git-merge tree-gitops"
+            title={`Managed by ${node.extra?.gitopsTool ?? 'GitOps'}${node.extra?.gitopsSource ? ` (${node.extra.gitopsSource})` : ''}`}
+            aria-label={`Managed by ${node.extra?.gitopsTool ?? 'GitOps'}`}
+          />
         )}
       </div>
 

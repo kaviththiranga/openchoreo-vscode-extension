@@ -175,4 +175,44 @@ describe('OpenChoreo extension (e2e)', () => {
     assert.ok(fix, `got: ${actions.map((a) => a.title).join(', ')}`);
     assert.strictEqual(fix.command?.command, 'openchoreo.fixWithCopilot');
   });
+
+  describe('GitOps repository', () => {
+    /** The diff editor tab once it opens. */
+    async function diffTab(): Promise<vscode.TabInputTextDiff> {
+      for (let i = 0; i < 40; i++) {
+        const input = vscode.window.tabGroups.activeTabGroup.activeTab?.input;
+        if (input instanceof vscode.TabInputTextDiff) return input;
+        await new Promise((r) => setTimeout(r, 250));
+      }
+      throw new Error('no diff editor opened');
+    }
+
+    afterEach(() => vscode.commands.executeCommand('workbench.action.closeAllEditors'));
+
+    it('compares a file with the cluster in a diff editor', async () => {
+      const doc = await open('project.yaml');
+      await vscode.commands.executeCommand('openchoreo.compareWithCluster', doc.uri);
+      const tab = await diffTab();
+      assert.strictEqual(tab.original.scheme, 'openchoreo-live');
+      assert.strictEqual(tab.original.path, '/Project/default/shop.yaml');
+      assert.strictEqual(tab.modified.toString(), doc.uri.toString());
+      // No cluster in this suite: the cluster side explains why it is empty.
+      const live = await vscode.workspace.openTextDocument(tab.original);
+      assert.match(live.getText(), /^# Could not read Project "shop" from the cluster/);
+    });
+
+    it('finds the repository file for a tree resource', async () => {
+      const node = { label: 'shop', type: 'project', contextValue: 'project', namespace: 'default', resourceName: 'shop', childrenMode: 'none' };
+      await vscode.commands.executeCommand('openchoreo.compareWithRepository', node);
+      const tab = await diffTab();
+      assert.strictEqual(tab.original.scheme, 'openchoreo-live');
+      assert.strictEqual(tab.modified.toString(), fixture('project.yaml').toString());
+    });
+
+    it('defaults to guarding resources that GitOps tools label', () => {
+      const config = vscode.workspace.getConfiguration('openchoreo.gitops');
+      assert.strictEqual(config.get('mode'), 'detect');
+      assert.strictEqual(config.get('allowDirectChanges'), true);
+    });
+  });
 });

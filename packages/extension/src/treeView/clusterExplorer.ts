@@ -8,7 +8,7 @@ import { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
 import type { CapabilityService } from '../services/capabilityService';
 import type { ResourceNodeData, ResourceNodeType } from './types';
-import { toTreeItem } from './shared';
+import { markGitOps, toTreeItem } from './shared';
 
 type Client = NonNullable<
   Awaited<ReturnType<ApiClientManager['getClient']>>
@@ -261,14 +261,14 @@ export class ClusterExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!item.metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: nodeType,
         contextValue: isDeleting ? nodeType : this.resolveContextValue(nodeType),
         description: isDeleting ? '(deleting)' : undefined,
         resourceName: item.metadata?.name as string,
         childrenMode: 'none' as const,
-      };
+      }, item.metadata);
     });
   }
 
@@ -285,7 +285,7 @@ export class ClusterExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!item.metadata?.deletionTimestamp;
-      return {
+      return markGitOps({
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'cluster-workflow' as const,
         contextValue: isDeleting ? 'cluster-workflow' : this.resolveContextValue('cluster-workflow'),
@@ -293,7 +293,7 @@ export class ClusterExplorerProvider
         resourceName: item.metadata?.name as string,
         childrenMode: 'lazy' as const,
         lazyChildrenKey: 'cluster-workflow-runs',
-      };
+      }, item.metadata);
     });
   }
 

@@ -3,6 +3,7 @@
 
 import * as vscode from 'vscode';
 import type { ResourceNodeData, ResourceNodeType } from './types';
+import { gitopsOwner, ownerExtra, ownerFromExtra } from '../gitops/managed';
 
 /** Set during extension activation — needed for resolving custom SVG icon paths. */
 let extensionUri: vscode.Uri | undefined;
@@ -232,4 +233,22 @@ export function toTreeItem(element: ResourceNodeData): vscode.TreeItem {
   }
 
   return treeItem;
+}
+
+/**
+ * Mark a node whose resource a GitOps tool (Flux, Argo CD) owns: `_gitops`
+ * in its context value and the owner in `extra`, for menus and the write guard.
+ */
+export function markGitOps(
+  node: ResourceNodeData,
+  metadata: object | undefined,
+  inherited?: Record<string, string>,
+): ResourceNodeData {
+  const owner = gitopsOwner(metadata as Parameters<typeof gitopsOwner>[0]) ?? ownerFromExtra(inherited);
+  if (!owner) return node;
+  return {
+    ...node,
+    contextValue: `${node.contextValue}_gitops`,
+    extra: { ...node.extra, ...ownerExtra(owner) },
+  };
 }

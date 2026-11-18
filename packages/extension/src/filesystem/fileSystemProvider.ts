@@ -114,6 +114,13 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
   /** URIs that represent new (not-yet-created) resources — use POST instead of PUT. */
   private readonly newResources = new Set<string>();
 
+  /**
+   * Called before a save goes to the API. A returned reason stops the save
+   * and leaves the cluster alone (e.g. the change went to the GitOps
+   * repository instead).
+   */
+  writeGuard?: (resource: Record<string, unknown>, isNew: boolean) => Promise<string | undefined>;
+
   constructor(
     private readonly apiClientManager: ApiClientManager,
     private readonly onResourceSaved?: () => void,
@@ -245,6 +252,9 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
     }
 
     const isNew = this.newResources.has(uri.toString());
+
+    const skipReason = await this.writeGuard?.(resource, isNew);
+    if (skipReason) throw vscode.FileSystemError.NoPermissions(skipReason);
 
     let error: unknown;
     let response: { status?: number } | undefined;

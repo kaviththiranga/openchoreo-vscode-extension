@@ -1,0 +1,16 @@
+# Declared in Git and synced by the GitOps tool.
+apiVersion: openchoreo.dev/v1alpha1
+kind: Environment
+metadata:
+  name: development
+  namespace: default
+  labels:
+    openchoreo.dev/name: development
+  annotations:
+    openchoreo.dev/display-name: Development
+    openchoreo.dev/description: Shared development environment
+spec:
+  dataPlaneRef:
+    kind: ClusterDataPlane
+    name: default
+  isProduction: false
