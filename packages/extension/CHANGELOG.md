@@ -6,6 +6,7 @@
 - Register the observer (`openchoreo-obs`) and SRE agent (`openchoreo-sre`) MCP servers, discovered from the namespace's environments or the platform metadata; override with `openchoreo.mcp.observerUrl` / `openchoreo.mcp.sreAgentUrl`
 - Ship the official OpenChoreo agent skills (github.com/openchoreo/skills, mirrored at a pinned commit), **OpenChoreo Developer** and **OpenChoreo Platform Engineer** custom agents, and instructions for OpenChoreo resource YAML
 - Add the extension-managed occ binary to the integrated terminal's `PATH`
+- Chat tools for agents: **Validate OpenChoreo YAML** (`#openchoreoValidate`), **Get OpenChoreo Context** (`#openchoreoContext`) and **Scaffold OpenChoreo Resource** (`#openchoreoScaffold`)
 
 ## 0.2.1 — 2026-11-17
 

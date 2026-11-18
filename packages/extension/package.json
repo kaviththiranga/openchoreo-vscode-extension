@@ -636,6 +636,81 @@
         "path": "./resources/ai/agents/openchoreo-platform-engineer.agent.md",
         "when": "config.openchoreo.mcp.platformEngineerTools"
       }
+    ],
+    "languageModelTools": [
+      {
+        "name": "openchoreo_validate_yaml",
+        "displayName": "Validate OpenChoreo YAML",
+        "toolReferenceName": "openchoreoValidate",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(check-all)",
+        "tags": [
+          "openchoreo"
+        ],
+        "userDescription": "Check OpenChoreo resource YAML against the CRD schemas and references, as the editor does.",
+        "modelDescription": "Validates OpenChoreo resource YAML (apiVersion openchoreo.dev/v1alpha1) with the OpenChoreo extension's language server: schema errors, unknown or misspelled fields, invalid values, and references to platform resources that don't exist. Pass filePath (absolute path; unsaved editor changes are included) or content (YAML text; several documents separated by --- are allowed). Returns each problem with line, column and severity, or says there are none. Run it after writing or editing OpenChoreo YAML and before applying it or creating the resource through MCP.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "filePath": {
+              "type": "string",
+              "description": "Absolute path of a YAML file to validate."
+            },
+            "content": {
+              "type": "string",
+              "description": "YAML text to validate instead of a file."
+            }
+          }
+        }
+      },
+      {
+        "name": "openchoreo_get_context",
+        "displayName": "Get OpenChoreo Context",
+        "toolReferenceName": "openchoreoContext",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(info)",
+        "tags": [
+          "openchoreo"
+        ],
+        "userDescription": "The current OpenChoreo session: control plane, namespace, project, server version and MCP servers.",
+        "modelDescription": "Returns the user's current OpenChoreo session from the occ CLI and the editor: whether they are signed in, the control plane URL, occ context, namespace, default project and component, whether authentication is enabled, the control plane version and which version-dependent features it has (project types 1.3+, release lines 1.4+), the OpenChoreo MCP servers registered in this editor, and the OpenChoreo resource in the active editor. Call it first to learn which namespace and project to work in and which features to use.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {}
+        }
+      },
+      {
+        "name": "openchoreo_scaffold_resource",
+        "displayName": "Scaffold OpenChoreo Resource",
+        "toolReferenceName": "openchoreoScaffold",
+        "canBeReferencedInPrompt": true,
+        "icon": "$(new-file)",
+        "tags": [
+          "openchoreo"
+        ],
+        "userDescription": "A starting YAML for an OpenChoreo kind that matches the connected server's version.",
+        "modelDescription": "Returns starter YAML for an OpenChoreo resource kind (for example Project, Component, Workload, ComponentType, Trait, Environment, DeploymentPipeline, ProjectType), matching the connected control plane's version and filled with the current namespace and project. Use it as the starting point when writing a new resource file, then edit the placeholder names and validate the result with openchoreo_validate_yaml.",
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "description": "Resource kind, e.g. Component or ClusterTrait."
+            },
+            "namespace": {
+              "type": "string",
+              "description": "OpenChoreo namespace; defaults to the current one."
+            },
+            "project": {
+              "type": "string",
+              "description": "Project; defaults to the current one."
+            }
+          },
+          "required": [
+            "kind"
+          ]
+        }
+      }
     ]
   },
   "scripts": {

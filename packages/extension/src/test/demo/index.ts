@@ -9,11 +9,13 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { ElectronApplication, Page } from 'playwright-core';
 import { Demo, Recorder, type DemoOptions, type Requirement, type Scene } from './demo';
+import { agentFixesYaml } from './scenes/agentFixesYaml';
 import { aiCustomizations } from './scenes/aiCustomizations';
+import { chatTools } from './scenes/chatTools';
 import { mcpServers } from './scenes/mcpServers';
 import { yamlAuthoring } from './scenes/yamlAuthoring';
 
-export const SCENES: Scene[] = [yamlAuthoring, mcpServers, aiCustomizations];
+export const SCENES: Scene[] = [yamlAuthoring, mcpServers, aiCustomizations, chatTools, agentFixesYaml];
 
 export interface RunOptions extends DemoOptions {
   only: string[];

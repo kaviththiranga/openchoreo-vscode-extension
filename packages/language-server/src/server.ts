@@ -73,6 +73,19 @@ connection.onNotification(
   },
 );
 
+/**
+ * Validate YAML text that may not be open in an editor, for the extension's
+ * chat tools. Returns the detected kind (null when the text is not an
+ * OpenChoreo resource) and the diagnostics the editor would show.
+ */
+connection.onRequest('openchoreo/validate', (params: { text: string }) => {
+  const kind = detectCrdKind(params.text);
+  const schema = kind ? schemas[kind] : undefined;
+  if (!kind || !schema) return { kind: kind ?? null, diagnostics: [] };
+  const document = TextDocument.create('untitled:openchoreo-validate.yaml', 'yaml', 1, params.text);
+  return { kind, diagnostics: validateDocument(params.text, schema, document, resourceNames) };
+});
+
 // Validate documents on open and change
 documents.onDidChangeContent((change) => {
   validateTextDocument(change.document);

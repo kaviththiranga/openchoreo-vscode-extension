@@ -330,6 +330,14 @@ The control plane offers more than 128 tools when every toolset is on, and chat 
 - the **OpenChoreo Platform Engineer** agent, which uses `openchoreo-pe` and `openchoreo-obs` (shown when `openchoreo.mcp.platformEngineerTools` is on);
 - instructions for working with OpenChoreo resource YAML.
 
+**Chat tools**: the extension also gives agents three tools of its own, which you can reference in a prompt with `#`:
+
+| Tool | Reference | What it does |
+|---|---|---|
+| Validate OpenChoreo YAML | `#openchoreoValidate` | Runs the extension's validation (schemas, misspelled fields, references) on a file, including unsaved edits, or on YAML text |
+| Get OpenChoreo Context | `#openchoreoContext` | The occ session (control plane, namespace, project), server version and features, registered MCP servers, and the resource in the active editor |
+| Scaffold OpenChoreo Resource | `#openchoreoScaffold` | Starter YAML for a kind, matching the server's version |
+
 Find them in **Chat: Open Customizations**. If you install the OpenChoreo agent plugin yourself, turn off `openchoreo.ai.bundledSkills` to avoid duplicate skills. The occ binary the extension manages is added to the integrated terminal's `PATH` (`openchoreo.addCliToTerminalPath`), so commands that agents and skills run find it.
 
 **MCP Server Auto-Registration**:

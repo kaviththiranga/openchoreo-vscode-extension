@@ -12,6 +12,13 @@ import { buildMcpServerSpecs, DEVELOPER_TOOLSETS } from './mcpServers';
 /** How long the first server list waits for observability discovery. */
 const DISCOVERY_WAIT_MS = 4000;
 
+let lastServers: Array<{ name: string; url: string }> = [];
+
+/** The servers most recently offered to VS Code, for the context tool. */
+export function registeredMcpServers(): Array<{ name: string; url: string }> {
+  return lastServers;
+}
+
 /**
  * Registers the OpenChoreo MCP servers with VS Code: the control plane
  * (developer toolsets, plus an opt-in platform-engineer server), and the
@@ -113,6 +120,7 @@ export function registerMcpServers(
             platformEngineerTools: config.get<boolean>('platformEngineerTools', false),
             ...(await observability(session, token || undefined)),
           });
+          lastServers = specs.map((s) => ({ name: s.label, url: s.url }));
           log.debug(
             `MCP servers providing: ${specs.map((s) => `${s.label}=${s.url}`).join(', ')} ` +
               `(auth: ${session.securityEnabled ? 'bearer' : 'disabled'})`,

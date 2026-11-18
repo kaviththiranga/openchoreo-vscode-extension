@@ -130,4 +130,38 @@ describe('OpenChoreo extension (e2e)', () => {
       assert.strictEqual(name, path.basename(path.dirname(entry.path)), `${entry.path} name must match its folder`);
     }
   });
+
+  describe('chat tools', () => {
+    async function invoke(name: string, input: object): Promise<string> {
+      const result = await vscode.lm.invokeTool(name, { input, toolInvocationToken: undefined });
+      return result.content
+        .map((part) => (part instanceof vscode.LanguageModelTextPart ? part.value : ''))
+        .join('');
+    }
+
+    it('validates a file, including unsaved buffers, through the language server', async () => {
+      const report = await invoke('openchoreo_validate_yaml', { filePath: fixture('workload-typo.yaml').fsPath });
+      assert.match(report, /Workload line 12, column 5 \[\w+\]: .*enviroment/);
+    });
+
+    it('validates YAML text and multi-document streams', async () => {
+      const project = fs.readFileSync(fixture('project.yaml').fsPath, 'utf8');
+      const report = await invoke('openchoreo_validate_yaml', { content: `${project}\n---\n${project}` });
+      assert.match(report, /\(Project, Project\): no problems found/);
+    });
+
+    it('describes the session and the active OpenChoreo resource', async () => {
+      await open('project.yaml');
+      const context = JSON.parse(await invoke('openchoreo_get_context', {}));
+      assert.strictEqual(typeof context.connected, 'boolean');
+      assert.deepStrictEqual(context.activeEditor.kind, 'Project');
+      assert.deepStrictEqual(context.activeEditor.name, 'shop');
+    });
+
+    it('scaffolds a resource for the requested kind', async () => {
+      const yaml = await invoke('openchoreo_scaffold_resource', { kind: 'Component', namespace: 'acme' });
+      assert.match(yaml, /kind: Component/);
+      assert.match(yaml, /namespace: "?acme"?/);
+    });
+  });
 });

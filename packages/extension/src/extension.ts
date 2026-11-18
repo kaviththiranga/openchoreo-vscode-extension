@@ -27,6 +27,7 @@ import { SidebarViewProvider } from './webview/sidebarViewProvider';
 import { registerMcpServers } from './mcp/mcpProvider';
 import { getOccBinaryPath } from './cli/cliPath';
 import { registerTerminalPath } from './cli/terminalPath';
+import { registerLanguageModelTools } from './ai/tools';
 import { setExtensionUri } from './treeView/shared';
 import { ComponentService } from './services/componentService';
 import { WorkflowRunService } from './services/workflowRunService';
@@ -210,6 +211,9 @@ export async function activate(
 
   // Let agents and skills run the extension-managed occ from integrated terminals
   registerTerminalPath(context);
+
+  // Chat tools for what only the editor knows (validation, session, scaffolds)
+  registerLanguageModelTools(context, { client: () => client, authProvider, serverInfo });
 
   // Periodic token pre-refresh — ensures tokens stay fresh for MCP and API calls.
   // getToken() checks expiry and refreshes if needed, writing back to occ config.
