@@ -6,3 +6,4 @@ out/
 .vscode-test/
 *.tsbuildinfo
 demo-output/
+packages/extension/skills/

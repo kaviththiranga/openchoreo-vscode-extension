@@ -52,6 +52,10 @@ cd packages/extension && pnpm package
 
 Add a scene for every user-visible feature: write it in `scenes/`, then list it in `src/test/demo/index.ts`.
 
+### Agent skills
+
+`packages/extension/skills/` is not in git: `scripts/sync-skills.mjs` mirrors [openchoreo/skills](https://github.com/openchoreo/skills) there on every build, at the commit pinned by `openchoreoSkills.ref` in `packages/extension/package.json`. The build fails if upstream adds or removes a skill without a matching `contributes.chatSkills` entry. The weekly *Update OpenChoreo skills* workflow pins the latest upstream commit and opens a pull request; to do it by hand, run `node scripts/sync-skills.mjs --ref <sha>` in `packages/extension`.
+
 ### Regenerating CRD schemas
 
 `schemas/*.json` are generated from the OpenChoreo CRDs at a release tag; resource

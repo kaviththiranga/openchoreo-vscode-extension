@@ -4,6 +4,8 @@
 
 - MCP servers renamed to match the OpenChoreo skills: `openchoreo-cp` (developer toolsets) and opt-in `openchoreo-pe` (platform-engineer toolset), so neither goes over the 128-tool chat limit. Choose toolsets with `openchoreo.mcp.toolsets`; turn on `openchoreo.mcp.platformEngineerTools` for the platform-engineer tools that were previously offered by default
 - Register the observer (`openchoreo-obs`) and SRE agent (`openchoreo-sre`) MCP servers, discovered from the namespace's environments or the platform metadata; override with `openchoreo.mcp.observerUrl` / `openchoreo.mcp.sreAgentUrl`
+- Ship the official OpenChoreo agent skills (github.com/openchoreo/skills, mirrored at a pinned commit), **OpenChoreo Developer** and **OpenChoreo Platform Engineer** custom agents, and instructions for OpenChoreo resource YAML
+- Add the extension-managed occ binary to the integrated terminal's `PATH`
 
 ## 0.2.1 — 2026-11-17
 

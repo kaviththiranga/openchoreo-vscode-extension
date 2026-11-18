@@ -38,6 +38,7 @@ import {
   WORKLOAD_REL_PATH,
 } from '../scaffolder/writer';
 import { downloadAndInstallOccCli } from '../cli/downloader';
+import { updateTerminalPath } from '../cli/terminalPath';
 import type { OccCliDetector } from '../auth/occCliDetector';
 
 /**
@@ -296,6 +297,7 @@ export function registerCommands(
           // Refresh detector so the sidebar transitions out of no-cli.
           await occCliDetector.recheck();
           authProvider.reload();
+          updateTerminalPath(context);
           vscode.window.showInformationMessage(
             'occ CLI installed. Run "OpenChoreo: Login" to continue.',
           );

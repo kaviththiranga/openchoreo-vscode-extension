@@ -26,6 +26,7 @@ import { ClusterExplorerProvider } from './treeView/clusterExplorer';
 import { SidebarViewProvider } from './webview/sidebarViewProvider';
 import { registerMcpServers } from './mcp/mcpProvider';
 import { getOccBinaryPath } from './cli/cliPath';
+import { registerTerminalPath } from './cli/terminalPath';
 import { setExtensionUri } from './treeView/shared';
 import { ComponentService } from './services/componentService';
 import { WorkflowRunService } from './services/workflowRunService';
@@ -206,6 +207,9 @@ export async function activate(
 
   // Register OpenChoreo MCP servers for Copilot Chat
   registerMcpServers(context, authProvider, apiClientManager);
+
+  // Let agents and skills run the extension-managed occ from integrated terminals
+  registerTerminalPath(context);
 
   // Periodic token pre-refresh — ensures tokens stay fresh for MCP and API calls.
   // getToken() checks expiry and refreshes if needed, writing back to occ config.

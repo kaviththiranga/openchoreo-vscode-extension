@@ -9,10 +9,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import type { ElectronApplication, Page } from 'playwright-core';
 import { Demo, Recorder, type DemoOptions, type Requirement, type Scene } from './demo';
+import { aiCustomizations } from './scenes/aiCustomizations';
 import { mcpServers } from './scenes/mcpServers';
 import { yamlAuthoring } from './scenes/yamlAuthoring';
 
-export const SCENES: Scene[] = [yamlAuthoring, mcpServers];
+export const SCENES: Scene[] = [yamlAuthoring, mcpServers, aiCustomizations];
 
 export interface RunOptions extends DemoOptions {
   only: string[];
@@ -34,7 +35,9 @@ export async function runScenes(app: ElectronApplication, page: Page, options: R
     }
     const offCamera = new Demo(app, page, scene, { ...options, keycast: false });
     await page.keyboard.press('Escape');
-    // Off camera: drop toasts such as the first-run MCP hint.
+    // Off camera: start from an empty editor area without toasts such as the first-run MCP hint.
+    await offCamera.command('View: Close All Editors');
+    await offCamera.pause(300);
     await offCamera.command('Notifications: Clear All Notifications');
     await offCamera.pause(500);
 

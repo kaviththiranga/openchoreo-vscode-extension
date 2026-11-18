@@ -68,7 +68,14 @@ const executablePath = env.DEMO_VSCODE_EXECUTABLE
 // tips and the chat panel so the footage starts clean.
 const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'openchoreo-demo-'));
 const userDataDir = env.DEMO_USER_DATA_DIR ?? path.join(scratch, 'user-data');
+// With a throwaway profile, VS Code also gets a throwaway HOME so personal
+// skills, agents and instructions (~/.claude, ~/.copilot, ~/.agents) stay out
+// of the footage. The occ login is passed through openchoreo.configPath.
+const occConfig = env.OCC_CONFIG ?? path.join(os.homedir(), '.openchoreo', 'config');
+const launchEnv = { ...process.env };
 if (!env.DEMO_USER_DATA_DIR) {
+  launchEnv.HOME = path.join(scratch, 'home');
+  fs.mkdirSync(launchEnv.HOME, { recursive: true });
   fs.mkdirSync(path.join(userDataDir, 'User'), { recursive: true });
   fs.writeFileSync(path.join(userDataDir, 'User', 'settings.json'), JSON.stringify({
     'workbench.startupEditor': 'none',
@@ -81,6 +88,7 @@ if (!env.DEMO_USER_DATA_DIR) {
     'window.commandCenter': false,
     'update.mode': 'none',
     'telemetry.telemetryLevel': 'off',
+    ...(fs.existsSync(occConfig) ? { 'openchoreo.configPath': occConfig } : {}),
   }, null, 2));
 }
 
@@ -109,7 +117,7 @@ const args = [
 ];
 if (process.platform === 'linux' && !env.DISPLAY) args.push('--ozone-platform=headless', '--disable-gpu');
 
-const app = await _electron.launch({ executablePath, args, timeout: 90_000 });
+const app = await _electron.launch({ executablePath, args, env: launchEnv, timeout: 90_000 });
 const vscodeProcess = app.process();
 let ok = false;
 try {

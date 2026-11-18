@@ -324,6 +324,14 @@ On VSCode 1.99+ with GitHub Copilot, the extension registers the OpenChoreo MCP 
 
 The control plane offers more than 128 tools when every toolset is on, and chat requests are limited to 128, so the developer and platform-engineer toolsets are separate servers. Choose the control-plane toolsets with `openchoreo.mcp.toolsets`. If your role cannot read observability planes, set `openchoreo.mcp.observerUrl` / `openchoreo.mcp.sreAgentUrl`, or turn the observability servers off with `openchoreo.mcp.observability`.
 
+**Skills, agents and instructions**: the extension ships the official [OpenChoreo agent skills](https://github.com/openchoreo/skills) (developer, platform engineer, their GitOps variants, setup, and migration), mirrored at a pinned commit on every build. It also adds:
+
+- the **OpenChoreo Developer** custom agent, which uses `openchoreo-cp`, `openchoreo-obs` and `openchoreo-sre`;
+- the **OpenChoreo Platform Engineer** agent, which uses `openchoreo-pe` and `openchoreo-obs` (shown when `openchoreo.mcp.platformEngineerTools` is on);
+- instructions for working with OpenChoreo resource YAML.
+
+Find them in **Chat: Open Customizations**. If you install the OpenChoreo agent plugin yourself, turn off `openchoreo.ai.bundledSkills` to avoid duplicate skills. The occ binary the extension manages is added to the integrated terminal's `PATH` (`openchoreo.addCliToTerminalPath`), so commands that agents and skills run find it.
+
 **MCP Server Auto-Registration**:
 - URLs derived from your occ CLI control plane configuration and the namespace's observability planes (not hardcoded)
 - Authentication token passed automatically from your session

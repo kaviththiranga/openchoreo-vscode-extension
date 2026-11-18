@@ -7,6 +7,7 @@
  * (validation, completion, hover) over the fixture workspace.
  */
 import * as assert from 'assert';
+import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 
@@ -114,5 +115,19 @@ describe('OpenChoreo extension (e2e)', () => {
 
   it('opens its fixtures from the workspace', () => {
     assert.strictEqual(path.basename(workspace().fsPath), 'e2e-workspace');
+  });
+
+  it('ships the chat skills, agents and instructions it contributes', () => {
+    const extension = vscode.extensions.getExtension(EXTENSION_ID)!;
+    const { chatSkills, chatAgents, chatInstructions } = extension.packageJSON.contributes;
+    assert.ok(chatSkills.length > 0, 'no skills contributed');
+    for (const entry of [...chatSkills, ...chatAgents, ...chatInstructions]) {
+      const file = path.join(extension.extensionPath, entry.path);
+      assert.ok(fs.existsSync(file), `${entry.path} is missing`);
+    }
+    for (const entry of chatSkills) {
+      const name = /^name:\s*(\S+)/m.exec(fs.readFileSync(path.join(extension.extensionPath, entry.path), 'utf8'))?.[1];
+      assert.strictEqual(name, path.basename(path.dirname(entry.path)), `${entry.path} name must match its folder`);
+    }
   });
 });

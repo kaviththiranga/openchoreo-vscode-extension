@@ -15,6 +15,10 @@
   },
   "homepage": "https://github.com/kaviththiranga/openchoreo-vscode-extension#readme",
   "occVersion": "v1.3.3",
+  "openchoreoSkills": {
+    "repository": "openchoreo/skills",
+    "ref": "cefd81bc16b79bd2de0f6284e6fa06d6c15825b7"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -579,13 +583,63 @@
           "type": "string",
           "default": "",
           "markdownDescription": "SRE agent base URL for `openchoreo-sre`. Overrides discovery."
+        },
+        "openchoreo.ai.bundledSkills": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Offer the [OpenChoreo agent skills](https://github.com/openchoreo/skills) bundled with the extension to chat agents. Turn off if you install the OpenChoreo agent plugin directly, to avoid duplicate skills."
+        },
+        "openchoreo.addCliToTerminalPath": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Add the occ CLI the extension uses to the `PATH` of integrated terminals, so commands run by agents and skills find it."
         }
       }
     },
-    "snippets": []
+    "snippets": [],
+    "chatSkills": [
+      {
+        "path": "./skills/migrate-to-openchoreo/SKILL.md",
+        "when": "config.openchoreo.ai.bundledSkills"
+      },
+      {
+        "path": "./skills/openchoreo-developer/SKILL.md",
+        "when": "config.openchoreo.ai.bundledSkills"
+      },
+      {
+        "path": "./skills/openchoreo-developer-gitops/SKILL.md",
+        "when": "config.openchoreo.ai.bundledSkills"
+      },
+      {
+        "path": "./skills/openchoreo-platform-engineer/SKILL.md",
+        "when": "config.openchoreo.ai.bundledSkills"
+      },
+      {
+        "path": "./skills/openchoreo-platform-engineer-gitops/SKILL.md",
+        "when": "config.openchoreo.ai.bundledSkills"
+      },
+      {
+        "path": "./skills/openchoreo-setup/SKILL.md",
+        "when": "config.openchoreo.ai.bundledSkills"
+      }
+    ],
+    "chatInstructions": [
+      {
+        "path": "./resources/ai/openchoreo-resources.instructions.md"
+      }
+    ],
+    "chatAgents": [
+      {
+        "path": "./resources/ai/agents/openchoreo-developer.agent.md"
+      },
+      {
+        "path": "./resources/ai/agents/openchoreo-platform-engineer.agent.md",
+        "when": "config.openchoreo.mcp.platformEngineerTools"
+      }
+    ]
   },
   "scripts": {
-    "build": "esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
+    "build": "node scripts/sync-skills.mjs && esbuild ./src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --format=cjs --platform=node --sourcemap",
     "dev": "pnpm build --watch",
     "lint": "tsc --noEmit",
     "test": "vitest run",
@@ -593,7 +647,7 @@
     "demo:capture": "node scripts/capture-demo.mjs",
     "generate:icons": "fantasticon && node scripts/update-icon-font.mjs",
     "clean": "rm -rf dist out",
-    "prepackage": "cp -r ../../schemas ./schemas && mkdir -p ./language-server/dist && cp ../language-server/dist/server.js ./language-server/dist/server.js && mkdir -p ./webview-ui/dist && cp ../webview-ui/dist/* ./webview-ui/dist/",
+    "prepackage": "node scripts/sync-skills.mjs --required && cp -r ../../schemas ./schemas && mkdir -p ./language-server/dist && cp ../language-server/dist/server.js ./language-server/dist/server.js && mkdir -p ./webview-ui/dist && cp ../webview-ui/dist/* ./webview-ui/dist/",
     "package": "pnpm build && vsce package --no-dependencies --allow-missing-repository --skip-license",
     "postpackage": "rm -rf ./schemas ./language-server ./webview-ui"
   },
