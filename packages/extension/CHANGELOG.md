@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-11-18
+
+AI release; also includes the 0.2.1 rename to **OpenChoreo for VS Code**.
 
 - MCP servers renamed to match the OpenChoreo skills: `openchoreo-cp` (developer toolsets) and opt-in `openchoreo-pe` (platform-engineer toolset), so neither goes over the 128-tool chat limit. Choose toolsets with `openchoreo.mcp.toolsets`; turn on `openchoreo.mcp.platformEngineerTools` for the platform-engineer tools that were previously offered by default
 - Register the observer (`openchoreo-obs`) and SRE agent (`openchoreo-sre`) MCP servers, discovered from the namespace's environments or the platform metadata; override with `openchoreo.mcp.observerUrl` / `openchoreo.mcp.sreAgentUrl`
