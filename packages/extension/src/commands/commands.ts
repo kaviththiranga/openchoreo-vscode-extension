@@ -44,6 +44,7 @@ import { downloadAndInstallOccCli } from '../cli/downloader';
 import { updateTerminalPath } from '../cli/terminalPath';
 import { openChat } from '../ai/chatHandoffs';
 import type { OccCliDetector } from '../auth/occCliDetector';
+import { occEnv } from '../cli/cliPath';
 
 /**
  * Run `occ logout` as a one-shot child process. Resolves on exit code 0,
@@ -55,7 +56,7 @@ function runOccLogout(binaryPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
     let child;
     try {
-      child = spawn(binaryPath, ['logout'], { stdio: ['ignore', 'pipe', 'pipe'] });
+      child = spawn(binaryPath, ['logout'], { env: occEnv(), stdio: ['ignore', 'pipe', 'pipe'] });
     } catch (err) {
       reject(new Error(`Failed to run occ: ${String(err)}`));
       return;

@@ -3,6 +3,7 @@
 
 import { spawn } from 'child_process';
 import { log } from '../logging/logger';
+import { occEnv } from '../cli/cliPath';
 
 /**
  * Detects whether the `occ` CLI is available on $PATH.
@@ -105,7 +106,7 @@ export class OccCliDetector {
 
       let child: ReturnType<typeof spawn>;
       try {
-        child = spawn(this.resolveBinary(), ['version'], { stdio: ['ignore', 'pipe', 'pipe'] });
+        child = spawn(this.resolveBinary(), ['version'], { env: occEnv(), stdio: ['ignore', 'pipe', 'pipe'] });
       } catch (err) {
         log.debug(`occ version spawn threw synchronously: ${String(err)}`);
         done({ installed: false });

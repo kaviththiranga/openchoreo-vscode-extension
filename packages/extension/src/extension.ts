@@ -20,6 +20,7 @@ import { CapabilityService } from './services/capabilityService';
 import { DeleteService } from './services/deleteService';
 import { registerCommands, resolveNode } from './commands/commands';
 import { registerDevLoopCommands } from './commands/devLoopCommands';
+import { registerDebugAgainstEnv } from './devloop/debugAgainstEnv';
 import { registerNamespaceSelector } from './commands/namespaceSelector';
 import { initLogger, log } from './logging/logger';
 import { ClusterExplorerProvider } from './treeView/clusterExplorer';
@@ -204,14 +205,16 @@ export async function activate(
   });
   void componentLinks.start();
 
-  registerDevLoopCommands(context, {
+  const devLoopDeps = {
     authProvider,
     apiClientManager,
     serverInfo,
     logOutputService,
     resolveBinary: resolveOccBinary,
-    resolveNode: (arg) => resolveNode(arg, sidebarProvider),
-  });
+    resolveNode: (arg: unknown) => resolveNode(arg, sidebarProvider),
+  };
+  registerDevLoopCommands(context, devLoopDeps);
+  registerDebugAgainstEnv(context, devLoopDeps);
 
   // Register namespace selector
   registerNamespaceSelector(context, authProvider, apiClientManager);

@@ -14,6 +14,7 @@ import type { LogOutputService } from '../services/logOutputService';
 import type { ServerInfoService } from '../services/serverInfoService';
 import type { ResourceNodeData } from '../treeView/types';
 import { log } from '../logging/logger';
+import { occTerminalEnv } from '../cli/cliPath';
 
 type Client = NonNullable<Awaited<ReturnType<ApiClientManager['getClient']>>>;
 
@@ -210,7 +211,7 @@ export function registerDevLoopCommands(context: vscode.ExtensionContext, deps: 
   });
 }
 
-function requireServer(deps: DevLoopDeps, major: number, minor: number, feature: string): boolean {
+export function requireServer(deps: DevLoopDeps, major: number, minor: number, feature: string): boolean {
   // Unknown version: let the CLI/API answer rather than block.
   if (deps.serverInfo.supports(major, minor, true)) return true;
   vscode.window.showWarningMessage(
@@ -219,7 +220,7 @@ function requireServer(deps: DevLoopDeps, major: number, minor: number, feature:
   return false;
 }
 
-async function requireClient(deps: DevLoopDeps): Promise<Client> {
+export async function requireClient(deps: DevLoopDeps): Promise<Client> {
   const client = await deps.apiClientManager.getClient();
   if (!client) throw new Error('Not connected to OpenChoreo. Run "occ login" first.');
   return client;
@@ -265,21 +266,28 @@ async function bindingEnvironment(client: Client, namespace: string, name: strin
   return (data as { spec?: { environment?: string } } | undefined)?.spec?.environment;
 }
 
-async function pickEnvironment(client: Client, namespace: string): Promise<string | undefined> {
+export async function pickEnvironment(client: Client, namespace: string): Promise<string | undefined> {
   const { data, error } = await client.GET('/api/v1/namespaces/{namespaceName}/environments', {
     params: { path: { namespaceName: namespace } },
   });
-  if (error) throw new Error(`Failed to list environments: ${JSON.stringify(error)}`);
-  const envs = (data?.items ?? []).map((e) => e.metadata?.name).filter((n): n is string => !!n);
-  if (envs.length === 0) throw new Error(`No environments in namespace "${namespace}".`);
-  return envs.length === 1 ? envs[0] : vscode.window.showQuickPick(envs, { placeHolder: 'Environment' });
+  const envs = error ? [] : (data?.items ?? []).map((e) => e.metadata?.name).filter((n): n is string => !!n);
+  if (envs.length === 1) return envs[0];
+  if (envs.length > 1) return vscode.window.showQuickPick(envs, { placeHolder: 'Environment' });
+  // Roles that may connect to an environment can still lack permission to list environments.
+  const typed = await vscode.window.showInputBox({
+    title: 'Environment',
+    prompt: `No environments are visible in namespace "${namespace}" with your role. Enter the environment name.`,
+    placeHolder: 'development',
+    validateInput: (v) => (/^[a-z0-9]([-a-z0-9]*[a-z0-9])?$/.test(v.trim()) ? undefined : 'A lowercase resource name'),
+  });
+  return typed?.trim() || undefined;
 }
 
 /**
  * The Workload manifest(s) to run: the clicked file or folder, else the active
  * editor's YAML, else a pick from the workspace's workload files.
  */
-async function resolveWorkloadUri(arg: unknown): Promise<vscode.Uri | undefined> {
+export async function resolveWorkloadUri(arg: unknown): Promise<vscode.Uri | undefined> {
   if (arg instanceof vscode.Uri) return arg;
   const active = vscode.window.activeTextEditor?.document;
   if (active && /^kind:\s*Workload\s*$/m.test(active.getText())) return active.uri;
@@ -300,7 +308,7 @@ async function resolveWorkloadUri(arg: unknown): Promise<vscode.Uri | undefined>
 }
 
 function runInTerminal(name: string, binary: string, args: string[], cwd?: string): void {
-  const terminal = vscode.window.createTerminal({ name, cwd });
+  const terminal = vscode.window.createTerminal({ name, cwd, env: occTerminalEnv() });
   terminal.show();
   terminal.sendText([binary, ...args].map(shellQuote).join(' '));
 }

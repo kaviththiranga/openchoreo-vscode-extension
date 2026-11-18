@@ -455,7 +455,10 @@ export class OccConfigAuthProvider implements vscode.Disposable {
    * 2. GET {authServer}/.well-known/openid-configuration → token endpoint
    */
   private async refreshToken(session: AuthSession): Promise<string | undefined> {
-    if (!session.refreshToken) {
+    // Client-credentials logins (service accounts) have no refresh token: mint a new token, as occ does.
+    const credential = this.config?.credentials.find((c) => c.name === session.context.credentials);
+    const clientSecret = session.authMethod === 'client_credentials' ? credential?.clientSecret : undefined;
+    if (!session.refreshToken && !clientSecret) {
       return undefined;
     }
 
@@ -484,12 +487,18 @@ export class OccConfigAuthProvider implements vscode.Disposable {
         return undefined;
       }
 
-      // Exchange refresh token for new access token
-      const params = new URLSearchParams({
-        grant_type: 'refresh_token',
-        refresh_token: session.refreshToken,
-        client_id: session.clientId,
-      });
+      // Exchange the refresh token (or the client credentials) for a new access token
+      const params = clientSecret
+        ? new URLSearchParams({
+            grant_type: 'client_credentials',
+            client_id: session.clientId,
+            client_secret: clientSecret,
+          })
+        : new URLSearchParams({
+            grant_type: 'refresh_token',
+            refresh_token: session.refreshToken,
+            client_id: session.clientId,
+          });
 
       const response = await fetch(oidcConfig.token_endpoint, {
         method: 'POST',

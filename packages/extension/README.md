@@ -161,6 +161,18 @@ Expand any Release Binding in the tree to see the Kubernetes resources deployed 
 Work against a real environment without leaving the editor:
 
 - **Run Locally Against Environment** — right-click a `workload.yaml` (or a `.openchoreo` folder) in the Explorer, or run it from the Command Palette. Pick an environment, then either open a shell whose environment variables point at local tunnels to that environment's real dependencies (run your app from it), or keep the tunnels open and print the resolved variables to copy into a debugger launch configuration. Uses `occ remote`; dependency secrets stay in the session and are never printed unless you ask
+- **Debug Against Environment** — right-click a `workload.yaml` (or pick it from the linked component's actions), choose an environment and one of your launch configurations: the extension opens `occ remote` tunnels in the background and starts the debugger with the resolved dependency variables in its `env`. Offer to save it so F5 does the same; any launch configuration can opt in with:
+
+  ```jsonc
+  "openchoreo": {
+    "environment": "development",
+    "workload": "${workspaceFolder}/workload.yaml",
+    // optional: "namespace", "secrets": false (leave Secret/ConfigMap values unresolved),
+    // "local": { "other-component": "127.0.0.1:9091" } for a dependency you also run locally
+  }
+  ```
+
+  Tunnel bindings override the configuration's own `env` for the same names. Values reach only the debugged process; nothing is printed or written to disk. Tunnels close when the debug session ends (keep them with `openchoreo.localDev.keepTunnelsOpen`); open tunnels show in the status bar
 - **Open Shell** — right-click a Component or one of its deployed environments → an interactive shell in a running pod (`occ component exec`)
 - **View Runtime Logs** — right-click a Component or one of its environments → choose a window (15 minutes to 24 hours) and an optional text filter; logs are read from the environment's observability plane and shown in an Output channel with pod and level. Works wherever the environment's data plane has an observability plane with an observer
 - **Run Now** — right-click a deployed environment of a scheduled-task (cronjob) component to start a one-off Job from its schedule
@@ -422,6 +434,7 @@ View diagnostic information in **Output > OpenChoreo**:
 | `openchoreo.ai.bundledSkills` | `true` | Offer the bundled OpenChoreo agent skills to chat; turn off if you install the OpenChoreo agent plugin yourself |
 | `openchoreo.addCliToTerminalPath` | `true` | Put the occ binary the extension uses on the integrated terminal's `PATH` |
 | `openchoreo.builds.followAfterPush` | `true` | After pushing a linked component's branch, follow its auto-build in the status bar (or offer a build) |
+| `openchoreo.localDev.keepTunnelsOpen` | `false` | Keep a debug session's `occ remote` tunnels open after it ends |
 | `openchoreo.gitops.mode` | `detect` | Which resources are GitOps-managed: those with Flux or Argo CD markers (`detect`), every resource (`all`), or none (`off`) |
 | `openchoreo.gitops.allowDirectChanges` | `true` | Offer **Continue Anyway** when changing a GitOps-managed resource through the API |
 
@@ -475,6 +488,8 @@ AuthzRole, AuthzRoleBinding (in Namespace Resources), ClusterAuthzRole, ClusterA
 | `OpenChoreo: Build This Commit` | Build the commit checked out in a linked folder (Command Palette, status bar) |
 | `OpenChoreo: Compare Releases…` | Diff two releases of a component, or a release with another environment's (tree context menu) |
 | `OpenChoreo: Roll Back…` | Bind an environment to an earlier release (tree context menu) |
+| `OpenChoreo: Debug Against Environment` | Start a launch configuration with tunnels to an environment's dependencies (Explorer context menu, Command Palette; 1.3+) |
+| `OpenChoreo: Manage Local Tunnels` | Close open `occ remote` tunnels or show their output (status bar) |
 | `OpenChoreo: Linked Component Actions…` | Actions for the components built from the open folder (status bar) |
 
 ## Architecture

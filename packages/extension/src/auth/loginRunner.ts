@@ -4,6 +4,7 @@
 import * as vscode from 'vscode';
 import { spawn, ChildProcess } from 'child_process';
 import { log } from '../logging/logger';
+import { occEnv } from '../cli/cliPath';
 
 /**
  * Manages programmatic `occ login` execution.
@@ -74,6 +75,7 @@ export class LoginRunner implements vscode.Disposable {
     let child: ChildProcess;
     try {
       child = spawn(this.resolveBinary(), ['login', ...extraArgs], {
+        env: occEnv(),
         stdio: ['ignore', 'pipe', 'pipe'],
       });
     } catch (err) {

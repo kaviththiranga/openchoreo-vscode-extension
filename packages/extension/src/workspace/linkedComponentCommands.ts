@@ -58,13 +58,20 @@ export function registerLinkedComponentCommands(
             ? [{ label: '$(play) Build', description: c.workflow.name, run: () => vscode.commands.executeCommand('openchoreo.triggerBuild', node) }]
             : []),
         { label: '$(output) View Runtime Logs', run: () => vscode.commands.executeCommand('openchoreo.viewRuntimeLogs', node) },
-        { label: '$(terminal) Open Shell', run: () => vscode.commands.executeCommand('openchoreo.openShell', node) },
+        { label: '$(remote) Open Shell', run: () => vscode.commands.executeCommand('openchoreo.openShell', node) },
         ...(workload
-          ? [{
-              label: '$(debug-alt) Run Locally Against Environment',
-              description: vscode.workspace.asRelativePath(workload),
-              run: () => vscode.commands.executeCommand('openchoreo.runLocally', vscode.Uri.file(workload)),
-            }]
+          ? [
+              {
+                label: '$(debug-alt) Debug Against Environment',
+                description: vscode.workspace.asRelativePath(workload),
+                run: () => vscode.commands.executeCommand('openchoreo.debugLocally', vscode.Uri.file(workload)),
+              },
+              {
+                label: '$(terminal) Run Locally Against Environment',
+                description: vscode.workspace.asRelativePath(workload),
+                run: () => vscode.commands.executeCommand('openchoreo.runLocally', vscode.Uri.file(workload)),
+              },
+            ]
           : []),
         ...(web ? [{ label: '$(github) Open Repository', description: web, run: () => vscode.env.openExternal(vscode.Uri.parse(web)) }] : []),
         { label: '$(folder-opened) Reveal App Folder', description: link.appDir, run: () => vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(link.appDir)) },

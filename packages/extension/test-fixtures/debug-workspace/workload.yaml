@@ -1,0 +1,16 @@
+apiVersion: openchoreo.dev/v1alpha1
+kind: Workload
+metadata:
+  name: greeter-service-workload
+  namespace: default
+spec:
+  owner:
+    projectName: default
+    componentName: greeter-service
+  container:
+    image: cr.openchoreo.dev/openchoreo/samples/greeter-service:latest
+    args: ["--port", "9090"]
+  endpoints:
+    http:
+      type: HTTP
+      port: 9090

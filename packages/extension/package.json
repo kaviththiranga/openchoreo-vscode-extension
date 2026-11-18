@@ -455,6 +455,18 @@
         "title": "Roll Back…",
         "category": "OpenChoreo",
         "icon": "$(history)"
+      },
+      {
+        "command": "openchoreo.debugLocally",
+        "title": "Debug Against Environment",
+        "category": "OpenChoreo",
+        "icon": "$(debug-alt)"
+      },
+      {
+        "command": "openchoreo.manageTunnels",
+        "title": "Manage Local Tunnels",
+        "category": "OpenChoreo",
+        "icon": "$(plug)"
       }
     ],
     "menus": {
@@ -634,6 +646,11 @@
           "command": "openchoreo.compareWithCluster",
           "when": "resourceExtname =~ /^\\.ya?ml$/",
           "group": "openchoreo"
+        },
+        {
+          "command": "openchoreo.debugLocally",
+          "when": "resourceFilename =~ /^workload\\.ya?ml$/ || explorerResourceIsFolder && resourceFilename == .openchoreo",
+          "group": "openchoreo"
         }
       ],
       "commandPalette": [
@@ -668,6 +685,10 @@
         {
           "command": "openchoreo.buildCommit",
           "when": "openchoreo.linkedComponent"
+        },
+        {
+          "command": "openchoreo.manageTunnels",
+          "when": "openchoreo.tunnelsOpen"
         }
       ],
       "editor/context": [
@@ -771,6 +792,11 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "After you push a linked component's branch, follow the build auto-build starts for the commit in the status bar (or offer to build it when auto-build is off)."
+        },
+        "openchoreo.localDev.keepTunnelsOpen": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Keep the `occ remote` tunnels a debug session opened after it ends, so the next session starts faster. Close them from the status bar."
         }
       }
     },

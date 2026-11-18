@@ -13,6 +13,7 @@ import { agentFixesYaml } from './scenes/agentFixesYaml';
 import { aiCustomizations } from './scenes/aiCustomizations';
 import { chatTools } from './scenes/chatTools';
 import { fixWithCopilot } from './scenes/fixWithCopilot';
+import { debugAgainstEnv } from './scenes/debugAgainstEnv';
 import { gitopsCompare } from './scenes/gitopsCompare';
 import { linkedComponent } from './scenes/linkedComponent';
 import { manual } from './scenes/manual';
@@ -28,6 +29,7 @@ export const SCENES: Scene[] = [
   otherAgents,
   gitopsCompare,
   linkedComponent,
+  debugAgainstEnv,
   chatTools,
   agentFixesYaml,
   manual,

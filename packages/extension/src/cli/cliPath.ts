@@ -52,3 +52,31 @@ export function hasManagedBinary(context: vscode.ExtensionContext): boolean {
     return false;
   }
 }
+
+/**
+ * Home directory overrides so occ reads the same config as the extension.
+ * occ always uses `$HOME/.openchoreo/config`; when `openchoreo.configPath`
+ * points at another `<home>/.openchoreo/config`, occ gets that home.
+ * Returns {} when no override is needed (or the path can't be expressed so).
+ */
+export function occHomeOverride(configPath: string): Record<string, string> {
+  const path = require('path') as typeof import('path');
+  const trimmed = configPath.trim();
+  if (!trimmed) return {};
+  const resolved = path.resolve(trimmed);
+  const dir = path.dirname(resolved);
+  if (path.basename(resolved) !== 'config' || path.basename(dir) !== '.openchoreo') return {};
+  const home = path.dirname(dir);
+  return process.platform === 'win32' ? { USERPROFILE: home, HOME: home } : { HOME: home };
+}
+
+/** The environment for an occ process: the extension's own, with the config home override. */
+export function occEnv(): NodeJS.ProcessEnv {
+  const configPath = vscode.workspace.getConfiguration('openchoreo').get<string>('configPath', '') ?? '';
+  return { ...process.env, ...occHomeOverride(configPath) };
+}
+
+/** Just the overrides, for terminals (which inherit the rest). */
+export function occTerminalEnv(): Record<string, string> {
+  return occHomeOverride(vscode.workspace.getConfiguration('openchoreo').get<string>('configPath', '') ?? '');
+}
