@@ -431,6 +431,30 @@
         "title": "Linked Component Actions…",
         "category": "OpenChoreo",
         "icon": "$(link)"
+      },
+      {
+        "command": "openchoreo.cloneSource",
+        "title": "Clone Source",
+        "category": "OpenChoreo",
+        "icon": "$(repo-clone)"
+      },
+      {
+        "command": "openchoreo.buildCommit",
+        "title": "Build This Commit",
+        "category": "OpenChoreo",
+        "icon": "$(play)"
+      },
+      {
+        "command": "openchoreo.compareReleases",
+        "title": "Compare Releases…",
+        "category": "OpenChoreo",
+        "icon": "$(git-compare)"
+      },
+      {
+        "command": "openchoreo.rollbackBinding",
+        "title": "Roll Back…",
+        "category": "OpenChoreo",
+        "icon": "$(history)"
       }
     ],
     "menus": {
@@ -582,6 +606,21 @@
           "command": "openchoreo.compareWithRepository",
           "when": "webviewId == openchoreo.sidebar && openchoreo.gitopsRepository && nodeType == 'component-release'",
           "group": "2_observe@9"
+        },
+        {
+          "command": "openchoreo.cloneSource",
+          "when": "webviewId == openchoreo.sidebar && nodeType == component && isBuildable",
+          "group": "0_source"
+        },
+        {
+          "command": "openchoreo.compareReleases",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'component-release' || webviewId == openchoreo.sidebar && nodeType == 'release-binding' && isPromotable",
+          "group": "2_observe@8"
+        },
+        {
+          "command": "openchoreo.rollbackBinding",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'release-binding' && isPromotable",
+          "group": "1_actions@9"
         }
       ],
       "view/item/context": [],
@@ -612,6 +651,22 @@
         },
         {
           "command": "openchoreo.linkedComponentActions",
+          "when": "openchoreo.linkedComponent"
+        },
+        {
+          "command": "openchoreo.cloneSource",
+          "when": "false"
+        },
+        {
+          "command": "openchoreo.compareReleases",
+          "when": "false"
+        },
+        {
+          "command": "openchoreo.rollbackBinding",
+          "when": "false"
+        },
+        {
+          "command": "openchoreo.buildCommit",
           "when": "openchoreo.linkedComponent"
         }
       ],
@@ -711,6 +766,11 @@
           "type": "boolean",
           "default": true,
           "markdownDescription": "Offer **Continue Anyway** when changing a GitOps-managed resource through the API. Turn off to allow changes only through the GitOps repository."
+        },
+        "openchoreo.builds.followAfterPush": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "After you push a linked component's branch, follow the build auto-build starts for the commit in the status bar (or offer to build it when auto-build is off)."
         }
       }
     },

@@ -35,6 +35,8 @@ import { registerGitOps } from './gitops';
 import { ComponentSourceService } from './workspace/componentSources';
 import { ComponentLinkService } from './workspace/componentLinks';
 import { registerLinkedComponentCommands } from './workspace/linkedComponentCommands';
+import { BuildFollower } from './workspace/builds';
+import { registerCloneSource } from './workspace/cloneSource';
 import { ComponentService } from './services/componentService';
 import { WorkflowRunService } from './services/workflowRunService';
 import { ReleaseBindingService } from './services/releaseBindingService';
@@ -192,7 +194,14 @@ export async function activate(
   const componentSources = new ComponentSourceService(authProvider, apiClientManager);
   const componentLinks = new ComponentLinkService(authProvider, componentSources);
   context.subscriptions.push(componentLinks);
-  registerLinkedComponentCommands(context, componentLinks);
+  const buildFollower = new BuildFollower(componentLinks, apiClientManager, workflowRunService);
+  context.subscriptions.push(buildFollower);
+  registerLinkedComponentCommands(context, componentLinks, buildFollower);
+  registerCloneSource(context, {
+    sources: componentSources,
+    links: componentLinks,
+    resolveNode: (arg) => resolveNode(arg, sidebarProvider),
+  });
   void componentLinks.start();
 
   registerDevLoopCommands(context, {

@@ -80,6 +80,9 @@ export class ComponentLinkService implements vscode.Disposable {
   private readonly repoListeners = new Map<string, vscode.Disposable>();
   private readonly changed = new vscode.EventEmitter<ComponentLink[]>();
   readonly onDidChange = this.changed.event;
+  private readonly pushed = new vscode.EventEmitter<PushEvent>();
+  /** A branch of a workspace repository was pushed (its commits are now on the upstream). */
+  readonly onDidPush = this.pushed.event;
   private git: GitAPI | undefined;
   private current: ComponentLink[] = [];
   private refreshTimer: ReturnType<typeof setTimeout> | undefined;
@@ -94,6 +97,7 @@ export class ComponentLinkService implements vscode.Disposable {
     this.disposables.push(
       this.item,
       this.changed,
+      this.pushed,
       authProvider.onDidChangeSession(() => this.scheduleRefresh()),
       vscode.workspace.onDidChangeWorkspaceFolders(() => this.scheduleRefresh()),
       vscode.window.onDidChangeActiveTextEditor(() => this.render()),
@@ -153,12 +157,18 @@ export class ComponentLinkService implements vscode.Disposable {
     const key = repo.rootUri.toString();
     if (this.repoListeners.has(key)) return;
     let remotes = remoteKey(repo);
+    let head = headState(repo);
     const listener = repo.state.onDidChange(() => {
       const next = remoteKey(repo);
       if (next !== remotes) {
         remotes = next;
         this.scheduleRefresh();
       }
+      const nextHead = headState(repo);
+      if (isPush(head, nextHead)) {
+        this.pushed.fire({ repository: repo, branch: nextHead.branch!, commit: nextHead.commit! });
+      }
+      head = nextHead;
     });
     this.repoListeners.set(key, listener);
   }
@@ -221,3 +231,33 @@ export class ComponentLinkService implements vscode.Disposable {
 const linkKey = (l: ComponentLink) => `${l.component.namespace}/${l.component.name}`;
 const remoteKey = (repo: GitRepository) =>
   repo.state.remotes.map((r) => `${r.name}=${r.fetchUrl ?? ''}`).sort().join(';');
+
+export interface PushEvent {
+  repository: GitRepository;
+  branch: string;
+  commit: string;
+}
+
+export interface HeadState {
+  branch?: string;
+  commit?: string;
+  ahead?: number;
+  hasUpstream: boolean;
+}
+
+const headState = (repo: GitRepository): HeadState => ({
+  branch: repo.state.HEAD?.name,
+  commit: repo.state.HEAD?.commit,
+  ahead: repo.state.HEAD?.ahead,
+  hasUpstream: !!repo.state.HEAD?.upstream,
+});
+
+/**
+ * A push: same branch and commit, and the commits that were ahead of the
+ * upstream no longer are (or the branch just got an upstream).
+ */
+export function isPush(before: HeadState, after: HeadState): boolean {
+  if (!after.branch || !after.commit || before.branch !== after.branch || before.commit !== after.commit) return false;
+  if (!after.hasUpstream || after.ahead !== 0) return false;
+  return (before.ahead ?? 0) > 0 || !before.hasUpstream;
+}

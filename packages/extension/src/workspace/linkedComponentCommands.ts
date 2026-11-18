@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as vscode from 'vscode';
 import type { ResourceNodeData } from '../treeView/types';
+import type { BuildFollower } from './builds';
 import type { ComponentLink, ComponentLinkService } from './componentLinks';
 import type { SourcedComponent } from './componentSources';
 import { repositoryWebUrl } from './repositoryFields';
@@ -28,8 +29,18 @@ interface Action extends vscode.QuickPickItem {
   run: () => unknown;
 }
 
-export function registerLinkedComponentCommands(context: vscode.ExtensionContext, links: ComponentLinkService): void {
+export function registerLinkedComponentCommands(
+  context: vscode.ExtensionContext,
+  links: ComponentLinkService,
+  builds: BuildFollower,
+): void {
   context.subscriptions.push(
+    vscode.commands.registerCommand('openchoreo.buildCommit', async () => {
+      const link = await pickLink(links.orderedLinks());
+      if (link) await builds.buildHead(link);
+      else vscode.window.showInformationMessage('Open the source of an OpenChoreo component to build its current commit.');
+    }),
+
     vscode.commands.registerCommand('openchoreo.linkedComponentActions', async () => {
       const link = await pickLink(links.orderedLinks());
       if (!link) return;
@@ -41,9 +52,11 @@ export function registerLinkedComponentCommands(context: vscode.ExtensionContext
       const web = c.url ? repositoryWebUrl(c.url) : undefined;
       const actions: Action[] = [
         { label: '$(file-code) Open Component YAML', run: () => vscode.commands.executeCommand('openchoreo.openResource', node) },
-        ...(c.workflow
-          ? [{ label: '$(play) Build', description: c.workflow.name, run: () => vscode.commands.executeCommand('openchoreo.triggerBuild', node) }]
-          : []),
+        ...(c.workflow && c.paths.commit
+          ? [{ label: '$(play) Build This Commit', description: c.workflow.name, run: () => builds.buildHead(link) }]
+          : c.workflow
+            ? [{ label: '$(play) Build', description: c.workflow.name, run: () => vscode.commands.executeCommand('openchoreo.triggerBuild', node) }]
+            : []),
         { label: '$(output) View Runtime Logs', run: () => vscode.commands.executeCommand('openchoreo.viewRuntimeLogs', node) },
         { label: '$(terminal) Open Shell', run: () => vscode.commands.executeCommand('openchoreo.openShell', node) },
         ...(workload

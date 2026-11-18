@@ -169,7 +169,11 @@ Work against a real environment without leaving the editor:
 
 Open the source of a component and the extension finds which OpenChoreo components it builds: it matches the folder's git remotes and its path in the repository against each component's repository URL and app path. The workflow marks those parameters with `x-openchoreo-component-parameter-repository-*` schema keys, the same ones auto-build and the Backstage portal use, so it works whatever the workflow calls them.
 
-A status bar item with a link icon and the component name appears in the status bar (the component the active file belongs to comes first). Click it to open the Component YAML, build it, view runtime logs, open a shell, run its workload locally, or open the repository. Components without a build workflow (external CI or prebuilt images) have no repository to match.
+A status bar item with a link icon and the component name appears (the component the active file belongs to comes first). Click it to open the Component YAML, build the commit you're on, view runtime logs, open a shell, run its workload locally, or open the repository. Components without a build workflow (external CI or prebuilt images) have no repository to match.
+
+- **Clone Source** — right-click a Component with a build workflow to clone its repository at the branch it builds from; the clone opens with the app folder revealed
+- **Build This Commit** — builds the commit checked out in a linked folder by setting the workflow's commit parameter (offers to push it first if the remote doesn't have it)
+- **Follow the build after a push** — push a linked component's branch and, if the component has auto-build, the status bar follows the build started for that commit; failures offer the logs and **Troubleshoot with Copilot**. Without auto-build you're offered a build of the pushed commit. Turn off with `openchoreo.builds.followAfterPush`
 
 ### GitOps
 
@@ -185,6 +189,11 @@ A workspace folder counts as a GitOps repository when it declares OpenChoreo res
 ### Generate Release
 
 Right-click a Component → "Generate Release" to create an immutable release snapshot from the current component state (ComponentType + Traits + Workload configuration). Optionally provide a release name or let the server auto-generate one.
+
+### Compare Releases and Roll Back
+
+- **Compare Releases…** — right-click a release, or a deployed environment, to diff it with another release or with what another environment runs, before you promote
+- **Roll Back…** — right-click a deployed environment and pick an earlier release; the release binding opens for review like Promote (and goes through the GitOps guard)
 
 ### Trigger Build
 
@@ -412,6 +421,7 @@ View diagnostic information in **Output > OpenChoreo**:
 | `openchoreo.mcp.sreAgentUrl` | `""` | SRE agent base URL; overrides discovery |
 | `openchoreo.ai.bundledSkills` | `true` | Offer the bundled OpenChoreo agent skills to chat; turn off if you install the OpenChoreo agent plugin yourself |
 | `openchoreo.addCliToTerminalPath` | `true` | Put the occ binary the extension uses on the integrated terminal's `PATH` |
+| `openchoreo.builds.followAfterPush` | `true` | After pushing a linked component's branch, follow its auto-build in the status bar (or offer a build) |
 | `openchoreo.gitops.mode` | `detect` | Which resources are GitOps-managed: those with Flux or Argo CD markers (`detect`), every resource (`all`), or none (`off`) |
 | `openchoreo.gitops.allowDirectChanges` | `true` | Offer **Continue Anyway** when changing a GitOps-managed resource through the API |
 
@@ -461,6 +471,10 @@ AuthzRole, AuthzRoleBinding (in Namespace Resources), ClusterAuthzRole, ClusterA
 | `OpenChoreo: Use with Other AI Agents…` | MCP server URLs and setup commands for Claude Code and other agents |
 | `OpenChoreo: Compare with Cluster` | Diff an OpenChoreo YAML file with the resource on the cluster (Explorer, editor context menu, editor title in a GitOps repository) |
 | `OpenChoreo: Compare with Repository` | Diff a sidebar resource with the GitOps repository file that declares it (tree context menu) |
+| `OpenChoreo: Clone Source` | Clone a component's repository at its build branch (tree context menu) |
+| `OpenChoreo: Build This Commit` | Build the commit checked out in a linked folder (Command Palette, status bar) |
+| `OpenChoreo: Compare Releases…` | Diff two releases of a component, or a release with another environment's (tree context menu) |
+| `OpenChoreo: Roll Back…` | Bind an environment to an earlier release (tree context menu) |
 | `OpenChoreo: Linked Component Actions…` | Actions for the components built from the open folder (status bar) |
 
 ## Architecture

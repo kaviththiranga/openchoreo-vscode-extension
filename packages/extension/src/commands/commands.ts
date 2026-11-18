@@ -3,7 +3,7 @@
 
 import type { GitOpsRepoIndex } from '../gitops/repoIndex';
 import { confirmApiWrite, gitopsOwner, ownerFromExtra, type GitOpsOwner } from '../gitops/managed';
-import { fetchLive } from '../gitops/compare';
+import { fetchLive, liveUri } from '../gitops/compare';
 import * as vscode from 'vscode';
 import { spawn } from 'child_process';
 import { parse as parseYaml, stringify } from 'yaml';
@@ -633,6 +633,99 @@ export function registerCommands(
         } catch (error) {
           vscode.window.showErrorMessage(
             `Failed to prepare deployment: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // Compare two releases of a component (what a promotion or rollback changes)
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.compareReleases',
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
+        if (!node?.namespace || !node?.component) return;
+        try {
+          const client = await apiClientManager.getClient();
+          if (!client) { vscode.window.showWarningMessage('Not authenticated.'); return; }
+          const current = node.type === 'component-release' ? node.resourceName : node.extra?.releaseName;
+          if (!current) { vscode.window.showWarningMessage('No release to compare.'); return; }
+          const [releases, bindings] = await Promise.all([
+            listComponentReleases(client, node.namespace, node.component),
+            client.GET('/api/v1/namespaces/{namespaceName}/releasebindings', {
+              params: { path: { namespaceName: node.namespace }, query: { component: node.component } },
+            }).then(({ data }) => (data?.items ?? []) as Array<{ spec?: { environment?: string; releaseName?: string } }>),
+          ]);
+          const deployed = bindings
+            .filter((b) => b.spec?.releaseName && b.spec.releaseName !== current && b.spec.environment !== node.extra?.environment)
+            .map((b) => ({ label: `$(server-environment) ${b.spec!.environment}`, description: b.spec!.releaseName, release: b.spec!.releaseName! }));
+          const others = releases
+            .filter((r) => r.name !== current)
+            .map((r) => ({ label: `$(tag) ${r.name}`, description: r.created ? new Date(r.created).toLocaleString() : undefined, release: r.name }));
+          const items = [
+            ...(deployed.length ? [{ label: 'Deployed', kind: vscode.QuickPickItemKind.Separator, release: '' }, ...deployed] : []),
+            ...(others.length ? [{ label: 'Releases', kind: vscode.QuickPickItemKind.Separator, release: '' }, ...others] : []),
+          ];
+          if (deployed.length + others.length === 0) {
+            vscode.window.showInformationMessage(`${node.component} has no other release to compare with.`);
+            return;
+          }
+          const picked = await vscode.window.showQuickPick(items, { placeHolder: `Compare ${current} with…` });
+          if (!picked?.release) return;
+          const key = (name: string) => ({ kind: 'ComponentRelease', name, namespace: node.namespace });
+          await vscode.commands.executeCommand(
+            'vscode.diff',
+            liveUri(key(picked.release)),
+            liveUri(key(current)),
+            `${picked.release} ↔ ${current}`,
+            { preview: true },
+          );
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to compare releases: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        }
+      },
+    ),
+  );
+
+  // Roll an environment back to an earlier release of the component
+  context.subscriptions.push(
+    vscode.commands.registerCommand(
+      'openchoreo.rollbackBinding',
+      async (arg: unknown) => {
+        const node = resolveNode(arg, sidebarProvider);
+        if (!node?.namespace || !node?.component || !node?.extra?.environment) return;
+        try {
+          const client = await apiClientManager.getClient();
+          if (!client) { vscode.window.showWarningMessage('Not authenticated.'); return; }
+          const current = node.extra.releaseName;
+          const releases = (await listComponentReleases(client, node.namespace, node.component)).filter((r) => r.name !== current);
+          if (releases.length === 0) {
+            vscode.window.showInformationMessage(`${node.component} has no earlier release to roll back to.`);
+            return;
+          }
+          const picked = await vscode.window.showQuickPick(
+            releases.map((r) => ({
+              label: r.name,
+              description: r.created ? new Date(r.created).toLocaleString() : undefined,
+            })),
+            { placeHolder: `Roll ${node.extra.environment} back from ${current || 'its current release'} to…` },
+          );
+          if (!picked) return;
+          await openOrUpdateReleaseBinding(client, fsProvider, {
+            namespace: node.namespace,
+            project: node.project ?? '',
+            component: node.component,
+            environment: node.extra.environment,
+            releaseName: picked.label,
+            action: 'Roll Back',
+            owner: ownerFromExtra(node.extra),
+          });
+        } catch (error) {
+          vscode.window.showErrorMessage(
+            `Failed to roll back: ${error instanceof Error ? error.message : 'Unknown error'}`,
           );
         }
       },
@@ -1664,4 +1757,19 @@ async function fetchLiveQuietly(
   } catch {
     return undefined;
   }
+}
+
+/** A component's releases, newest first. */
+async function listComponentReleases(
+  client: ApiClient,
+  namespace: string,
+  component: string,
+): Promise<Array<{ name: string; created?: string }>> {
+  const { data } = await client.GET('/api/v1/namespaces/{namespaceName}/componentreleases', {
+    params: { path: { namespaceName: namespace }, query: { component } },
+  });
+  return (data?.items ?? [])
+    .map((r) => ({ name: r.metadata?.name as string, created: r.metadata?.creationTimestamp as string | undefined }))
+    .filter((r) => !!r.name)
+    .sort((a, b) => Date.parse(b.created ?? '') - Date.parse(a.created ?? ''));
 }
