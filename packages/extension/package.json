@@ -189,6 +189,12 @@
     },
     "commands": [
       {
+        "command": "openchoreo.validateRendering",
+        "title": "Run Pre/Post-Render Validation",
+        "category": "OpenChoreo",
+        "icon": "$(play)"
+      },
+      {
         "command": "openchoreo.refreshResources",
         "title": "Refresh Resources",
         "category": "OpenChoreo",
@@ -504,6 +510,11 @@
     "menus": {
       "editor/title": [
         {
+          "command": "openchoreo.validateRendering",
+          "when": "openchoreo.canValidateRendering",
+          "group": "navigation@10"
+        },
+        {
           "command": "openchoreo.compareWithCluster",
           "when": "openchoreo.gitopsRepository && resourceScheme == file && resourceLangId == yaml",
           "group": "navigation@90"
@@ -526,6 +537,7 @@
           "group": "navigation@3"
         }
       ],
+
       "webview/context": [
         {
           "command": "openchoreo.createComponent",

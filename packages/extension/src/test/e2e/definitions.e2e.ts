@@ -66,6 +66,42 @@ async function reveal(doc: vscode.TextDocument, text: string, expected: vscode.U
       assert.match(vscode.window.activeTextEditor!.document.getText(), new RegExp(`name: ${name}`));
     }
   });
+  it('keeps Problems findings and underlines when opening and closing result previews', async () => {
+    const root = vscode.workspace.workspaceFolders![0].uri;
+    const cases = [
+      { active: vscode.Uri.joinPath(root, 'component.yaml'), target: vscode.Uri.joinPath(root, 'closed-component.yaml'), name: 'backend' },
+      { active: remote('component', 'remote-app'), target: remote('component', 'closed-app'), name: 'closed-app' },
+    ];
+    const workloadError = (uri: vscode.Uri) => vscode.languages.getDiagnostics(uri).find(d => d.message.includes('no Workload for Component'));
+    const findingKeys = () => vscode.languages.getDiagnostics().flatMap(([uri, diagnostics]) => diagnostics
+      .filter(d => d.source === 'openchoreo-post-render')
+      .map(d => `${uri.toString()}: ${d.message}`)).sort();
+    for (const { active, target, name } of cases) {
+      assert.ok(!vscode.workspace.textDocuments.some(doc => doc.uri.toString() === target.toString()), 'target must start unopened');
+      const doc = await vscode.workspace.openTextDocument(active);
+      await vscode.window.showTextDocument(doc, { preview: false });
+      const result = await vscode.commands.executeCommand<{ files: number }>('openchoreo.validateRendering', active);
+      assert.ok(result && result.files > 0, 'validation did not complete');
+      await until(async () => workloadError(target), 'missing Workload in unopened resource');
+      const expected = findingKeys();
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const diagnostic = workloadError(target)!;
+        // VS Code's Problems navigation opens this same URI and selection.
+        await vscode.commands.executeCommand('vscode.open', target, { preview: true, selection: diagnostic.range });
+        await until(async () => vscode.window.activeTextEditor?.document.uri.toString() === target.toString() ? true : undefined, 'Problems target opened');
+        const editor = vscode.window.activeTextEditor!;
+        const visible = await until(async () => workloadError(target), 'finding retained after open');
+        assert.strictEqual(editor.document.getText(visible.range), name, 'error must underline Component metadata.name');
+        const tab = vscode.window.tabGroups.all.flatMap(group => group.tabs).find(tab => (tab.input as vscode.TabInputText)?.uri?.toString() === target.toString());
+        assert.ok(tab);
+        assert.ok(await vscode.window.tabGroups.close(tab));
+        await until(async () => !vscode.workspace.textDocuments.some(doc => doc.uri.toString() === target.toString()) ? true : undefined, 'preview document closed');
+        await pause(750); // Allow didClose and automatic diagnostic publications to finish.
+        assert.ok(workloadError(target), 'closing a clean preview erased its finding');
+        assert.deepStrictEqual(findingKeys(), expected, 'navigation cleared other validation findings');
+      }
+    }
+  });
   it('reports wrong local and Explorer names and applies scoped quick fixes', async () => {
     const root = vscode.workspace.workspaceFolders![0].uri;
     for (const [uri, name] of [
@@ -101,6 +137,43 @@ async function reveal(doc: vscode.TextDocument, text: string, expected: vscode.U
           await vscode.workspace.applyEdit(restore);
         }
       }
+    }
+  });
+  it('runs the validation play command on unsaved local and Explorer YAML', async () => {
+    const root = vscode.workspace.workspaceFolders![0].uri;
+    for (const uri of [vscode.Uri.joinPath(root, 'component.yaml'), remote('component', 'remote-app')]) {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      await vscode.window.showTextDocument(doc);
+      const original = doc.getText();
+      const edit = new vscode.WorkspaceEdit();
+      edit.insert(uri, doc.positionAt(original.length), '\nbogusValidationMarker: true\n');
+      assert.ok(await vscode.workspace.applyEdit(edit));
+      try {
+        const result = await vscode.commands.executeCommand<{ files: number; errors: number; details?: string[] }>('openchoreo.validateRendering', uri);
+        assert.ok(result && result.files > 0, 'play command did not finish');
+        assert.ok(result.errors > 0, 'unsaved mistake was not validated');
+        assert.ok(result.details?.some(line => line.includes('bogusValidationMarker')), 'validation ignored editor content');
+        await until(async () => vscode.languages.getDiagnostics(uri).some(d => d.message.includes('bogusValidationMarker')) ? true : undefined, 'manual diagnostic in Problems');
+      } finally {
+        const restore = new vscode.WorkspaceEdit();
+        restore.replace(uri, new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length)), original);
+        await vscode.workspace.applyEdit(restore);
+      }
+      await until(async () => !vscode.languages.getDiagnostics(uri).some(d => d.message.includes('bogusValidationMarker')) ? true : undefined, 'manual diagnostic cleared after edit');
+    }
+  });
+  it('validates only the current OpenChoreo project in local and Explorer YAML', async () => {
+    const root = vscode.workspace.workspaceFolders![0].uri;
+    for (const uri of [vscode.Uri.joinPath(root, 'component.yaml'), remote('component', 'remote-app')]) {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      await vscode.window.showTextDocument(doc, { preview: false });
+      const result = await vscode.commands.executeCommand<{ files: number; root: string; details?: string[] }>('openchoreo.validateRendering', uri);
+      assert.ok(result && result.files > 0);
+      assert.ok(result.root.includes('demo'), 'current project is absent from validation scope');
+      assert.ok(!result.details?.some(line => line.includes('other-project-app')), 'unrelated project was validated');
+      await pause(400);
+      const unrelated = uri.scheme === 'file' ? vscode.Uri.joinPath(root, 'other-project.yaml') : remote('component', 'other-project-app');
+      assert.ok(!vscode.languages.getDiagnostics(unrelated).some(d => d.source === 'openchoreo-post-render'), 'manual findings leaked into another project');
     }
   });
   it('drops namespace/context snapshots and repopulates after restart', async () => {

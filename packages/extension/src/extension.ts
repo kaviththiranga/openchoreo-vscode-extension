@@ -46,6 +46,7 @@ import { LogOutputService } from './services/logOutputService';
 import { ServerInfoService } from './services/serverInfoService';
 import { getResourceContextId, resourceContextId, setResourceContextId } from './services/resourceContext';
 import { DefinitionUnderlines } from './services/definitionUnderlines';
+import { RenderingValidationController } from './services/renderValidation';
 import { LanguageServerValidation } from './services/languageServerValidation';
 import { pushResourceNames, pushResourceSchemas } from './services/languageServerFeed';
 import {
@@ -272,6 +273,7 @@ export async function activate(
     clusterExplorer.onDidChangeTreeData(refreshNavigation),
     { dispose: () => { if (refreshTimer) clearTimeout(refreshTimer); } },
   );
+  context.subscriptions.push(new RenderingValidationController(() => languageServer, apiClientManager, authProvider));
   // Startup failures must not interrupt the explorer or authentication UI.
   void languageServer.start();
 
@@ -398,6 +400,18 @@ function createLanguageClient(binary: string, onClosed: () => void, onDiagnostic
   };
   const client = new LanguageClient('openchoreoLanguageServer', 'OpenChoreo Language Server', serverOptions, clientOptions);
   return {
+    executeCommand: async (command, args) => {
+      if (!client.isRunning()) throw new Error('The Language Server stopped. Restart it and retry validation.');
+      if (!client.initializeResult?.capabilities.executeCommandProvider?.commands.includes(command)) {
+        throw new Error('This occ does not support the requested rendering validation. Upgrade occ and restart the Language Server.');
+      }
+      const scoped = args.some(value => !!value && typeof value === 'object' && 'projectName' in value);
+      const capabilities = client.initializeResult?.capabilities.experimental as { projectRenderingValidation?: boolean } | undefined;
+      if (scoped && !capabilities?.projectRenderingValidation) {
+        throw new Error('This occ cannot limit validation to the current project. Upgrade occ and restart the Language Server.');
+      }
+      return client.sendRequest('workspace/executeCommand', { command, arguments: args });
+    },
     hasDefinition: async (uri, position) => {
       if (!client.isRunning()) return false;
       const result = await client.sendRequest<unknown>('textDocument/definition', { textDocument: { uri }, position });

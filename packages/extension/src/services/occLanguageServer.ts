@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { execFile, type ChildProcess } from 'child_process';
+import type { ValidationSummary } from './renderValidation';
 import type { TextValidation } from './languageServerValidation';
 
 export function checkOccLsp(binary: string): Promise<void> {
@@ -26,6 +27,7 @@ export function checkOccLsp(binary: string): Promise<void> {
 }
 
 export interface ManagedLanguageClient {
+  executeCommand?(command: string, args: unknown[]): Promise<ValidationSummary>;
   hasDefinition?(uri: string, position: {line: number; character: number}): Promise<boolean>;
   validate?(text: string): Promise<TextValidation>;
   start(): Promise<void>;
@@ -150,6 +152,19 @@ export class OccLanguageServer {
       const found = await client.hasDefinition(uri, position);
       return found && !this.disposed && !this.stopping && this.client === client && this.generation === generation;
     } catch { return false; }
+  }
+
+  renderingSession(cluster: boolean): { generation: number; current(): boolean; execute(command: string, args: unknown[]): Promise<ValidationSummary> } | undefined {
+    const client = this.client;
+    const generation = this.generation, lifecycle = this.lifecycle;
+    const current = () => !this.disposed && !this.stopping && this.client === client && !!client?.isRunning()
+      && lifecycle === this.lifecycle && (!cluster || generation === this.generation);
+    if (!current() || !client) return;
+    return { generation, current, execute: async (command, args) => {
+      if (!current()) throw new Error('Language server or cluster context changed. Run validation again.');
+      if (!client.executeCommand) throw new Error('This occ does not support rendering validation. Upgrade occ and restart the Language Server.');
+      return client.executeCommand(command, args);
+    } };
   }
 
   async validate(text: string): Promise<TextValidation> {
