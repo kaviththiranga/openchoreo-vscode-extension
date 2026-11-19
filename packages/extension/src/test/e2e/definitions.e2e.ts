@@ -66,6 +66,43 @@ async function reveal(doc: vscode.TextDocument, text: string, expected: vscode.U
       assert.match(vscode.window.activeTextEditor!.document.getText(), new RegExp(`name: ${name}`));
     }
   });
+  it('reports wrong local and Explorer names and applies scoped quick fixes', async () => {
+    const root = vscode.workspace.workspaceFolders![0].uri;
+    for (const [uri, name] of [
+      [vscode.Uri.joinPath(root, 'component.yaml'), 'local-type'],
+      [remote('component', 'remote-app'), 'remote-type'],
+    ] as const) {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      await vscode.window.showTextDocument(doc);
+      const original = doc.getText();
+      const offset = original.indexOf(name);
+      assert.ok(offset >= 0);
+      const range = new vscode.Range(doc.positionAt(offset), doc.positionAt(offset + name.length));
+      const edit = new vscode.WorkspaceEdit();
+      edit.replace(uri, range, `${name}-typo`);
+      assert.ok(await vscode.workspace.applyEdit(edit));
+      try {
+        const diagnostic = await until(async () => vscode.languages.getDiagnostics(uri)
+          .find(d => d.code === 'unresolved-resource-reference' && d.message.includes(`${name}-typo`)), 'invalid reference error');
+        assert.strictEqual(diagnostic.severity, vscode.DiagnosticSeverity.Error);
+        assert.strictEqual(doc.getText(diagnostic.range), `${name}-typo`);
+        const actions = await vscode.commands.executeCommand<vscode.CodeAction[]>(
+          'vscode.executeCodeActionProvider', uri, diagnostic.range, vscode.CodeActionKind.QuickFix.value);
+        const action = actions?.find(a => a.title === `Change to ${name}`);
+        assert.ok(action?.edit, `no scoped fix: ${actions?.map(a => a.title)}`);
+        assert.ok(await vscode.workspace.applyEdit(action.edit));
+        assert.strictEqual(doc.getText(), original);
+        await until(async () => !vscode.languages.getDiagnostics(uri)
+          .some(d => d.code === 'unresolved-resource-reference' && d.message.includes(`${name}-typo`)) ? true : undefined, 'reference error cleared');
+      } finally {
+        if (doc.getText() !== original) {
+          const restore = new vscode.WorkspaceEdit();
+          restore.replace(uri, new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length)), original);
+          await vscode.workspace.applyEdit(restore);
+        }
+      }
+    }
+  });
   it('drops namespace/context snapshots and repopulates after restart', async () => {
     const filename = path.join(process.env.HOME!, '.openchoreo', 'config');
     const config = JSON.parse(fs.readFileSync(filename, 'utf8'));

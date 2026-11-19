@@ -29,7 +29,8 @@ async function listItems(client: Client, spec: KindSpec, ns: string | undefined)
       params: { path: collectionPathParams(spec, ns) },
     } as never);
     if (error) return undefined;
-    return ((data as { items?: Item[] } | undefined)?.items ?? []) as Item[];
+    const items = (data as { items?: unknown } | undefined)?.items;
+    return Array.isArray(items) ? items as Item[] : undefined;
   } catch {
     return undefined;
   }
@@ -95,10 +96,14 @@ export async function pushResourceNames(
     if (current() && langClient.isRunning()) await langClient.sendNotification('openchoreo/updateResources', resources);
     if (navigation?.contextId && current() && langClient.isRunning()) {
       const locations: Array<Record<string, unknown>> = [];
+      const completeKinds: string[] = [];
       for (const [kind, pending] of fetched) {
         const spec = kindSpec(kind);
         if (!spec?.nodeType) continue;
-        for (const item of (await pending) ?? []) {
+        const items = await pending;
+        if (!items) continue;
+        completeKinds.push(kind);
+        for (const item of items) {
           if (!item.metadata?.name) continue;
           const namespace = spec.scope === 'namespace' ? item.metadata.namespace ?? ns : undefined;
           if (spec.scope === 'namespace' && !namespace) continue;
@@ -112,7 +117,7 @@ export async function pushResourceNames(
         }
       }
       if (current() && langClient.isRunning()) {
-        await langClient.sendNotification('openchoreo/updateResourceLocations', { ...navigation, resources: locations });
+        await langClient.sendNotification('openchoreo/updateResourceLocations', { ...navigation, resources: locations, completeKinds });
       }
     }
   } catch {

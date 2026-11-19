@@ -369,6 +369,7 @@ function createLanguageClient(binary: string, onClosed: () => void, onDiagnostic
   const validation = new LanguageServerValidation((method, params) => client.isRunning() ? client.sendNotification(method, params) : Promise.reject(new Error('Language server stopped.')));
   const watcher = vscode.workspace.createFileSystemWatcher('**/*.yaml');
   const clientOptions: LanguageClientOptions = {
+    initializationOptions: { clusterReferenceFeeds: true },
     documentSelector: [
       { scheme: 'file', language: 'yaml' },
       { scheme: 'untitled', language: 'yaml' },
