@@ -1,6 +1,8 @@
 // Copyright 2026 The OpenChoreo Authors
 // SPDX-License-Identifier: Apache-2.0
 
+import { buildResourceUri } from '../filesystem/fileSystemProvider';
+import type { ResourceNodeData } from '../treeView/types';
 import type { ManagedLanguageClient } from './occLanguageServer';
 import type { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
@@ -14,7 +16,7 @@ import {
 import { log } from '../logging/logger';
 
 type Client = NonNullable<Awaited<ReturnType<ApiClientManager['getClient']>>>;
-type Item = { metadata?: { name?: string }; spec?: Record<string, unknown> };
+type Item = { metadata?: { name?: string; namespace?: string }; spec?: Record<string, unknown> };
 
 /**
  * Lists a kind's resources. Resolves to undefined when the list fails
@@ -45,6 +47,7 @@ export async function pushResourceNames(
   apiClientManager: ApiClientManager,
   authProvider: OccConfigAuthProvider,
   current: () => boolean = () => true,
+  navigation?: {contextId: string | null; namespace: string | null; generation: number},
   /** Names declared in the workspace's GitOps repository, by kind. */
   repoNames?: (namespace: string | undefined) => Record<string, string[]>,
 ): Promise<void> {
@@ -53,17 +56,25 @@ export async function pushResourceNames(
     if (!client || !current()) return;
     const ns = authProvider.getContextInfo()?.namespace;
     const resources: Record<string, string[]> = {};
+    const fetched = new Map<string, Promise<Item[] | undefined>>();
+    const itemsFor = (kind: string) => {
+      if (!fetched.has(kind)) {
+        const spec = kindSpec(kind);
+        fetched.set(kind, spec ? listItems(client, spec, ns) : Promise.resolve(undefined));
+      }
+      return fetched.get(kind)!;
+    };
 
     await Promise.allSettled([
       ...REFERENCE_TARGET_KINDS.map(async (kind) => {
         const spec = kindSpec(kind);
-        const items = spec && (await listItems(client, spec, ns));
+        const items = spec && (await itemsFor(kind));
         if (items) resources[kind] = items.map(itemName).filter((n): n is string => !!n);
       }),
       // Releases grouped by component for scoped completions
       (async () => {
         const spec = kindSpec('ComponentRelease');
-        for (const item of (spec && (await listItems(client, spec, ns))) ?? []) {
+        for (const item of (spec && (await itemsFor('ComponentRelease'))) ?? []) {
           const compName = (item.spec?.owner as { componentName?: string } | undefined)?.componentName;
           const relName = itemName(item);
           if (relName && compName) (resources[`ComponentRelease:${compName}`] ??= []).push(relName);
@@ -82,6 +93,28 @@ export async function pushResourceNames(
 
     log.debug(`Pushing resource names to language server: ${Object.entries(resources).map(([k, v]) => `${k}(${v.length})`).join(', ')}`);
     if (current() && langClient.isRunning()) await langClient.sendNotification('openchoreo/updateResources', resources);
+    if (navigation?.contextId && current() && langClient.isRunning()) {
+      const locations: Array<Record<string, unknown>> = [];
+      for (const [kind, pending] of fetched) {
+        const spec = kindSpec(kind);
+        if (!spec?.nodeType) continue;
+        for (const item of (await pending) ?? []) {
+          if (!item.metadata?.name) continue;
+          const namespace = spec.scope === 'namespace' ? item.metadata.namespace ?? ns : undefined;
+          if (spec.scope === 'namespace' && !namespace) continue;
+          const node = { type: spec.nodeType, label: item.metadata.name, resourceName: item.metadata.name, namespace } as ResourceNodeData;
+          locations.push({
+            kind, name: item.metadata.name, namespace,
+            componentName: (item.spec?.owner as { componentName?: string } | undefined)?.componentName,
+            workloadType: typeof item.spec?.workloadType === 'string' ? item.spec.workloadType : undefined,
+            uri: buildResourceUri(node, navigation.contextId).toString(),
+          });
+        }
+      }
+      if (current() && langClient.isRunning()) {
+        await langClient.sendNotification('openchoreo/updateResourceLocations', { ...navigation, resources: locations });
+      }
+    }
   } catch {
     log.debug('Could not refresh cluster resource-name suggestions.');
   }

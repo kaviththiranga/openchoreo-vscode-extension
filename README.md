@@ -108,3 +108,13 @@ The current Go server rejects standard LSP shutdown. The extension attempts grac
 ### Verification
 
 Run `pnpm --filter openchoreo-unofficial test`, `pnpm --filter openchoreo-unofficial lint`, and `pnpm build`. For an interactive check, start **Run Extension** with F5, open OpenChoreo YAML and an explorer resource, check completion/hover/diagnostics, switch namespace, then log out, log in, and restart the language server. Confirm chat YAML validation works and disabling the extension terminates the server.
+
+
+### Resolved resource underlines
+
+Resource references such as `name: deployment/service` are underlined when the current Go language server can resolve their definition. The full value is underlined, including both parts of `deployment/service`. This works for local YAML and Explorer resources. Unresolved references and ordinary names (metadata, containers, parameters, and templates) are left undecorated. Existing hover, diagnostics, and Cmd/Ctrl+Click or F12 navigation remain unchanged.
+
+Underlines refresh after edits, scrolling, indexing diagnostics, cluster-feed changes, and language-server restart. Stale asynchronous results are discarded; checks are limited to visible references with bounded concurrency. This feature uses the existing definition request and requires no separate binary or additional cluster API calls.
+
+
+For a code-oriented architecture walkthrough, Mermaid diagrams, and the new-file inventory, see [How the extension uses occ lsp](OCC_LSP_EXTENSION_GUIDE.md).

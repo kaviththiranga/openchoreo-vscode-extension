@@ -26,6 +26,7 @@ export function checkOccLsp(binary: string): Promise<void> {
 }
 
 export interface ManagedLanguageClient {
+  hasDefinition?(uri: string, position: {line: number; character: number}): Promise<boolean>;
   validate?(text: string): Promise<TextValidation>;
   start(): Promise<void>;
   stop(): Promise<void>;
@@ -38,8 +39,10 @@ interface Dependencies {
   resolveBinary(): string;
   checkBinary(binary: string): Promise<void>;
   createClient(binary: string, closed: () => void): ManagedLanguageClient;
-  refresh(client: ManagedLanguageClient, current: () => boolean): Promise<void>;
+  refresh(client: ManagedLanguageClient, current: () => boolean, generation: number): Promise<void>;
+  navigationContext?(): { contextId: string | null; namespace: string | null };
   report(message: string): void;
+  changed?(): void;
 }
 
 /** One client, serialized process operations, and request-scoped feed generations. */
@@ -67,6 +70,7 @@ export class OccLanguageServer {
   }
 
   restart(): Promise<void> {
+    this.deps.changed?.();
     const lifecycle = ++this.lifecycle;
     ++this.generation;
     return this.enqueue(async () => {
@@ -79,6 +83,7 @@ export class OccLanguageServer {
         const client = this.deps.createClient(binary, () => {
           if (this.disposed || this.stopping || this.client !== client) return;
           ++this.generation;
+          this.deps.changed?.();
           this.deps.report('OpenChoreo language server stopped. Check OpenChoreo Language Server output. Run occ login if authentication failed, then OpenChoreo: Restart Language Server.');
         });
         this.client = client;
@@ -101,30 +106,50 @@ export class OccLanguageServer {
 
   async refresh(): Promise<void> {
     const generation = ++this.generation;
+    this.deps.changed?.();
     const client = this.client;
     const current = () => !this.disposed && !this.stopping && generation === this.generation
       && this.client === client && !!client?.isRunning();
     if (!client || !current()) return;
     try {
+      if (this.deps.navigationContext) {
+        await client.sendNotification('openchoreo/updateResourceLocations', {
+          ...this.deps.navigationContext(), generation, resources: [],
+        });
+        if (!current()) return;
+      }
       await client.sendNotification('openchoreo/updateResources', {});
       if (!current()) return;
       await client.sendNotification('openchoreo/updateResourceSchemas', {});
-      if (current()) await this.deps.refresh(client, current);
+      if (current()) await this.deps.refresh(client, current, generation);
+      if (current()) this.deps.changed?.();
     } catch {
       if (current()) this.deps.report('Could not refresh cluster suggestions. Restart the language server to retry.');
     }
   }
 
   stop(): Promise<void> {
+    this.deps.changed?.();
     ++this.lifecycle;
-    ++this.generation;
+    const generation = ++this.generation;
     return this.enqueue(async () => {
       if (this.client?.isRunning()) {
+        if (this.deps.navigationContext) await this.client.sendNotification('openchoreo/updateResourceLocations', {contextId: null, namespace: null, generation, resources: []}).catch(() => {});
         await this.client.sendNotification('openchoreo/updateResources', {}).catch(() => {});
         await this.client.sendNotification('openchoreo/updateResourceSchemas', {}).catch(() => {});
       }
       await this.stopClient();
     });
+  }
+
+  async hasDefinition(uri: string, position: {line: number; character: number}): Promise<boolean> {
+    const client = this.client;
+    const generation = this.generation;
+    if (this.disposed || this.stopping || !client?.isRunning() || !client.hasDefinition) return false;
+    try {
+      const found = await client.hasDefinition(uri, position);
+      return found && !this.disposed && !this.stopping && this.client === client && this.generation === generation;
+    } catch { return false; }
   }
 
   async validate(text: string): Promise<TextValidation> {

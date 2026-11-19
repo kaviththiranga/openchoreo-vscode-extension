@@ -44,6 +44,8 @@ import { WorkflowRunService } from './services/workflowRunService';
 import { ReleaseBindingService } from './services/releaseBindingService';
 import { LogOutputService } from './services/logOutputService';
 import { ServerInfoService } from './services/serverInfoService';
+import { getResourceContextId, resourceContextId, setResourceContextId } from './services/resourceContext';
+import { DefinitionUnderlines } from './services/definitionUnderlines';
 import { LanguageServerValidation } from './services/languageServerValidation';
 import { pushResourceNames, pushResourceSchemas } from './services/languageServerFeed';
 import {
@@ -67,6 +69,7 @@ export async function activate(
   // Initialize authentication provider (reads occ CLI session)
   const authProvider = new OccConfigAuthProvider(context);
   context.subscriptions.push(authProvider);
+  setResourceContextId(resourceContextId(authProvider.getContextInfo()));
 
   // All spawn-occ call sites resolve the binary through this thunk so a
   // download completing mid-session takes effect on the next invocation.
@@ -224,13 +227,18 @@ export async function activate(
   // Register namespace selector
   registerNamespaceSelector(context, authProvider, apiClientManager);
 
+  const definitionUnderlines = new DefinitionUnderlines((uri, position) => languageServer?.hasDefinition(uri, position) ?? Promise.resolve(false));
+  context.subscriptions.push(definitionUnderlines);
   languageServer = new OccLanguageServer({
+    changed: () => definitionUnderlines.refresh(),
     resolveBinary: resolveOccBinary,
     checkBinary: checkOccLsp,
-    createClient: createLanguageClient,
-    refresh: async (client, current) => {
+    createClient: (binary, closed) => createLanguageClient(binary, closed, () => definitionUnderlines.refresh()),
+    navigationContext: () => ({contextId: getResourceContextId() || null, namespace: authProvider.getContextInfo()?.namespace ?? null}),
+    refresh: async (client, current, generation) => {
+      const navigation = {contextId: getResourceContextId() || null, namespace: authProvider.getContextInfo()?.namespace ?? null, generation};
       await Promise.all([
-        pushResourceNames(client, apiClientManager, authProvider, current, (ns) => repoIndex.namesByKind(ns)),
+        pushResourceNames(client, apiClientManager, authProvider, current, navigation, (ns) => repoIndex.namesByKind(ns)),
         pushResourceSchemas(client, apiClientManager, authProvider, current),
       ]);
     },
@@ -245,12 +253,24 @@ export async function activate(
     { dispose: () => { if (repoPushTimer) clearTimeout(repoPushTimer); } },
     vscode.commands.registerCommand('openchoreo.restartLanguageServer', () => languageServer?.restart()),
     authProvider.onDidChangeSession(() => {
+      setResourceContextId(resourceContextId(authProvider.getContextInfo()));
       if (authProvider.getSession()) {
         void languageServer?.refresh();
       } else {
         void languageServer?.stop().catch(() => log.debug('Could not stop the language server after logout.'));
       }
     }),
+  );
+  let refreshTimer: ReturnType<typeof setTimeout> | undefined;
+  const refreshNavigation = () => {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => { void languageServer?.refresh(); }, 75);
+  };
+  context.subscriptions.push(
+    resourceExplorer.onDidChangeTreeData(refreshNavigation),
+    infrastructureExplorer.onDidChangeTreeData(refreshNavigation),
+    clusterExplorer.onDidChangeTreeData(refreshNavigation),
+    { dispose: () => { if (refreshTimer) clearTimeout(refreshTimer); } },
   );
   // Startup failures must not interrupt the explorer or authentication UI.
   void languageServer.start();
@@ -336,12 +356,14 @@ export async function deactivate(): Promise<void> {
   languageServer = undefined;
 }
 
-function createLanguageClient(binary: string, onClosed: () => void): ManagedLanguageClient {
+function createLanguageClient(binary: string, onClosed: () => void, onDiagnostics: () => void): ManagedLanguageClient {
   let process: ChildProcess | undefined;
+  const definitionDebug = vscode.workspace.getConfiguration('openchoreo').get<boolean>('definitionDebug', false);
+  if (definitionDebug) log.debug(`LSP executable: ${binary}`);
   // The Language Client invokes this factory. Keep the child handle so failed
   // protocol shutdown cannot leave a server behind during restart.
   const serverOptions: ServerOptions = async () => {
-    process = spawn(binary, ['lsp', '--stdio'], { stdio: 'pipe', windowsHide: true });
+    process = spawn(binary, ['lsp', '--stdio', ...(definitionDebug ? ['--log-level', 'debug'] : [])], { stdio: 'pipe', windowsHide: true });
     return process;
   };
   const validation = new LanguageServerValidation((method, params) => client.isRunning() ? client.sendNotification(method, params) : Promise.reject(new Error('Language server stopped.')));
@@ -354,12 +376,18 @@ function createLanguageClient(binary: string, onClosed: () => void): ManagedLang
     ],
     synchronize: { fileEvents: watcher },
     middleware: {
+      provideDefinition: async (document, position, token, next) => {
+        if (definitionDebug) log.debug(`definition request ${document.uri.toString()} scheme=${document.uri.scheme} position=${position.line}:${position.character}`);
+        const result = await next(document, position, token);
+        if (definitionDebug) log.debug(`definition result ${JSON.stringify(result)}`);
+        return result;
+      },
       handleDiagnostics: (uri, diagnostics, next) => {
         const consumed = validation.accept(uri.toString(), diagnostics.map(d => ({
           message: d.message, severity: d.severity + 1,
           range: { start: { line: d.range.start.line, character: d.range.start.character } },
         })));
-        if (!consumed) next(uri, diagnostics);
+        if (!consumed) { next(uri, diagnostics); onDiagnostics(); }
       },
     },
     errorHandler: {
@@ -369,6 +397,11 @@ function createLanguageClient(binary: string, onClosed: () => void): ManagedLang
   };
   const client = new LanguageClient('openchoreoLanguageServer', 'OpenChoreo Language Server', serverOptions, clientOptions);
   return {
+    hasDefinition: async (uri, position) => {
+      if (!client.isRunning()) return false;
+      const result = await client.sendRequest<unknown>('textDocument/definition', { textDocument: { uri }, position });
+      return Array.isArray(result) ? result.length > 0 : !!result && typeof result === 'object' && 'uri' in result;
+    },
     validate: (text) => validation.validate(text),
     start: () => client.start(),
     stop: async () => {

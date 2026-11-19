@@ -601,3 +601,17 @@ The current Go server rejects standard LSP shutdown. The extension attempts grac
 ### Verification
 
 Run `pnpm --filter openchoreo-unofficial test`, `pnpm --filter openchoreo-unofficial lint`, and `pnpm build`. For an interactive check, start **Run Extension** with F5, open OpenChoreo YAML and an explorer resource, check completion/hover/diagnostics, switch namespace, then log out, log in, and restart the language server. Confirm chat YAML validation works and disabling the extension terminates the server.
+
+
+### Go to Definition
+
+Use F12 on a resource reference's `name` value. Local workspace definitions take priority; Explorer references can navigate to unopened cluster ComponentType, Trait, and other supported resources. Context-qualified `openchoreo:` URIs keep cluster identities separate. After upgrading, close old Explorer YAML tabs and reopen them from the Explorer so they receive the new URIs. Tabs from a different context must be reopened before reading or saving.
+
+If navigation fails, enable `openchoreo.definitionDebug` and run **OpenChoreo: Restart Language Server**. The OpenChoreo output logs the executable, source URI and position, and returned locations; the language-server output logs kind/name inference and roots. See the repository's `DEFINITION_NAVIGATION.md` for causes, protocol details, and the isolated `test:definitions` runner.
+
+
+### Resolved resource underlines
+
+Resource references such as `name: deployment/service` are underlined when the current Go language server can resolve their definition. The full value is underlined, including both parts of `deployment/service`. This works for local YAML and Explorer resources. Unresolved references and ordinary names (metadata, containers, parameters, and templates) are left undecorated. Existing hover, diagnostics, and Cmd/Ctrl+Click or F12 navigation remain unchanged.
+
+Underlines refresh after edits, scrolling, indexing diagnostics, cluster-feed changes, and language-server restart. Stale asynchronous results are discarded; checks are limited to visible references with bounded concurrency. This feature uses the existing definition request and requires no separate binary or additional cluster API calls.
