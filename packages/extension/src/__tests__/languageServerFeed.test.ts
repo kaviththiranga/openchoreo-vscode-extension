@@ -31,6 +31,23 @@ describe('cluster completion feeds', () => {
       parameters: expect.objectContaining({ type: 'object' }), environmentConfigs: expect.objectContaining({ type: 'object' }),
     } } }));
   });
+  it('merges GitOps names without inventing cluster navigation targets or completing failed kinds', async () => {
+    const f = fixture();
+    const get = f.api.GET.getMockImplementation()!;
+    f.api.GET.mockImplementation(async path => {
+      if (path.endsWith('/traits')) throw new Error('Forbidden');
+      return get(path);
+    });
+    const repoNames = vi.fn(() => ({ ComponentType: ['service', 'repo-only', 'repo-only'], Trait: ['repo-trait'] }));
+    await pushResourceNames(f.client, f.manager, f.auth, () => true, {contextId: 'ctx', namespace: 'default', generation: 1}, repoNames);
+    expect(repoNames).toHaveBeenCalledWith('default');
+    const names = f.sendNotification.mock.calls.find(([method]) => method === 'openchoreo/updateResources')?.[1] as Record<string, string[]>;
+    expect(names.ComponentType).toEqual(['service', 'repo-only']);
+    expect(names.Trait).toBeUndefined();
+    const locations = f.sendNotification.mock.calls.find(([method]) => method === 'openchoreo/updateResourceLocations')?.[1] as {resources: Array<{name: string}>};
+    expect(locations.resources.some(item => item.name === 'service')).toBe(true);
+    expect(locations.resources.some(item => item.name === 'repo-only' || item.name === 'repo-trait')).toBe(false);
+  });
   it.each([pushResourceNames, pushResourceSchemas])('discards results fetched for an obsolete context', async push => {
     const f = fixture();
     let current = true;

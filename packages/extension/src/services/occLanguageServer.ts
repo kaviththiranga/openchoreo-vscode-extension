@@ -145,6 +145,10 @@ export class OccLanguageServer {
     });
   }
 
+  isRunning(): boolean {
+    return !this.disposed && !this.stopping && !!this.client?.isRunning();
+  }
+
   async hasCELCompletions(uri: string, position: {line: number; character: number}): Promise<boolean> {
     const client = this.client;
     const lifecycle = this.lifecycle;

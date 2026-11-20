@@ -177,6 +177,7 @@ export async function activate(
     resolveNode: (arg) => resolveNode(arg, sidebarProvider),
     resolveBinary: resolveOccBinary,
     onModeChange: () => sidebarProvider.refreshAll(),
+    languageServerActive: () => languageServer?.isRunning() ?? false,
   });
 
   // Register commands

@@ -70,11 +70,13 @@ describe('language-server lifecycle', () => {
   it('coalesces activation and clears feeds after initialization', async () => {
     const f = fixture(), ready = deferred();
     f.checkBinary.mockImplementation(() => ready.promise);
+    expect(f.manager.isRunning()).toBe(false);
     const first = f.manager.start(), second = f.manager.start();
     await Promise.resolve();
     expect(f.refresh).not.toHaveBeenCalled();
     ready.resolve();
     await Promise.all([first, second]);
+    expect(f.manager.isRunning()).toBe(true);
     expect(f.createClient).toHaveBeenCalledTimes(1);
     expect(f.createClient.mock.calls[0][0]).toBe('/custom path/occ');
     expect(f.clients[0].sendNotification).toHaveBeenNthCalledWith(1, 'openchoreo/updateResources', {});

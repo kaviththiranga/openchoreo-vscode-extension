@@ -100,13 +100,16 @@ export function scalarAt(
 
 export function registerDefinitions(
   context: vscode.ExtensionContext,
-  deps: { repoIndex: GitOpsRepoIndex; namespace: () => string | undefined },
+  deps: { repoIndex: GitOpsRepoIndex; namespace: () => string | undefined; enabled?: () => boolean },
 ): void {
   context.subscriptions.push(
     vscode.languages.registerDefinitionProvider(
       [{ language: 'yaml', scheme: 'file' }, { language: 'yaml', scheme: 'untitled' }, { scheme: 'openchoreo' }],
       {
         async provideDefinition(document, position) {
+          // The Go server owns navigation while running. Returning a second
+          // target here would duplicate local results and bypass its context guards.
+          if (deps.enabled?.() === false) return undefined;
           const text = document.getText();
           if (!/^apiVersion:\s*["']?openchoreo\.dev\//m.test(text)) return undefined;
           const offset = document.offsetAt(position);
@@ -126,6 +129,7 @@ export function registerDefinitions(
 
           const namespace = value.metadata?.namespace ?? deps.namespace();
           await deps.repoIndex.whenReady();
+          if (deps.enabled?.() === false) return undefined;
           const origin = new vscode.Range(document.positionAt(hit.range[0]), document.positionAt(hit.range[1]));
           const inRepo = ref.kinds.flatMap((k) => deps.repoIndex.find(k, ref.name, namespace));
           if (inRepo.length) {
