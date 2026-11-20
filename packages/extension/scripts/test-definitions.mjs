@@ -17,6 +17,7 @@ for(const dir of [workspace,path.join(home,'.openchoreo'),path.join(user,'User')
 const resource=(kind,name,ns,spec={})=>({apiVersion:'openchoreo.dev/v1alpha1',kind,metadata:{name,namespace:ns},spec});
 const celSpec = {
  workloadType: 'deployment',
+ allowedTraits: [{kind: 'ClusterTrait', name: 'health-probes'}],
  parameters: {openAPIV3Schema: {type: 'object', properties: {database: {type: 'object', properties: {host: {type: 'string', description: 'Database hostname'}}}}}},
  resources: [{id: 'config', template: {apiVersion: 'v1', kind: 'ConfigMap', metadata: {name: '${metadata}'}, data: {purpose: 'completion test'}}}],
 };
@@ -36,6 +37,10 @@ const server=http.createServer((request,response)=>{
  if(p.includes('.well-known/openid-configuration')) value={issuer:`http://127.0.0.1:${server.address().port}`,authorization_endpoint:`http://127.0.0.1:${server.address().port}/authorize`,token_endpoint:`http://127.0.0.1:${server.address().port}/token`,jwks_uri:`http://127.0.0.1:${server.address().port}/jwks`};
  else if(p.includes('.well-known'))value={openchoreo_security_enabled:false,authorization_servers:[`http://127.0.0.1:${server.address().port}`],openchoreo_clients:[{name:'cli',client_id:'test',scopes:[]}]};
  else if(p==='/api/v1/namespaces')value={items:[{metadata:{name:'default'}},{metadata:{name:'other'}}]};
+ else if(p.startsWith('/api/v1/clustertraits')) {
+  const items=['health-probes','logging'].map(name=>resource('ClusterTrait',name,undefined));
+  const name=p.split('/')[4];value=name?items.find(item=>item.metadata.name===name)??{}:{items};
+ }
  else if(p.startsWith('/api/v1/clustercomponenttypes')) {
   const item=resource('ClusterComponentType','cel-type',undefined,celSpec);
   value=p.split('/')[4]?item:{items:[item]};

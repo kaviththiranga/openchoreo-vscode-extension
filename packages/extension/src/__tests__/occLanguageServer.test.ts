@@ -52,6 +52,21 @@ describe('CLI compatibility', () => {
   });
 });
 describe('language-server lifecycle', () => {
+  it('invalidates reference probes on context refresh, restart and stop', async () => {
+    const f = fixture(), position = {line: 5, character: 12};
+    expect(await f.manager.hasReferenceCompletions('file:///type.yaml', position)).toBe(false);
+    await f.manager.start();
+    f.clients[0].hasReferenceCompletions = async () => true;
+    expect(await f.manager.hasReferenceCompletions('file:///type.yaml', position)).toBe(true);
+    const pending = deferred();
+    f.clients[0].hasReferenceCompletions = async () => {await pending.promise; return true;};
+    const result = f.manager.hasReferenceCompletions('file:///type.yaml', position);
+    await f.manager.refresh(); pending.resolve();
+    expect(await result).toBe(false);
+    await f.manager.restart();
+    expect(await f.manager.hasReferenceCompletions('file:///type.yaml', position)).toBe(false);
+    await f.manager.dispose();
+  });
   it('only accepts CEL completion replies from the current running client', async () => {
     const f = fixture(), position = {line: 1, character: 12};
     expect(await f.manager.hasCELCompletions('file:///type.yaml', position)).toBe(false);

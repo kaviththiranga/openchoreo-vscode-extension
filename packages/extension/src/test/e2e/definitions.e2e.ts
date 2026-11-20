@@ -176,6 +176,44 @@ async function reveal(doc: vscode.TextDocument, text: string, expected: vscode.U
       assert.ok(!vscode.languages.getDiagnostics(unrelated).some(d => d.source === 'openchoreo-post-render'), 'manual findings leaked into another project');
     }
   });
+  it('automatically suggests kind-scoped resource names after colon, space, quotes and partial input', async () => {
+    const root = vscode.workspace.workspaceFolders![0].uri;
+    const uris = [vscode.Uri.joinPath(root, 'cel-type.yaml'), remote('component-type', 'cel-type'), vscode.Uri.from({scheme: 'openchoreo', authority: contextId(), path: '/cluster-component-type/cel-type.yaml'})];
+    for (const uri of uris) {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(doc, {preview: false});
+      const original = doc.getText();
+      const name = original.indexOf('health-probes');
+      assert.ok(name >= 0, 'missing allowedTraits fixture');
+      const lineStart = original.lastIndexOf('\n', name) + 1;
+      const colon = original.indexOf(':', lineStart);
+      const lineEnd = original.indexOf('\n', name) >= 0 ? original.indexOf('\n', name) : original.length;
+      for (const value of [':', ': ', ': "', ': hea']) {
+        try {
+          const reset = new vscode.WorkspaceEdit();
+          reset.replace(uri, new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length)), original.slice(0, colon) + original.slice(lineEnd));
+          await vscode.workspace.applyEdit(reset);
+          const caret = doc.positionAt(colon);
+          editor.selection = new vscode.Selection(caret, caret);
+          await vscode.commands.executeCommand('hideSuggestWidget');
+          await vscode.commands.executeCommand('type', {text: value});
+          // A real automatic widget must be open; no provider request or
+          // triggerSuggest command is issued by this test before acceptance.
+          await pause(800);
+          await vscode.commands.executeCommand('acceptSelectedSuggestion');
+          const quoted = value.includes('"');
+          const expected = original.slice(0, colon) + ': ' + (quoted ? '"health-probes"' : 'health-probes') + original.slice(lineEnd);
+          await pause(200);
+          assert.strictEqual(doc.getText(), expected, `automatic reference insertion (${uri.scheme}, ${value})`);
+        } finally {
+          await vscode.commands.executeCommand('hideSuggestWidget');
+          const restore = new vscode.WorkspaceEdit();
+          restore.replace(uri, new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length)), original);
+          await vscode.workspace.applyEdit(restore);
+        }
+      }
+    }
+  });
   it('automatically suggests CEL members after a dot in local and Explorer YAML', async () => {
     const root = vscode.workspace.workspaceFolders![0].uri;
     for (const uri of [vscode.Uri.joinPath(root, 'cel-type.yaml'), remote('component-type', 'cel-type'), vscode.Uri.from({scheme: 'openchoreo', authority: contextId(), path: '/cluster-component-type/cel-type.yaml'})]) {

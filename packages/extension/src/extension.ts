@@ -45,7 +45,7 @@ import { ReleaseBindingService } from './services/releaseBindingService';
 import { LogOutputService } from './services/logOutputService';
 import { ServerInfoService } from './services/serverInfoService';
 import { getResourceContextId, resourceContextId, setResourceContextId } from './services/resourceContext';
-import { CELSuggestions } from './services/celSuggestions';
+import { AutomaticSuggestions } from './services/celSuggestions';
 import { DefinitionUnderlines } from './services/definitionUnderlines';
 import { RenderingValidationController } from './services/renderValidation';
 import { LanguageServerValidation } from './services/languageServerValidation';
@@ -231,9 +231,13 @@ export async function activate(
   registerNamespaceSelector(context, authProvider, apiClientManager);
 
   const definitionUnderlines = new DefinitionUnderlines((uri, position) => languageServer?.hasDefinition(uri, position) ?? Promise.resolve(false));
-  context.subscriptions.push(definitionUnderlines);
+  const automaticSuggestions = new AutomaticSuggestions(
+    (uri, position) => languageServer?.hasCELCompletions(uri, position) ?? Promise.resolve(false),
+    (uri, position) => languageServer?.hasReferenceCompletions(uri, position) ?? Promise.resolve(false),
+  );
+  context.subscriptions.push(definitionUnderlines, automaticSuggestions);
   languageServer = new OccLanguageServer({
-    changed: () => definitionUnderlines.refresh(),
+    changed: () => { definitionUnderlines.refresh(); automaticSuggestions.invalidate(); },
     resolveBinary: resolveOccBinary,
     checkBinary: checkOccLsp,
     createClient: (binary, closed) => createLanguageClient(binary, closed, () => definitionUnderlines.refresh()),
@@ -276,7 +280,6 @@ export async function activate(
     { dispose: () => { if (refreshTimer) clearTimeout(refreshTimer); } },
   );
   context.subscriptions.push(new RenderingValidationController(() => languageServer, apiClientManager, authProvider));
-  context.subscriptions.push(new CELSuggestions((uri, position) => languageServer?.hasCELCompletions(uri, position) ?? Promise.resolve(false)));
   // Startup failures must not interrupt the explorer or authentication UI.
   void languageServer.start();
 
@@ -403,6 +406,14 @@ function createLanguageClient(binary: string, onClosed: () => void, onDiagnostic
   };
   const client = new LanguageClient('openchoreoLanguageServer', 'OpenChoreo Language Server', serverOptions, clientOptions);
   return {
+    hasReferenceCompletions: async (uri, position) => {
+      if (!client.isRunning()) return false;
+      const result = await client.sendRequest<{items?: Array<{data?: {openchoreoResourceReference?: boolean}}>} | Array<{data?: {openchoreoResourceReference?: boolean}}> | null>('textDocument/completion', {
+        textDocument: {uri}, position, context: {triggerKind: 1},
+      });
+      const items = Array.isArray(result) ? result : result?.items;
+      return !!items?.some(item => item.data?.openchoreoResourceReference === true);
+    },
     hasCELCompletions: async (uri, position) => {
       if (!client.isRunning()) return false;
       const result = await client.sendRequest<{ items?: Array<{ data?: { openchoreoCelMember?: boolean } }> } | Array<{ data?: { openchoreoCelMember?: boolean } }> | null>('textDocument/completion', {
