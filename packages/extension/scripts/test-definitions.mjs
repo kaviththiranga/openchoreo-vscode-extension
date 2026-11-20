@@ -15,6 +15,14 @@ const root=fs.mkdtempSync(path.join(process.platform === 'darwin' ? '/tmp' : os.
 const workspace=path.join(root,'workspace'),home=path.join(root,'home'),user=path.join(root,'user');
 for(const dir of [workspace,path.join(home,'.openchoreo'),path.join(user,'User')])fs.mkdirSync(dir,{recursive:true});
 const resource=(kind,name,ns,spec={})=>({apiVersion:'openchoreo.dev/v1alpha1',kind,metadata:{name,namespace:ns},spec});
+const celSpec = {
+ workloadType: 'deployment',
+ parameters: {openAPIV3Schema: {type: 'object', properties: {database: {type: 'object', properties: {host: {type: 'string', description: 'Database hostname'}}}}}},
+ resources: [{id: 'config', template: {apiVersion: 'v1', kind: 'ConfigMap', metadata: {name: '${metadata}'}, data: {purpose: 'completion test'}}}],
+};
+const celYaml = req('yaml').stringify(resource('ComponentType', 'cel-type', 'default', celSpec));
+// Exercise automatic triggering inside a quoted YAML scalar locally as well.
+fs.writeFileSync(path.join(workspace, 'cel-type.yaml'), celYaml.replace('name: ${metadata}', "name: '${metadata}'"));
 const component=(type)=>`apiVersion: openchoreo.dev/v1alpha1\nkind: Component\nmetadata: {name: app, namespace: default}\nspec:\n  owner: {projectName: demo}\n  componentType:\n    kind: ComponentType\n    name: ${type}\n`;
 fs.writeFileSync(path.join(workspace,'component.yaml'),component('local-type'));
 fs.writeFileSync(path.join(workspace,'closed-component.yaml'),component('local-type').replace('name: app', 'name: backend'));
@@ -28,9 +36,13 @@ const server=http.createServer((request,response)=>{
  if(p.includes('.well-known/openid-configuration')) value={issuer:`http://127.0.0.1:${server.address().port}`,authorization_endpoint:`http://127.0.0.1:${server.address().port}/authorize`,token_endpoint:`http://127.0.0.1:${server.address().port}/token`,jwks_uri:`http://127.0.0.1:${server.address().port}/jwks`};
  else if(p.includes('.well-known'))value={openchoreo_security_enabled:false,authorization_servers:[`http://127.0.0.1:${server.address().port}`],openchoreo_clients:[{name:'cli',client_id:'test',scopes:[]}]};
  else if(p==='/api/v1/namespaces')value={items:[{metadata:{name:'default'}},{metadata:{name:'other'}}]};
+ else if(p.startsWith('/api/v1/clustercomponenttypes')) {
+  const item=resource('ClusterComponentType','cel-type',undefined,celSpec);
+  value=p.split('/')[4]?item:{items:[item]};
+ }
  else if(p.includes('/namespaces/')){
   const parts=p.split('/');const ns=parts[4],collection=parts[5],name=parts[6];
-  const items=collection==='componenttypes'?[resource('ComponentType','remote-type',ns)]:collection==='traits'?[resource('Trait','logging',ns)]:collection==='components'?['remote-app','closed-app','other-project-app'].map(name => resource('Component',name,ns,{owner:{projectName:name === 'other-project-app' ? 'other' : 'demo'},componentType:{kind:'ComponentType',name:'remote-type'},traits:[{kind:'Trait',name:'logging'}]})):[];
+  const items=collection==='componenttypes'?[resource('ComponentType','remote-type',ns),resource('ComponentType','cel-type',ns,celSpec)]:collection==='traits'?[resource('Trait','logging',ns)]:collection==='components'?['remote-app','closed-app','other-project-app'].map(name => resource('Component',name,ns,{owner:{projectName:name === 'other-project-app' ? 'other' : 'demo'},componentType:{kind:'ComponentType',name:'remote-type'},traits:[{kind:'Trait',name:'logging'}]})):[];
   value=name?items.find(i=>i.metadata.name===name)??{}:{items};
  }
  response.setHeader('Content-Type','application/json');response.end(JSON.stringify(value));

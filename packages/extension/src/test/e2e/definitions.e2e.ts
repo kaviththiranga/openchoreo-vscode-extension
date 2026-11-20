@@ -176,6 +176,74 @@ async function reveal(doc: vscode.TextDocument, text: string, expected: vscode.U
       assert.ok(!vscode.languages.getDiagnostics(unrelated).some(d => d.source === 'openchoreo-post-render'), 'manual findings leaked into another project');
     }
   });
+  it('automatically suggests CEL members after a dot in local and Explorer YAML', async () => {
+    const root = vscode.workspace.workspaceFolders![0].uri;
+    for (const uri of [vscode.Uri.joinPath(root, 'cel-type.yaml'), remote('component-type', 'cel-type'), vscode.Uri.from({scheme: 'openchoreo', authority: contextId(), path: '/cluster-component-type/cel-type.yaml'})]) {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(doc, { preview: false });
+      const original = doc.getText();
+      const offset = original.indexOf('${metadata}');
+      assert.ok(offset >= 0, 'missing CEL fixture');
+      for (const pasted of [false, true]) {
+        if (pasted) {
+          const edit = new vscode.WorkspaceEdit();
+          edit.replace(uri, new vscode.Range(doc.positionAt(offset), doc.positionAt(offset + '${metadata}'.length)), '');
+          await vscode.workspace.applyEdit(edit);
+        }
+        const caret = doc.positionAt(offset + (pasted ? 0 : '${metadata'.length));
+        editor.selection = new vscode.Selection(caret, caret);
+        editor.revealRange(new vscode.Range(caret, caret));
+        await vscode.commands.executeCommand('hideSuggestWidget');
+        try {
+          await vscode.commands.executeCommand('type', { text: pasted ? '${metadata.' : '.' });
+          const typedText = doc.getText(); // VS Code may auto-close the pasted brace.
+          // Do not call executeCompletionItemProvider before acceptance: that
+          // would mask a failure of automatic trigger handling in the editor.
+          await pause(1000);
+          await vscode.commands.executeCommand('acceptSelectedSuggestion');
+          const chosen = await until(async () => /\$\{metadata\.([A-Za-z_][A-Za-z0-9_]*)/.exec(doc.getText())?.[1], 'automatic CEL dropdown selection');
+          assert.ok(['componentName', 'componentLineName', 'releaseLineName', 'componentNamespace', 'componentUID', 'dataPlaneName', 'dataPlaneUID', 'environmentName', 'environmentUID', 'labels', 'annotations', 'name', 'namespace', 'projectName', 'projectUID', 'podSelectors'].includes(chosen), `selected an unrelated word: ${chosen}`);
+          assert.strictEqual(doc.getText(), typedText.replace('${metadata.', '${metadata.' + chosen));
+        } finally {
+          await vscode.commands.executeCommand('hideSuggestWidget');
+          const restore = new vscode.WorkspaceEdit();
+          restore.replace(uri, new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length)), original);
+          await vscode.workspace.applyEdit(restore);
+        }
+      }
+    }
+  });
+  it('suggests and inserts CEL configuration functions in local and Explorer YAML', async () => {
+    const root = vscode.workspace.workspaceFolders![0].uri;
+    for (const uri of [vscode.Uri.joinPath(root, 'cel-type.yaml'), vscode.Uri.from({scheme: 'openchoreo', authority: contextId(), path: '/cluster-component-type/cel-type.yaml'})]) {
+      const doc = await vscode.workspace.openTextDocument(uri);
+      const editor = await vscode.window.showTextDocument(doc, {preview: false});
+      const original = doc.getText();
+      const offset = original.indexOf('${metadata}');
+      assert.ok(offset >= 0, 'missing CEL fixture');
+      try {
+        const edit = new vscode.WorkspaceEdit();
+        edit.replace(uri, new vscode.Range(doc.positionAt(offset), doc.positionAt(offset + '${metadata}'.length)), '${configurations}');
+        await vscode.workspace.applyEdit(edit);
+        const caret = doc.positionAt(offset + '${configurations'.length);
+        editor.selection = new vscode.Selection(caret, caret);
+        await vscode.commands.executeCommand('hideSuggestWidget');
+        await vscode.commands.executeCommand('type', {text: '.'});
+        await pause(500);
+        await vscode.commands.executeCommand('type', {text: 'toVo'});
+        await pause(500);
+        // Accept through the real widget, without a manual completion request.
+        await vscode.commands.executeCommand('acceptSelectedSuggestion');
+        await until(async () => doc.getText().includes('${configurations.toVolumes()}') ? true : undefined, 'configuration function dropdown insertion');
+        assert.strictEqual(doc.getText(), original.replace('${metadata}', '${configurations.toVolumes()}'));
+      } finally {
+        await vscode.commands.executeCommand('hideSuggestWidget');
+        const restore = new vscode.WorkspaceEdit();
+        restore.replace(uri, new vscode.Range(doc.positionAt(0), doc.positionAt(doc.getText().length)), original);
+        await vscode.workspace.applyEdit(restore);
+      }
+    }
+  });
   it('drops namespace/context snapshots and repopulates after restart', async () => {
     const filename = path.join(process.env.HOME!, '.openchoreo', 'config');
     const config = JSON.parse(fs.readFileSync(filename, 'utf8'));

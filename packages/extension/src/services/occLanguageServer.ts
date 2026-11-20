@@ -27,6 +27,7 @@ export function checkOccLsp(binary: string): Promise<void> {
 }
 
 export interface ManagedLanguageClient {
+  hasCELCompletions?(uri: string, position: {line: number; character: number}): Promise<boolean>;
   executeCommand?(command: string, args: unknown[]): Promise<ValidationSummary>;
   hasDefinition?(uri: string, position: {line: number; character: number}): Promise<boolean>;
   validate?(text: string): Promise<TextValidation>;
@@ -142,6 +143,16 @@ export class OccLanguageServer {
       }
       await this.stopClient();
     });
+  }
+
+  async hasCELCompletions(uri: string, position: {line: number; character: number}): Promise<boolean> {
+    const client = this.client;
+    const lifecycle = this.lifecycle;
+    if (this.disposed || this.stopping || !client?.isRunning() || !client.hasCELCompletions) return false;
+    try {
+      const result = await client.hasCELCompletions(uri, position);
+      return result && !this.disposed && !this.stopping && client === this.client && client.isRunning() && lifecycle === this.lifecycle;
+    } catch { return false; }
   }
 
   async hasDefinition(uri: string, position: {line: number; character: number}): Promise<boolean> {

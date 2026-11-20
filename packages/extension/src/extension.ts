@@ -45,6 +45,7 @@ import { ReleaseBindingService } from './services/releaseBindingService';
 import { LogOutputService } from './services/logOutputService';
 import { ServerInfoService } from './services/serverInfoService';
 import { getResourceContextId, resourceContextId, setResourceContextId } from './services/resourceContext';
+import { CELSuggestions } from './services/celSuggestions';
 import { DefinitionUnderlines } from './services/definitionUnderlines';
 import { RenderingValidationController } from './services/renderValidation';
 import { LanguageServerValidation } from './services/languageServerValidation';
@@ -274,6 +275,7 @@ export async function activate(
     { dispose: () => { if (refreshTimer) clearTimeout(refreshTimer); } },
   );
   context.subscriptions.push(new RenderingValidationController(() => languageServer, apiClientManager, authProvider));
+  context.subscriptions.push(new CELSuggestions((uri, position) => languageServer?.hasCELCompletions(uri, position) ?? Promise.resolve(false)));
   // Startup failures must not interrupt the explorer or authentication UI.
   void languageServer.start();
 
@@ -361,7 +363,7 @@ export async function deactivate(): Promise<void> {
 function createLanguageClient(binary: string, onClosed: () => void, onDiagnostics: () => void): ManagedLanguageClient {
   let process: ChildProcess | undefined;
   const definitionDebug = vscode.workspace.getConfiguration('openchoreo').get<boolean>('definitionDebug', false);
-  if (definitionDebug) log.debug(`LSP executable: ${binary}`);
+  log.info(`Language server executable: ${binary}`);
   // The Language Client invokes this factory. Keep the child handle so failed
   // protocol shutdown cannot leave a server behind during restart.
   const serverOptions: ServerOptions = async () => {
@@ -400,6 +402,14 @@ function createLanguageClient(binary: string, onClosed: () => void, onDiagnostic
   };
   const client = new LanguageClient('openchoreoLanguageServer', 'OpenChoreo Language Server', serverOptions, clientOptions);
   return {
+    hasCELCompletions: async (uri, position) => {
+      if (!client.isRunning()) return false;
+      const result = await client.sendRequest<{ items?: Array<{ data?: { openchoreoCelMember?: boolean } }> } | Array<{ data?: { openchoreoCelMember?: boolean } }> | null>('textDocument/completion', {
+        textDocument: { uri }, position, context: { triggerKind: 2, triggerCharacter: '.' },
+      });
+      const items = Array.isArray(result) ? result : result?.items;
+      return !!items?.some(item => item.data?.openchoreoCelMember === true);
+    },
     executeCommand: async (command, args) => {
       if (!client.isRunning()) throw new Error('The Language Server stopped. Restart it and retry validation.');
       if (!client.initializeResult?.capabilities.executeCommandProvider?.commands.includes(command)) {
@@ -418,7 +428,14 @@ function createLanguageClient(binary: string, onClosed: () => void, onDiagnostic
       return Array.isArray(result) ? result.length > 0 : !!result && typeof result === 'object' && 'uri' in result;
     },
     validate: (text) => validation.validate(text),
-    start: () => client.start(),
+    start: async () => {
+      await client.start();
+      const capabilities = client.initializeResult?.capabilities.experimental as { celMemberCompletion?: boolean } | undefined;
+      if (!capabilities?.celMemberCompletion) {
+        log.info('The running occ does not advertise CEL member completion. Verify openchoreo.cliPath and restart the Language Server.');
+        void vscode.window.showWarningMessage('The running occ does not advertise CEL member suggestions. Set openchoreo.cliPath to the rebuilt occ, then run OpenChoreo: Restart Language Server.');
+      }
+    },
     stop: async () => {
       try { await client.stop(); }
       catch { log.debug('Graceful LSP shutdown failed; terminating its child process.'); }
