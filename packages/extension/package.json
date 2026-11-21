@@ -787,7 +787,7 @@
         },
         "openchoreo.cliPath": {
           "type": "string",
-          "default": "/Users/rukshanrwso2.com/WSO2_Projects/project_681/OpenChoreoLSP-MCPToolkit/occ_with_linter/openchoreo/bin/occ",
+          "default": "",
           "description": "Path to the occ CLI binary. When set, overrides both the extension-managed download and the system PATH lookup. Useful for pointing at a custom build."
         },
         "openchoreo.autoRefresh": {

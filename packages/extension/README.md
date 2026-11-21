@@ -582,13 +582,9 @@ Apache-2.0
 
 This build starts the unified `occ lsp --stdio` through the VS Code Language Client. The original Node language-server source is retained, but it is not launched or packaged. No CLI or LSP executable is bundled.
 
-Set `openchoreo.cliPath` to the unified executable and run `occ login` in the extension host environment. This development build temporarily defaults to:
+Open **Preferences: Open User Settings (JSON)** and set `openchoreo.cliPath` to the absolute path of your compatible unified `occ` executable. If using the temporary macOS Apple Silicon test binary, give its absolute path at `temporary/darwin-arm64/occ` within your repository checkout. Run `occ login` using the selected executable in the extension host environment.
 
-```text
-/Users/rukshanrwso2.com/WSO2_Projects/project_681/OpenChoreoLSP-MCPToolkit/occ_with_linter/openchoreo/bin/occ
-```
-
-An explicit setting takes priority. Clear the temporary machine-specific default before distributing the extension. With an empty setting, existing behavior is preserved: an available managed CLI is preferred over PATH. Older managed releases may support login without supporting `lsp`; configure a unified build explicitly in that case.
+An explicit setting takes priority over the extension-managed CLI and PATH discovery. With an empty setting, an available managed CLI is preferred over PATH. Older managed releases may support login without supporting `lsp`; configure a compatible unified build explicitly in that case. Any machine-specific manifest default must be cleared before distributing the extension.
 
 Use **OpenChoreo: Restart Language Server** after authentication or executable changes. Startup does not initiate login or download automatically, and failures do not trigger restart loops. Existing user-invoked Login and download actions remain available. Inspect **Output → OpenChoreo Language Server** for CLI stderr and startup details.
 

@@ -7,3 +7,7 @@ out/
 *.tsbuildinfo
 demo-output/
 packages/extension/skills/
+
+# Isolated editor-test logs and companion CLI source
+packages/extension/test-results/
+.ci/occ-source/

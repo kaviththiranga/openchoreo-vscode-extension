@@ -35,3 +35,4 @@ node_modules/**
 language-server/**
 bin/**
 schemas/**
+test-results/**
