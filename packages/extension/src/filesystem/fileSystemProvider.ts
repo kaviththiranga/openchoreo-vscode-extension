@@ -10,6 +10,7 @@ import { crdToYaml } from '../services/yamlService';
 import { kindSpecForNode } from '../kinds/registry';
 import { buildPutRequest, buildPostRequest, fetchResource } from '../services/apiRoutes';
 import { log } from '../logging/logger';
+import { getResourceContextId } from '../services/resourceContext';
 
 export const FS_SCHEME = 'openchoreo';
 
@@ -43,7 +44,7 @@ interface ResourceUri {
  *   openchoreo:/{type}/{name}.yaml                          (cluster-scoped)
  *   ?readonly appended for non-editable resources
  */
-export function buildResourceUri(node: ResourceNodeData): vscode.Uri {
+export function buildResourceUri(node: ResourceNodeData, contextId = getResourceContextId()): vscode.Uri {
   const resourceService = new ResourceService();
   const isCluster = resourceService.isClusterScoped(node.type);
   const isDeleting = node.description?.includes('(deleting)') ?? false;
@@ -57,6 +58,7 @@ export function buildResourceUri(node: ResourceNodeData): vscode.Uri {
 
   return vscode.Uri.from({
     scheme: FS_SCHEME,
+    authority: contextId,
     path,
     query,
   });
@@ -137,12 +139,19 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
     this.pendingContent.set(uri.toString(), new TextEncoder().encode(content));
   }
 
+  private assertContext(uri: vscode.Uri): void {
+    if (uri.authority && uri.authority !== getResourceContextId()) {
+      throw vscode.FileSystemError.Unavailable('This document belongs to another OpenChoreo context. Reopen it from the active Explorer.');
+    }
+  }
+
   watch(): vscode.Disposable {
     // No-op: we don't poll for remote changes.
     return new vscode.Disposable(() => {});
   }
 
   stat(uri: vscode.Uri): vscode.FileStat {
+    this.assertContext(uri);
     const parsed = parseResourceUri(uri);
 
     const stat: vscode.FileStat = {
@@ -160,6 +169,7 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
   }
 
   async readFile(uri: vscode.Uri): Promise<Uint8Array> {
+    this.assertContext(uri);
     // Return pending scaffold content for new resources
     const pending = this.pendingContent.get(uri.toString());
     if (pending) {
@@ -171,6 +181,7 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
 
     try {
       const client = await this.apiClientManager.getClient();
+      this.assertContext(uri);
       if (!client) {
         throw vscode.FileSystemError.Unavailable('Not authenticated. Run "occ login" first.');
       }
@@ -210,6 +221,7 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
     content: Uint8Array,
     _options: { create: boolean; overwrite: boolean },
   ): Promise<void> {
+    this.assertContext(uri);
     const parsed = parseResourceUri(uri);
 
     if (parsed.readonly) {
@@ -247,6 +259,7 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
     }
 
     const client = await this.apiClientManager.getClient();
+    this.assertContext(uri);
     if (!client) {
       throw vscode.FileSystemError.Unavailable('Not authenticated. Run "occ login" first.');
     }
@@ -334,6 +347,7 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
         : `/${parsedUri.type}/${name}.yaml`;
       const correctUri = vscode.Uri.from({
         scheme: FS_SCHEME,
+        authority: uri.authority,
         path: correctPath,
         query: uri.query,
       });

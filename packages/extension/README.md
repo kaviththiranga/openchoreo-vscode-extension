@@ -576,3 +576,38 @@ The extension reads the control plane version from `/version` when it connects.
 ## License
 
 Apache-2.0
+
+
+## Unified CLI language server
+
+This build starts the unified `occ lsp --stdio` through the VS Code Language Client. The original Node language-server source is retained, but it is not launched or packaged. No CLI or LSP executable is bundled.
+
+Open **Preferences: Open User Settings (JSON)** and set `openchoreo.cliPath` to the absolute path of your compatible unified `occ` executable. If using the temporary macOS Apple Silicon test binary, give its absolute path at `temporary/darwin-arm64/occ` within your repository checkout. Run `occ login` using the selected executable in the extension host environment.
+
+An explicit setting takes priority over the extension-managed CLI and PATH discovery. With an empty setting, an available managed CLI is preferred over PATH. Older managed releases may support login without supporting `lsp`; configure a compatible unified build explicitly in that case. Any machine-specific manifest default must be cleared before distributing the extension.
+
+Use **OpenChoreo: Restart Language Server** after authentication or executable changes. Startup does not initiate login or download automatically, and failures do not trigger restart loops. Existing user-invoked Login and download actions remain available. Inspect **Output → OpenChoreo Language Server** for CLI stderr and startup details.
+
+For remote VS Code sessions, install and authenticate `occ` remotely. The CLI uses its default `~/.openchoreo/config`; the extension's `openchoreo.configPath` override does not redirect CLI authentication.
+
+Cluster names and schemas are sent only after initialization. Both snapshots are cleared before refresh and on logout; late results from an obsolete context or client are discarded. Slow cluster API requests cannot block shutdown. The chat YAML validation tool uses temporary LSP documents and consumes their diagnostics, rather than calling the original Node server's private validation request.
+
+The current Go server rejects standard LSP shutdown. The extension attempts graceful shutdown, then awaits child-process termination before starting another server. Its Go implementation is unchanged by this integration.
+
+### Verification
+
+Run `pnpm --filter openchoreo-unofficial test`, `pnpm --filter openchoreo-unofficial lint`, and `pnpm build`. For an interactive check, start **Run Extension** with F5, open OpenChoreo YAML and an explorer resource, check completion/hover/diagnostics, switch namespace, then log out, log in, and restart the language server. Confirm chat YAML validation works and disabling the extension terminates the server.
+
+
+### Go to Definition
+
+Use F12 on a resource reference's `name` value. Local workspace definitions take priority; Explorer references can navigate to unopened cluster ComponentType, Trait, and other supported resources. Context-qualified `openchoreo:` URIs keep cluster identities separate. After upgrading, close old Explorer YAML tabs and reopen them from the Explorer so they receive the new URIs. Tabs from a different context must be reopened before reading or saving.
+
+If navigation fails, enable `openchoreo.definitionDebug` and run **OpenChoreo: Restart Language Server**. The OpenChoreo output logs the executable, source URI and position, and returned locations; the language-server output logs kind/name inference and roots. See the repository's `DEFINITION_NAVIGATION.md` for causes, protocol details, and the isolated `test:definitions` runner.
+
+
+### Resolved resource underlines
+
+Resource references such as `name: deployment/service` are underlined when the current Go language server can resolve their definition. The full value is underlined, including both parts of `deployment/service`. This works for local YAML and Explorer resources. Unresolved references and ordinary names (metadata, containers, parameters, and templates) are left undecorated. Existing hover, diagnostics, and Cmd/Ctrl+Click or F12 navigation remain unchanged.
+
+Underlines refresh after edits, scrolling, indexing diagnostics, cluster-feed changes, and language-server restart. Stale asynchronous results are discarded; checks are limited to visible references with bounded concurrency. This feature uses the existing definition request and requires no separate binary or additional cluster API calls.

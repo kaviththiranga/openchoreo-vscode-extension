@@ -189,6 +189,12 @@
     },
     "commands": [
       {
+        "command": "openchoreo.validateRendering",
+        "title": "Run Pre/Post-Render Validation",
+        "category": "OpenChoreo",
+        "icon": "$(play)"
+      },
+      {
         "command": "openchoreo.refreshResources",
         "title": "Refresh Resources",
         "category": "OpenChoreo",
@@ -494,10 +500,20 @@
         "title": "Promote in Repository…",
         "category": "OpenChoreo",
         "icon": "$(arrow-up)"
+      },
+      {
+        "command": "openchoreo.restartLanguageServer",
+        "title": "Restart Language Server",
+        "category": "OpenChoreo"
       }
     ],
     "menus": {
       "editor/title": [
+        {
+          "command": "openchoreo.validateRendering",
+          "when": "openchoreo.canValidateRendering",
+          "group": "navigation@10"
+        },
         {
           "command": "openchoreo.compareWithCluster",
           "when": "openchoreo.gitopsRepository && resourceScheme == file && resourceLangId == yaml",
@@ -521,6 +537,7 @@
           "group": "navigation@3"
         }
       ],
+
       "webview/context": [
         {
           "command": "openchoreo.createComponent",
@@ -858,6 +875,11 @@
           "type": "boolean",
           "default": false,
           "markdownDescription": "Keep the `occ remote` tunnels a debug session opened after it ends, so the next session starts faster. Close them from the status bar."
+        },
+        "openchoreo.definitionDebug": {
+          "type": "boolean",
+          "default": false,
+          "description": "Log definition requests, resolved executable, and Go resolver details. Restart the language server after changing this setting."
         }
       }
     },
@@ -987,9 +1009,10 @@
     "demo:capture": "node scripts/capture-demo.mjs",
     "generate:icons": "fantasticon && node scripts/update-icon-font.mjs",
     "clean": "rm -rf dist out",
-    "prepackage": "node scripts/sync-skills.mjs --required && cp -r ../../schemas ./schemas && mkdir -p ./language-server/dist && cp ../language-server/dist/server.js ./language-server/dist/server.js && mkdir -p ./webview-ui/dist && cp ../webview-ui/dist/* ./webview-ui/dist/",
+    "prepackage": "node scripts/sync-skills.mjs --required && mkdir -p ./webview-ui/dist && cp ../webview-ui/dist/* ./webview-ui/dist/",
     "package": "pnpm build && vsce package --no-dependencies --allow-missing-repository --skip-license",
-    "postpackage": "rm -rf ./schemas ./language-server ./webview-ui"
+    "postpackage": "rm -rf ./webview-ui",
+    "test:definitions": "node scripts/test-definitions.mjs"
   },
   "dependencies": {
     "@openchoreo/openchoreo-client-node": "^1.3.3",
