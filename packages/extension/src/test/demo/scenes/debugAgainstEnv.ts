@@ -29,7 +29,7 @@ export const debugAgainstEnv: Scene = {
     await demo.page.locator('.repl').getByText('Environment from OpenChoreo').first().waitFor({ timeout: 90_000 });
     await demo.pause(1500);
     await demo.screenshot('debug-console');
-    await demo.page.locator('[id="openchoreo.tunnels"]').first().waitFor({ timeout: 10_000 }).catch(() => undefined);
+    await demo.page.locator('[id$="openchoreo.tunnels"]').first().waitFor({ timeout: 10_000 }).catch(() => undefined);
     await demo.pause(1500);
   },
 };

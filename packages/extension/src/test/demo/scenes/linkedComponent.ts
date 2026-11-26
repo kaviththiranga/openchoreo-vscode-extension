@@ -15,7 +15,7 @@ export const linkedComponent: Scene = {
   requires: ['cluster'],
   async run(demo) {
     await demo.caption('Open your code: the extension knows which component it builds');
-    await demo.page.locator('[id="openchoreo.linkedComponent"]').first().waitFor({ timeout: 30_000 });
+    await demo.page.locator('[id$="openchoreo.linkedComponent"]').first().waitFor({ timeout: 30_000 });
     await demo.pause(1200);
     await demo.screenshot('status-bar');
     await demo.command('OpenChoreo: Linked Component Actions');

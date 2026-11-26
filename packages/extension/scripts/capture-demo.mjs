@@ -90,6 +90,8 @@ if (!env.DEMO_USER_DATA_DIR) {
     'editor.fontSize': 15,
     'editor.minimap.enabled': false,
     'window.commandCenter': false,
+    // Native dialogs don't render under headless Ozone (and aren't in the recording).
+    'window.dialogStyle': 'custom',
     'update.mode': 'none',
     'telemetry.telemetryLevel': 'off',
     ...(fs.existsSync(occConfig) ? { 'openchoreo.configPath': occConfig } : {}),

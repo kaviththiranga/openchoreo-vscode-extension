@@ -16,6 +16,7 @@ import { fixWithCopilot } from './scenes/fixWithCopilot';
 import { debugAgainstEnv } from './scenes/debugAgainstEnv';
 import { gitopsAuthoring } from './scenes/gitopsAuthoring';
 import { gitopsCompare } from './scenes/gitopsCompare';
+import { gitopsLive } from './scenes/gitopsLive';
 import { linkedComponent } from './scenes/linkedComponent';
 import { manual } from './scenes/manual';
 import { otherAgents } from './scenes/otherAgents';
@@ -30,6 +31,7 @@ export const SCENES: Scene[] = [
   otherAgents,
   gitopsCompare,
   gitopsAuthoring,
+  gitopsLive,
   linkedComponent,
   debugAgainstEnv,
   chatTools,
