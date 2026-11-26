@@ -27,6 +27,7 @@ export const debugAgainstEnv: Scene = {
     }
     // The program's output in the Debug Console, not the same words in app.js.
     await demo.page.locator('.repl').getByText('Environment from OpenChoreo').first().waitFor({ timeout: 90_000 });
+    await demo.command('View: Toggle Maximized Panel');
     await demo.pause(1500);
     await demo.screenshot('debug-console');
     await demo.page.locator('[id$="openchoreo.tunnels"]').first().waitFor({ timeout: 10_000 }).catch(() => undefined);

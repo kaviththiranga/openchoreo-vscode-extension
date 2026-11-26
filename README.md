@@ -52,6 +52,11 @@ cd packages/extension && pnpm package
 
 Add a scene for every user-visible feature: write it in `scenes/`, then list it in `src/test/demo/index.ts`.
 
+The screenshots in the extension README live in `docs/images/` (1600 px wide, outside the VSIX) and are linked by absolute `raw.githubusercontent.com` URLs so the Marketplace shows them too. They come from these scenes, recorded with `DEMO_VSIX`:
+
+- `gitops-live` and `gitops-compare` need a cluster whose Flux syncs a sample-gitops clone, and an occ context on that namespace: `DEMO_WITH=cluster,gitops-workspace DEMO_WORKSPACE=<clone> OCC_CONFIG=<config> DEMO_SCENES=gitops-live`. Give the clone a local git `user.name` and `user.email`: the demo VS Code runs with an empty home, so commits fail otherwise.
+- `linked-component` runs in a clone of a component's source repository.
+
 ### Agent skills
 
 `packages/extension/skills/` is not in git: `scripts/sync-skills.mjs` mirrors [openchoreo/skills](https://github.com/openchoreo/skills) there on every build, at the commit pinned by `openchoreoSkills.ref` in `packages/extension/package.json`. The build fails if upstream adds or removes a skill without a matching `contributes.chatSkills` entry. The weekly *Update OpenChoreo skills* workflow pins the latest upstream commit and opens a pull request; to do it by hand, run `node scripts/sync-skills.mjs --ref <sha>` in `packages/extension`.

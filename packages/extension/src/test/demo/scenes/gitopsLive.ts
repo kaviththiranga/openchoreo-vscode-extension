@@ -81,9 +81,6 @@ export const gitopsLive: Scene = {
     await page.getByText(/ready to commit/).first().waitFor({ timeout: 30_000 });
     await demo.pause(1500);
     await demo.screenshot('changed-in-repository');
-    // Drop the unsaved cluster copy.
-    await page.locator('.tab', { hasText: 'greeter.yaml' }).first().click();
-    await demo.command('File: Revert File');
     await demo.command('View: Close All Editors');
     await demo.pause(800);
 

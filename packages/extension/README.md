@@ -183,6 +183,8 @@ Open the source of a component and the extension finds which OpenChoreo componen
 
 A status bar item with a link icon and the component name appears (the component the active file belongs to comes first). Click it to open the Component YAML, build the commit you're on, view runtime logs, open a shell, run its workload locally, or open the repository. Components without a build workflow (external CI or prebuilt images) have no repository to match.
 
+![Linked component actions for greeter, opened from the status bar in a clone of its repository](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/linked-component-actions.png)
+
 - **Clone Source** — right-click a Component with a build workflow to clone its repository at the branch it builds from; the clone opens with the app folder revealed
 - **Build This Commit** — builds the commit checked out in a linked folder by setting the workflow's commit parameter (offers to push it first if the remote doesn't have it)
 - **Follow the build after a push** — push a linked component's branch and, if the component has auto-build, the status bar follows the build started for that commit; failures offer the logs and **Troubleshoot with Copilot**. Without auto-build you're offered a build of the pushed commit. Turn off with `openchoreo.builds.followAfterPush`
@@ -193,12 +195,24 @@ If you manage OpenChoreo resources from a Git repository synced by Flux, Argo CD
 
 - **Compare with Cluster** — right-click an OpenChoreo YAML file (or use the editor title button in a GitOps repository) to diff it with what the cluster runs. The cluster side leaves out status and server-set metadata and follows the file's key order, so only real differences show. The resource at the cursor is compared in multi-document files
 - **Compare with Repository** — right-click a resource in the sidebar to diff it with the file that declares it
-- **GitOps-managed resources** — resources that carry Flux (`kustomize.toolkit.fluxcd.io/*`, `helm.toolkit.fluxcd.io/*`) or Argo CD (`argocd.argoproj.io/*`) markers get a merge badge in the sidebar. Saving, applying, promoting, deploying or deleting one through the API asks first, because the next sync reverts the change. **Change in Repository** makes the change in the GitOps repository instead: it edits the document that declares the resource, keeping its comments and layout, or creates a file next to related resources, and leaves the edit unsaved for you to review and commit
+- **GitOps-managed resources** — resources that carry Flux (`kustomize.toolkit.fluxcd.io/*`, `helm.toolkit.fluxcd.io/*`) or Argo CD (`argocd.argoproj.io/*`) markers get a merge badge in the sidebar. Saving, applying, promoting, deploying or deleting one through the API asks first, because the next sync reverts the change. **Change in Repository** makes the change in the GitOps repository instead: it edits the document that declares the resource, keeping its comments and layout, or creates a file next to related resources, and saves it for you to review and commit (a file with unsaved edits of yours is left unsaved). The sidebar copy then shows the cluster again, which changes once the repository syncs
 - Set `openchoreo.gitops.mode` to `all` when manifests are applied without such markers (by CI, for example), and turn off `openchoreo.gitops.allowDirectChanges` to allow changes only through the repository
+
+![Compare with Cluster: only the real difference shows, without status or server defaults](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/gitops-compare.png)
+
+![Resources synced by Flux carry a merge badge in the sidebar](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/gitops-badges.png)
+
+![Saving a Flux-managed Component asks first and offers Change in Repository](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/gitops-save-guard.png)
+
+![Change in Repository edits the declaring file in the GitOps repository, keeping its layout](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/gitops-change-in-repository.png)
 
 - **OpenChoreo GitOps view** (in the Explorer) — every resource the repository declares, by namespace and kind, marked as matching the cluster, differing, or not on the cluster yet, plus resources of the same kinds that exist only on the cluster. **Check Sync with Cluster** re-checks; the inline button compares one resource
 - **Generate Releases in Repository…** and **Promote in Repository…** — run `occ componentrelease generate` / `occ releasebinding generate` in file-system mode for all components, a project or one component, write the ComponentReleases or ReleaseBindings into the repository, then **Commit on a New Branch** and **Push and Open Pull Request** (through the GitHub Pull Requests extension when installed, else the host's compare page). Promotion takes each component's release from the previous environment in the pipeline, as the OpenChoreo bulk-promote workflow does
 - **Go to Definition** on references — a Component's `componentType`, `traits` and `workflow`, `owner.projectName`/`componentName`, a binding's `environment` and `releaseName`, a Project's `deploymentPipelineRef` and type, pipeline environments, and plane references jump to the file that declares the target, or open it from the cluster. Reference validation also accepts resources declared in the repository that aren't synced yet
+
+![The OpenChoreo GitOps view: each declared resource and whether it matches the cluster](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/gitops-sync-view.png)
+
+![Promote in Repository wrote the staging ReleaseBinding with occ; it is not on the cluster yet and the edited Component is out of sync](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/gitops-promote.png)
 
 A workspace folder counts as a GitOps repository when it declares OpenChoreo resources other than an app's own `workload.yaml` and `.openchoreo/` files.
 
@@ -441,6 +455,8 @@ View diagnostic information in **Output > OpenChoreo**:
 | `openchoreo.localDev.keepTunnelsOpen` | `false` | Keep a debug session's `occ remote` tunnels open after it ends |
 | `openchoreo.gitops.mode` | `detect` | Which resources are GitOps-managed: those with Flux or Argo CD markers (`detect`), every resource (`all`), or none (`off`) |
 | `openchoreo.gitops.allowDirectChanges` | `true` | Offer **Continue Anyway** when changing a GitOps-managed resource through the API |
+| `openchoreo.languageServer` | `auto` | `occ lsp` when the installed occ has it, else the bundled server (`auto`); always one of them (`occ`, `bundled`) |
+| `openchoreo.definitionDebug` | `false` | Log Go to Definition requests and results (occ lsp); restart the language server after changing it |
 
 ## Supported Resource Types
 
@@ -498,6 +514,8 @@ AuthzRole, AuthzRoleBinding (in Namespace Resources), ClusterAuthzRole, ClusterA
 | `OpenChoreo: Generate Releases in Repository…` | Generate ComponentReleases into the GitOps repository with occ (file-system mode) |
 | `OpenChoreo: Promote in Repository…` | Generate ReleaseBindings for an environment into the GitOps repository with occ |
 | `OpenChoreo: Linked Component Actions…` | Actions for the components built from the open folder (status bar) |
+| `OpenChoreo: Restart Language Server` | Pick the language server again and restart it, e.g. after changing `openchoreo.cliPath` or logging in |
+| `OpenChoreo: Run Pre/Post-Render Validation` | Render the current project with occ lsp and report problems (editor title; needs `occ lsp`) |
 
 ## Architecture
 
