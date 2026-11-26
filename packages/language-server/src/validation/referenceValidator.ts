@@ -46,8 +46,10 @@ export function validateReferences(
     // Check for x-openchoreo-ref on scalar values
     if (propSchema['x-openchoreo-ref'] && isScalar(item.value) && item.value.value) {
       const refKind = propSchema['x-openchoreo-ref'];
-      const value = String(item.value.value);
+      const raw = String(item.value.value);
       const kinds = refKind.split('+');
+      // A Component names its type as `<workloadType>/<name>`, e.g. deployment/service.
+      const value = kinds.includes('ComponentType') && raw.includes('/') ? raw.slice(raw.indexOf('/') + 1) : raw;
       const allNames = kinds.flatMap((k) => resourceNames[k] ?? []);
 
       // Only validate when every referenced kind was loaded (a missing entry
@@ -61,7 +63,7 @@ export function validateReferences(
           diagnostics.push({
             severity: DiagnosticSeverity.Warning,
             range,
-            message: `${kindLabel} '${value}' not found in current namespace`,
+            message: `${kindLabel} '${raw}' not found in current namespace`,
             source: 'openchoreo',
           });
         }

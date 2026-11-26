@@ -177,6 +177,8 @@ export class GitOpsRepoIndex implements vscode.Disposable {
     before: Record<string, unknown> | undefined,
   ): Promise<vscode.Uri> {
     const document = await vscode.workspace.openTextDocument(entry.uri);
+    // Unsaved edits of the user's own stay unsaved; otherwise the change is saved, ready to commit.
+    const wasDirty = document.isDirty;
     const text = document.getText();
     const doc = parseAllDocuments(text)[entry.docIndex] as Document | undefined;
     const range = doc?.contents?.range;
@@ -197,6 +199,7 @@ export class GitOpsRepoIndex implements vscode.Disposable {
       copy.toString({ lineWidth: 0 }),
     );
     await vscode.workspace.applyEdit(edit);
+    if (!wasDirty) await document.save();
     const editor = await vscode.window.showTextDocument(document, { preview: false });
     const start = new vscode.Position(entry.line, 0);
     editor.revealRange(new vscode.Range(start, start), vscode.TextEditorRevealType.InCenterIfOutsideViewport);

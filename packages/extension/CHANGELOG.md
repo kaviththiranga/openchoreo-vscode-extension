@@ -13,6 +13,10 @@
 - **OpenChoreo GitOps view** with each declared resource's sync state and cluster-only resources; **Generate Releases in Repository…** and **Promote in Repository…** run occ in file-system mode and offer a branch, commit and pull request
 - **Go to Definition** for references between OpenChoreo resources (to the repository file, or the resource on the cluster); reference validation accepts resources declared in the repository
 - The extension now activates once VS Code has started, so linked components and the GitOps view appear without opening a YAML file first
+- Fix: the GitOps view showed resources as out of sync when the repository declared a zero value the API leaves out, such as `isProduction: false`
+- Fix: **Change in Repository** now saves the repository file, unless it already had unsaved edits
+- Fix: Components naming their type as `deployment/service` got a "not found" warning from the bundled language server
+- Commit and push errors from **Promote in Repository** and **Generate Releases** show git's own message
 - Fix: client-credentials logins (service accounts) showed "Session expired" once the token lapsed; the extension now mints a new token like occ does
 - Fix: with `openchoreo.configPath` set to another `.openchoreo/config`, the occ commands the extension runs now use that login
 

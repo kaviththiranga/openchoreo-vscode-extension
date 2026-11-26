@@ -109,4 +109,25 @@ describe('reference checks', () => {
       "DataPlane or ClusterDataPlane 'shared' not found in current namespace",
     );
   });
+
+  it('match a Component type given as workloadType/name', () => {
+    const component = [
+      'apiVersion: openchoreo.dev/v1alpha1',
+      'kind: Component',
+      'metadata:',
+      '  name: greeter',
+      'spec:',
+      '  owner:',
+      '    projectName: shop',
+      '  componentType:',
+      '    kind: ClusterComponentType',
+      '    name: deployment/service',
+    ].join('\n');
+    const check = (types: string[]) =>
+      validateDocument(component, schemas.Component!, TextDocument.create('file:///c.yaml', 'yaml', 1, component), {
+        ComponentType: [], ClusterComponentType: types, Project: ['shop'],
+      }).map((d) => d.message);
+    expect(check(['service', 'worker'])).toEqual([]);
+    expect(check(['worker'])).toContain("ComponentType or ClusterComponentType 'deployment/service' not found in current namespace");
+  });
 });

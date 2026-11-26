@@ -6,7 +6,7 @@ import * as vscode from 'vscode';
 import { parseDocument, type Node as YamlNode } from 'yaml';
 import * as fs from 'fs';
 import { parse } from 'yaml';
-import { fileSystemConfig, parseGenerateOutput, runOcc, scopes } from '../gitops/generate';
+import { fileSystemConfig, gitError, parseGenerateOutput, runOcc, scopes } from '../gitops/generate';
 import { referenceAt, scalarAt } from '../gitops/definitions';
 import { isSubset } from '../gitops/syncView';
 import type { RepoEntry } from '../gitops/repoIndex';
@@ -113,6 +113,18 @@ describe('sync state', () => {
     expect(isSubset({ spec: { port: '8080' } }, { spec: { port: 8080 } })).toBe(true);
     expect(isSubset({ spec: { port: 8080 } }, { spec: { port: 9090 } })).toBe(false);
     expect(isSubset({ spec: { list: [1, 2] } }, { spec: { list: [1] } })).toBe(false);
-    expect(isSubset({ spec: { a: {} } }, { spec: {} })).toBe(false);
+    // The API omits zero values.
+    expect(isSubset({ spec: { isProduction: false, a: {}, env: [], n: 0 } }, { spec: {} })).toBe(true);
+    expect(isSubset({ spec: { isProduction: true } }, { spec: {} })).toBe(false);
+    expect(isSubset({ spec: { a: { b: 'x' } } }, { spec: {} })).toBe(false);
+  });
+});
+
+describe('git errors', () => {
+  it("shows git's own message instead of the Git extension's", () => {
+    const err = Object.assign(new Error('Failed to execute git'), { stderr: '\nAuthor identity unknown\n\n*** Please tell me who you are.\n' });
+    expect(gitError(err)).toBe('Author identity unknown');
+    expect(gitError(Object.assign(new Error('x'), { stderr: 'hint: foo\nfatal: not a git repository\n' }))).toBe('fatal: not a git repository');
+    expect(gitError(new Error('Failed to execute git'))).toBe('Failed to execute git');
   });
 });

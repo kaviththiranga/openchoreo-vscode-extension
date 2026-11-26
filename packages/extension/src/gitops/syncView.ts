@@ -20,6 +20,8 @@ export type SyncState = 'synced' | 'differs' | 'missing' | 'error' | 'unchecked'
 
 /** Whether every field the repository sets has the same value on the cluster. */
 export function isSubset(declared: unknown, live: unknown): boolean {
+  // The API omits zero values (omitempty), so `isProduction: false` or `env: []` match a missing key.
+  if ((live === undefined || live === null) && isZero(declared)) return true;
   if (Array.isArray(declared)) {
     return Array.isArray(live) && declared.length === live.length && declared.every((d, i) => isSubset(d, live[i]));
   }
@@ -30,6 +32,12 @@ export function isSubset(declared: unknown, live: unknown): boolean {
   if (declared === null || declared === undefined) return live === null || live === undefined;
   // YAML may say 8080 where the API returns "8080", or the other way round.
   return declared === live || String(declared) === String(live);
+}
+
+function isZero(value: unknown): boolean {
+  if (value === false || value === 0 || value === '' || value === null || value === undefined) return true;
+  if (Array.isArray(value)) return value.length === 0;
+  return typeof value === 'object' && Object.values(value as object).every(isZero);
 }
 
 type Node =

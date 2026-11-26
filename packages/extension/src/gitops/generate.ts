@@ -230,7 +230,7 @@ async function commitAndPropose(root: vscode.Uri, files: vscode.Uri[], branch: s
     await repo.add(files.map((f) => f.fsPath));
     await repo.commit(commitMessage);
   } catch (err) {
-    vscode.window.showErrorMessage(`Commit failed: ${err instanceof Error ? err.message : err}`);
+    vscode.window.showErrorMessage(`Commit failed: ${gitError(err)}`);
     return;
   }
   const PUSH = 'Push and Open Pull Request';
@@ -239,7 +239,7 @@ async function commitAndPropose(root: vscode.Uri, files: vscode.Uri[], branch: s
   try {
     await repo.push('origin', name, true);
   } catch (err) {
-    vscode.window.showErrorMessage(`Push failed: ${err instanceof Error ? err.message : err}`);
+    vscode.window.showErrorMessage(`Push failed: ${gitError(err)}`);
     return;
   }
   // The GitHub Pull Requests extension when installed, else the host's compare page.
@@ -253,4 +253,11 @@ async function commitAndPropose(root: vscode.Uri, files: vscode.Uri[], branch: s
     const url = web.includes('gitlab') ? `${web}/-/merge_requests/new?merge_request[source_branch]=${encodeURIComponent(name)}` : `${web}/compare/${encodeURIComponent(name)}?expand=1`;
     await vscode.env.openExternal(vscode.Uri.parse(url));
   }
+}
+
+/** The Git extension's errors say "Failed to execute git"; git's own message is in stderr. */
+export function gitError(err: unknown): string {
+  const stderr = (err as { stderr?: unknown } | undefined)?.stderr;
+  const lines = typeof stderr === 'string' ? stderr.split('\n').map((l) => l.trim()).filter((l) => l && !/^hint:/i.test(l)) : [];
+  return lines.find((l) => /^(fatal|error):/i.test(l)) ?? lines[0] ?? (err instanceof Error ? err.message : String(err));
 }
