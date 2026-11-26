@@ -61,9 +61,10 @@ export function registerGitOps(
       ? undefined
       : await fetchLive(deps.apiClientManager, { kind, name, namespace: meta.namespace }).catch(() => undefined);
     const file = await repoIndex.writeResource(resource, before);
-    return file
-      ? `Not saved to the cluster: the change is in ${vscode.workspace.asRelativePath(file)} in the GitOps repository, ready to commit.`
-      : cancelled;
+    if (!file) return cancelled;
+    const message = `Changed in the GitOps repository, ready to commit: ${vscode.workspace.asRelativePath(file)}. The cluster is unchanged until it syncs.`;
+    // A new resource has nothing on the cluster to show again, so its editor keeps the draft.
+    return isNew ? message : { handled: message };
   };
 
   context.subscriptions.push(

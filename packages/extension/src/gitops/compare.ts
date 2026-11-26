@@ -14,7 +14,7 @@ import { kindSpec } from '../kinds/registry';
 import { fetchResource } from '../services/apiRoutes';
 import { ResourceService } from '../services/resourceService';
 import type { ResourceNodeData } from '../treeView/types';
-import { toDesiredState } from './managed';
+import { isZero, toDesiredState } from './managed';
 import type { GitOpsRepoIndex, RepoEntry } from './repoIndex';
 
 export const LIVE_SCHEME = 'openchoreo-live';
@@ -52,10 +52,19 @@ export function alignKeys(value: unknown, reference: unknown): unknown {
   }
   if (!value || typeof value !== 'object') return value;
   const obj = value as Record<string, unknown>;
-  const ref = reference && typeof reference === 'object' && !Array.isArray(reference) ? (reference as Record<string, unknown>) : {};
+  const hasRef = !!reference && typeof reference === 'object' && !Array.isArray(reference);
+  const ref = hasRef ? (reference as Record<string, unknown>) : {};
   const out: Record<string, unknown> = {};
-  for (const key of Object.keys(ref)) if (key in obj) out[key] = alignKeys(obj[key], ref[key]);
-  for (const key of Object.keys(obj)) if (!(key in out)) out[key] = alignKeys(obj[key], undefined);
+  // The API omits zero values: show the file's `isProduction: false` on both sides, and hide
+  // server defaults like `gateway: {}` that the file leaves out.
+  for (const key of Object.keys(ref)) {
+    if (key in obj) out[key] = alignKeys(obj[key], ref[key]);
+    else if (isZero(ref[key])) out[key] = ref[key];
+  }
+  for (const key of Object.keys(obj)) {
+    if (key in out || (hasRef && isZero(obj[key]))) continue;
+    out[key] = alignKeys(obj[key], undefined);
+  }
   return out;
 }
 

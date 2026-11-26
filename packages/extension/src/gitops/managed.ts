@@ -166,3 +166,10 @@ export function toDesiredState(resource: Record<string, unknown>): Record<string
   }
   return out;
 }
+
+/** A value the API leaves out (omitempty): false, 0, '', null, [] or an object of those. */
+export function isZero(value: unknown): boolean {
+  if (value === false || value === 0 || value === '' || value === null || value === undefined) return true;
+  if (Array.isArray(value)) return value.length === 0;
+  return typeof value === 'object' && Object.values(value as object).every(isZero);
+}

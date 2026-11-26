@@ -118,10 +118,11 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
 
   /**
    * Called before a save goes to the API. A returned reason stops the save
-   * and leaves the cluster alone (e.g. the change went to the GitOps
-   * repository instead).
+   * and leaves the cluster alone. `{ handled }` means the change went
+   * elsewhere (the GitOps repository): the save completes without touching
+   * the cluster and the document reloads what the cluster has.
    */
-  writeGuard?: (resource: Record<string, unknown>, isNew: boolean) => Promise<string | undefined>;
+  writeGuard?: (resource: Record<string, unknown>, isNew: boolean) => Promise<string | { handled: string } | undefined>;
 
   constructor(
     private readonly apiClientManager: ApiClientManager,
@@ -266,8 +267,14 @@ export class OpenChoreoFileSystemProvider implements vscode.FileSystemProvider {
 
     const isNew = this.newResources.has(uri.toString());
 
-    const skipReason = await this.writeGuard?.(resource, isNew);
-    if (skipReason) throw vscode.FileSystemError.NoPermissions(skipReason);
+    const guard = await this.writeGuard?.(resource, isNew);
+    if (typeof guard === 'string') throw vscode.FileSystemError.NoPermissions(guard);
+    if (guard) {
+      // After VS Code finishes the save, show the cluster's copy again.
+      setTimeout(() => this._onDidChangeFile.fire([{ type: vscode.FileChangeType.Changed, uri }]), 0);
+      void vscode.window.showInformationMessage(guard.handled);
+      return;
+    }
 
     let error: unknown;
     let response: { status?: number } | undefined;

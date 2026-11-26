@@ -130,7 +130,7 @@ export function registerGenerateCommands(
     const COMMIT = 'Commit on a New Branch';
     const SHOW = 'Show Output';
     const choice = await vscode.window.showInformationMessage(
-      `${result.summary ?? `${files.length} files generated`}.${result.errors.length ? ` ${result.errors.length} errors.` : ''}`,
+      `${result.summary ?? `${files.length} ${files.length === 1 ? 'file' : 'files'} generated`}.${result.errors.length ? ` ${result.errors.length} errors.` : ''}`,
       COMMIT,
       ...(result.errors.length ? [SHOW] : []),
     );

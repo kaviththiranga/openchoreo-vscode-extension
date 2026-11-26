@@ -151,6 +151,10 @@ describe('Compare with Cluster', () => {
     const local = { apiVersion: 'v', kind: 'C', metadata: { name: 'x' }, spec: { a: 0, b: 0 } };
     expect(Object.keys(alignKeys(live, local) as object)).toEqual(['apiVersion', 'kind', 'metadata', 'spec']);
     expect(Object.keys((alignKeys(live, local) as { spec: object }).spec)).toEqual(['a', 'b', 'extra']);
+    // Zero values the API omits don't show as differences.
+    expect(alignKeys({ spec: { dataPlaneRef: 'x', gateway: {} } }, { spec: { dataPlaneRef: 'x', isProduction: false } }))
+      .toEqual({ spec: { dataPlaneRef: 'x', isProduction: false } });
+    expect(alignKeys({ spec: { gateway: { host: 'h' } } }, { spec: {} })).toEqual({ spec: { gateway: { host: 'h' } } });
   });
 
   it('renders the live side without status', () => {
