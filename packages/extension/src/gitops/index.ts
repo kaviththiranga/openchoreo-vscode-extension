@@ -23,6 +23,7 @@ export function registerGitOps(
     resolveNode: (arg: unknown) => ResourceNodeData | undefined;
     resolveBinary: () => string;
     onModeChange: () => void;
+    languageServerActive?: () => boolean;
   },
 ): GitOpsRepoIndex {
   const repoIndex = new GitOpsRepoIndex();
@@ -42,7 +43,7 @@ export function registerGitOps(
     vscode.commands.registerCommand('openchoreo.gitopsCheckSync', () => syncView.check(true)),
   );
   registerGenerateCommands(context, { repoIndex, resolveBinary: deps.resolveBinary });
-  registerDefinitions(context, { repoIndex, namespace: () => deps.authProvider.getContextInfo()?.namespace });
+  registerDefinitions(context, { repoIndex, namespace: () => deps.authProvider.getContextInfo()?.namespace, enabled: () => !deps.languageServerActive?.() });
 
   deps.fsProvider.writeGuard = async (resource, isNew) => {
     const kind = String(resource.kind);

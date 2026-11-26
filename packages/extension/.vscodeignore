@@ -30,3 +30,9 @@ node_modules/**
 .vscode/**
 .DS_Store
 
+
+# Language support comes from the installed unified occ CLI.
+language-server/**
+bin/**
+schemas/**
+test-results/**

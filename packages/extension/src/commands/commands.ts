@@ -5,6 +5,7 @@ import type { GitOpsRepoIndex } from '../gitops/repoIndex';
 import { confirmApiWrite, gitopsOwner, ownerFromExtra, type GitOpsOwner } from '../gitops/managed';
 import { fetchLive, liveUri } from '../gitops/compare';
 import * as vscode from 'vscode';
+import { getResourceContextId } from '../services/resourceContext';
 import { spawn } from 'child_process';
 import { parse as parseYaml, stringify } from 'yaml';
 import { OccConfigAuthProvider } from '../auth/authProvider';
@@ -341,6 +342,7 @@ export function registerCommands(
             : `/${k8sType}/${node.resourceName}.yaml`;
           const uri = vscode.Uri.from({
             scheme: FS_SCHEME,
+            authority: getResourceContextId(),
             path,
             query: 'readonly',
           });
@@ -1569,6 +1571,7 @@ async function openScaffold(
     : `/namespaces/${ns}/${nodeType}/${placeholderName}.yaml`;
   const uri = vscode.Uri.from({
     scheme: FS_SCHEME,
+            authority: getResourceContextId(),
     path,
   });
 
@@ -1681,6 +1684,7 @@ async function openOrUpdateReleaseBinding(
     // Open via the virtual filesystem — this fetches from API, but we want the modified version
     const uri = vscode.Uri.from({
       scheme: FS_SCHEME,
+            authority: getResourceContextId(),
       path: `/namespaces/${ns}/release-binding/${existingName}.yaml`,
     });
     // Inject apiVersion/kind if missing

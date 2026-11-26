@@ -41,7 +41,7 @@ const extensionRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const env = process.env;
 const list = (value) => (value ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
-for (const bundle of ['dist/extension.js', '../language-server/dist/server.js', '../webview-ui/dist/webview.js']) {
+for (const bundle of ['dist/extension.js', '../webview-ui/dist/webview.js']) {
   if (!fs.existsSync(path.join(extensionRoot, bundle))) {
     console.error(`Missing ${bundle} — run \`pnpm build\` at the repo root first.`);
     process.exit(1);
