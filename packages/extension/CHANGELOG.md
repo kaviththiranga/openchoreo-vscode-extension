@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- **occ language server**: when the installed occ has `occ lsp`, the extension runs it for Go to Definition across local and cluster resources, CEL and reference suggestions, and pre/post-render validation (by @RukshanRanasinghe2000). Otherwise it uses the bundled server as before. New setting `openchoreo.languageServer` (`auto`, `occ`, `bundled`)
 - **Linked components**: the status bar shows the components built from the open folder, matched by git remote and app path through the workflow's repository parameter markers, with actions to build, view logs, open a shell, run locally and open the repository
 - **Clone Source** on a component, **Build This Commit** for a linked folder, and after a push, the auto-build for the pushed commit followed in the status bar (`openchoreo.builds.followAfterPush`)
 - **Compare Releases…** and **Roll Back…** on releases and deployed environments

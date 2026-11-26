@@ -10,7 +10,7 @@ function deferred() {
   const promise = new Promise<void>(r => { resolve = r; });
   return { promise, resolve };
 }
-function fixture() {
+function fixture(options: { preference?: 'auto' | 'occ' | 'bundled'; bundled?: boolean } = {}) {
   const clients: ManagedLanguageClient[] = [];
   const guards: Array<() => boolean> = [];
   const refresh = vi.fn(async (_client: ManagedLanguageClient, current: () => boolean) => { guards.push(current); });
@@ -30,8 +30,14 @@ function fixture() {
     clients.push(client);
     return client;
   });
-  const manager = new OccLanguageServer({ resolveBinary: () => '/custom path/occ', checkBinary, createClient, refresh, report });
-  return { manager, clients, guards, refresh, report, checkBinary, createClient, close: () => closed() };
+  const createBundledClient = vi.fn((onClosed: () => void) => createClient('', onClosed));
+  const log = vi.fn();
+  const manager = new OccLanguageServer({
+    resolveBinary: () => '/custom path/occ', checkBinary, createClient, refresh, report, log,
+    ...(options.bundled ? { createBundledClient, navigationContext: () => ({ contextId: 'ctx', namespace: 'default' }) } : {}),
+    ...(options.preference ? { preference: () => options.preference! } : {}),
+  });
+  return { manager, clients, guards, refresh, report, log, checkBinary, createClient, createBundledClient, close: () => closed() };
 }
 describe('CLI compatibility', () => {
   it('probes an absolute path directly with bounded execution', async () => {
@@ -49,6 +55,49 @@ describe('CLI compatibility', () => {
   ])('rejects unavailable or incompatible executables', async (error, stdout, message) => {
     vi.mocked(execFile).mockImplementation(((...args: any[]) => { args[3](error, stdout, 'sensitive stderr'); }) as any);
     await expect(checkOccLsp('occ')).rejects.toThrow(message);
+  });
+});
+describe('backend selection', () => {
+  const noLsp = new Error('This occ does not support occ lsp --stdio. Upgrade it or configure openchoreo.cliPath.');
+  it('uses occ lsp when the installed occ has it', async () => {
+    const f = fixture({ bundled: true });
+    await f.manager.start();
+    expect(f.createClient).toHaveBeenCalledWith('/custom path/occ', expect.any(Function));
+    expect(f.createBundledClient).not.toHaveBeenCalled();
+    expect(f.manager.backend()).toBe('occ');
+    await f.manager.dispose();
+    expect(f.manager.backend()).toBeUndefined();
+  });
+  it('falls back to the bundled server without an error when occ has no lsp', async () => {
+    const f = fixture({ bundled: true });
+    f.checkBinary.mockRejectedValue(noLsp);
+    await f.manager.start();
+    expect(f.createBundledClient).toHaveBeenCalledTimes(1);
+    expect(f.manager.backend()).toBe('bundled');
+    expect(f.report).not.toHaveBeenCalled();
+    expect(f.log).toHaveBeenCalledWith(expect.stringContaining('bundled language server'));
+    // Resource locations only matter to occ lsp.
+    await f.manager.refresh();
+    const methods = vi.mocked(f.clients[0].sendNotification).mock.calls.map(([method]) => method);
+    expect(methods).toContain('openchoreo/updateResources');
+    expect(methods).not.toContain('openchoreo/updateResourceLocations');
+    await f.manager.dispose();
+  });
+  it('reports the occ error when occ lsp is required or there is no fallback', async () => {
+    for (const f of [fixture({ preference: 'occ', bundled: true }), fixture()]) {
+      f.checkBinary.mockRejectedValue(noLsp);
+      await f.manager.start();
+      expect(f.createBundledClient).not.toHaveBeenCalled();
+      expect(f.manager.backend()).toBeUndefined();
+      expect(f.report).toHaveBeenCalledWith(expect.stringContaining('does not support occ lsp'));
+    }
+  });
+  it('skips the occ probe when the bundled server is chosen', async () => {
+    const f = fixture({ preference: 'bundled', bundled: true });
+    await f.manager.start();
+    expect(f.checkBinary).not.toHaveBeenCalled();
+    expect(f.manager.backend()).toBe('bundled');
+    await f.manager.dispose();
   });
 });
 describe('language-server lifecycle', () => {

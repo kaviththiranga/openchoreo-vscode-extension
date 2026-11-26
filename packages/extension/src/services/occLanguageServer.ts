@@ -39,10 +39,18 @@ export interface ManagedLanguageClient {
   sendNotification(method: string, params: unknown): Promise<void>;
 }
 
+/** `occ lsp` from the installed CLI, or the TypeScript server bundled with the extension. */
+export type LanguageServerBackend = 'occ' | 'bundled';
+export type BackendPreference = 'auto' | LanguageServerBackend;
+
 interface Dependencies {
   resolveBinary(): string;
   checkBinary(binary: string): Promise<void>;
   createClient(binary: string, closed: () => void): ManagedLanguageClient;
+  /** The bundled server, for when the installed occ has no `occ lsp`. */
+  createBundledClient?(closed: () => void): ManagedLanguageClient;
+  preference?(): BackendPreference;
+  log?(message: string): void;
   refresh(client: ManagedLanguageClient, current: () => boolean, generation: number): Promise<void>;
   navigationContext?(): { contextId: string | null; namespace: string | null };
   report(message: string): void;
@@ -58,6 +66,7 @@ export class OccLanguageServer {
   private disposed = false;
   private attempted = false;
   private stopping = false;
+  private kind: LanguageServerBackend | undefined;
 
   constructor(private readonly deps: Dependencies) {}
 
@@ -81,15 +90,16 @@ export class OccLanguageServer {
       if (this.disposed || lifecycle !== this.lifecycle) return;
       try {
         await this.stopClient();
-        const binary = this.deps.resolveBinary();
-        await this.deps.checkBinary(binary);
+        const backend = await this.selectBackend();
         if (this.disposed || lifecycle !== this.lifecycle) return;
-        const client = this.deps.createClient(binary, () => {
+        const closed = () => {
           if (this.disposed || this.stopping || this.client !== client) return;
           ++this.generation;
           this.deps.changed?.();
           this.deps.report('OpenChoreo language server stopped. Check OpenChoreo Language Server output. Run occ login if authentication failed, then OpenChoreo: Restart Language Server.');
-        });
+        };
+        const client = backend.kind === 'occ' ? this.deps.createClient(backend.binary, closed) : this.deps.createBundledClient!(closed);
+        this.kind = backend.kind;
         this.client = client;
         await client.start();
         if (this.disposed || lifecycle !== this.lifecycle) {
@@ -108,6 +118,27 @@ export class OccLanguageServer {
     });
   }
 
+  /** `occ lsp` when the installed occ has it, else the bundled server unless occ is required. */
+  private async selectBackend(): Promise<{ kind: 'occ'; binary: string } | { kind: 'bundled' }> {
+    const preference = this.deps.preference?.() ?? 'auto';
+    const bundled = !!this.deps.createBundledClient;
+    if (preference === 'bundled' && bundled) return { kind: 'bundled' };
+    const binary = this.deps.resolveBinary();
+    try {
+      await this.deps.checkBinary(binary);
+      return { kind: 'occ', binary };
+    } catch (error) {
+      if (preference === 'occ' || !bundled) throw error;
+      this.deps.log?.(`Using the bundled language server: ${error instanceof Error ? error.message : error}`);
+      return { kind: 'bundled' };
+    }
+  }
+
+  /** Which server is running, if any. */
+  backend(): LanguageServerBackend | undefined {
+    return this.isRunning() ? this.kind : undefined;
+  }
+
   async refresh(): Promise<void> {
     const generation = ++this.generation;
     this.deps.changed?.();
@@ -116,7 +147,7 @@ export class OccLanguageServer {
       && this.client === client && !!client?.isRunning();
     if (!client || !current()) return;
     try {
-      if (this.deps.navigationContext) {
+      if (this.deps.navigationContext && this.kind === 'occ') {
         await client.sendNotification('openchoreo/updateResourceLocations', {
           ...this.deps.navigationContext(), generation, resources: [],
         });
@@ -138,7 +169,7 @@ export class OccLanguageServer {
     const generation = ++this.generation;
     return this.enqueue(async () => {
       if (this.client?.isRunning()) {
-        if (this.deps.navigationContext) await this.client.sendNotification('openchoreo/updateResourceLocations', {contextId: null, namespace: null, generation, resources: []}).catch(() => {});
+        if (this.deps.navigationContext && this.kind === 'occ') await this.client.sendNotification('openchoreo/updateResourceLocations', {contextId: null, namespace: null, generation, resources: []}).catch(() => {});
         await this.client.sendNotification('openchoreo/updateResources', {}).catch(() => {});
         await this.client.sendNotification('openchoreo/updateResourceSchemas', {}).catch(() => {});
       }
@@ -207,7 +238,10 @@ export class OccLanguageServer {
     try {
       try { await client.stop(); }
       finally { await client.dispose(); }
-      if (this.client === client) this.client = undefined;
+      if (this.client === client) {
+        this.client = undefined;
+        this.kind = undefined;
+      }
     } finally {
       this.stopping = false;
     }

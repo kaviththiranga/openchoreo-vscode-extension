@@ -511,7 +511,7 @@
       "editor/title": [
         {
           "command": "openchoreo.validateRendering",
-          "when": "openchoreo.canValidateRendering",
+          "when": "openchoreo.canValidateRendering && openchoreo.languageServer == occ",
           "group": "navigation@10"
         },
         {
@@ -876,6 +876,17 @@
           "default": false,
           "markdownDescription": "Keep the `occ remote` tunnels a debug session opened after it ends, so the next session starts faster. Close them from the status bar."
         },
+        "openchoreo.languageServer": {
+          "type": "string",
+          "enum": ["auto", "occ", "bundled"],
+          "enumDescriptions": [
+            "Use `occ lsp` when the installed occ has it, else the server bundled with the extension.",
+            "Always use `occ lsp`. Shows an error when the installed occ does not have it.",
+            "Always use the server bundled with the extension."
+          ],
+          "default": "auto",
+          "markdownDescription": "Which language server to run. `occ lsp` adds Go to Definition across resources, CEL suggestions and rendering validation; the bundled server validates, completes and describes resources from their schemas."
+        },
         "openchoreo.definitionDebug": {
           "type": "boolean",
           "default": false,
@@ -1009,9 +1020,9 @@
     "demo:capture": "node scripts/capture-demo.mjs",
     "generate:icons": "fantasticon && node scripts/update-icon-font.mjs",
     "clean": "rm -rf dist out",
-    "prepackage": "node scripts/sync-skills.mjs --required && mkdir -p ./webview-ui/dist && cp ../webview-ui/dist/* ./webview-ui/dist/",
+    "prepackage": "node scripts/sync-skills.mjs --required && cp -r ../../schemas ./schemas && mkdir -p ./language-server/dist && cp ../language-server/dist/server.js ./language-server/dist/server.js && mkdir -p ./webview-ui/dist && cp ../webview-ui/dist/* ./webview-ui/dist/",
     "package": "pnpm build && vsce package --no-dependencies --allow-missing-repository --skip-license",
-    "postpackage": "rm -rf ./webview-ui",
+    "postpackage": "rm -rf ./schemas ./language-server ./webview-ui",
     "test:definitions": "node scripts/test-definitions.mjs"
   },
   "dependencies": {

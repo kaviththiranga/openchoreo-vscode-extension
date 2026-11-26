@@ -55,7 +55,8 @@ import {
   FS_SCHEME,
 } from './filesystem/fileSystemProvider';
 
-import { checkOccLsp, OccLanguageServer, terminateServerProcess, type ManagedLanguageClient } from './services/occLanguageServer';
+import { checkOccLsp, OccLanguageServer, terminateServerProcess, type BackendPreference, type ManagedLanguageClient } from './services/occLanguageServer';
+import { createBundledLanguageClient } from './services/bundledLanguageServer';
 
 let languageServer: OccLanguageServer | undefined;
 
@@ -177,7 +178,7 @@ export async function activate(
     resolveNode: (arg) => resolveNode(arg, sidebarProvider),
     resolveBinary: resolveOccBinary,
     onModeChange: () => sidebarProvider.refreshAll(),
-    languageServerActive: () => languageServer?.isRunning() ?? false,
+    languageServerActive: () => languageServer?.backend() === 'occ',
   });
 
   // Register commands
@@ -236,14 +237,28 @@ export async function activate(
     (uri, position) => languageServer?.hasReferenceCompletions(uri, position) ?? Promise.resolve(false),
   );
   context.subscriptions.push(definitionUnderlines, automaticSuggestions);
+  // Features that need occ lsp (e.g. rendering validation) check this context key.
+  let shownBackend: string | undefined | null = null;
+  const showBackend = () => {
+    const backend = languageServer?.backend();
+    if (backend === shownBackend) return;
+    shownBackend = backend;
+    void vscode.commands.executeCommand('setContext', 'openchoreo.languageServer', backend);
+  };
   languageServer = new OccLanguageServer({
-    changed: () => { definitionUnderlines.refresh(); automaticSuggestions.invalidate(); },
+    changed: () => { definitionUnderlines.refresh(); automaticSuggestions.invalidate(); showBackend(); },
     resolveBinary: resolveOccBinary,
     checkBinary: checkOccLsp,
     createClient: (binary, closed) => createLanguageClient(binary, closed, () => definitionUnderlines.refresh()),
+    createBundledClient: (closed) => createBundledLanguageClient(context.extensionPath, closed),
+    preference: () => vscode.workspace.getConfiguration('openchoreo').get<BackendPreference>('languageServer', 'auto'),
+    log: (message) => log.info(message),
     navigationContext: () => ({contextId: getResourceContextId() || null, namespace: authProvider.getContextInfo()?.namespace ?? null}),
     refresh: async (client, current, generation) => {
-      const navigation = {contextId: getResourceContextId() || null, namespace: authProvider.getContextInfo()?.namespace ?? null, generation};
+      // Only occ lsp resolves definitions, so only it needs resource locations.
+      const navigation = languageServer?.backend() === 'occ'
+        ? {contextId: getResourceContextId() || null, namespace: authProvider.getContextInfo()?.namespace ?? null, generation}
+        : undefined;
       await Promise.all([
         pushResourceNames(client, apiClientManager, authProvider, current, navigation, (ns) => repoIndex.namesByKind(ns)),
         pushResourceSchemas(client, apiClientManager, authProvider, current),
@@ -259,6 +274,9 @@ export async function activate(
     }),
     { dispose: () => { if (repoPushTimer) clearTimeout(repoPushTimer); } },
     vscode.commands.registerCommand('openchoreo.restartLanguageServer', () => languageServer?.restart()),
+    vscode.workspace.onDidChangeConfiguration((e) => {
+      if (e.affectsConfiguration('openchoreo.languageServer')) void languageServer?.restart();
+    }),
     authProvider.onDidChangeSession(() => {
       setResourceContextId(resourceContextId(authProvider.getContextInfo()));
       if (authProvider.getSession()) {

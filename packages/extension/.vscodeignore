@@ -30,9 +30,6 @@ node_modules/**
 .vscode/**
 .DS_Store
 
-
-# Language support comes from the installed unified occ CLI.
-language-server/**
+# occ lsp comes from the installed occ; the bundled server is the fallback.
 bin/**
-schemas/**
 test-results/**

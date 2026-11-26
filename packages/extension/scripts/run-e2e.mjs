@@ -10,7 +10,7 @@
  *
  * Needs a display on Linux: CI wraps it in `xvfb-run -a`. Without DISPLAY it
  * falls back to Chromium's headless Ozone platform.
- * Run `pnpm build` at the repo root first (extension + webview bundles).
+ * Run `pnpm build` at the repo root first (language server + webview bundles).
  */
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -23,7 +23,7 @@ const extensionRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const outDir = path.join(extensionRoot, 'out', 'e2e');
 const testsDir = path.join(extensionRoot, 'src', 'test', 'e2e');
 
-for (const bundle of ['dist/extension.js', '../webview-ui/dist/webview.js']) {
+for (const bundle of ['dist/extension.js', '../language-server/dist/server.js', '../webview-ui/dist/webview.js']) {
   if (!fs.existsSync(path.join(extensionRoot, bundle))) {
     console.error(`Missing ${bundle} — run \`pnpm build\` at the repo root first.`);
     process.exit(1);
@@ -63,7 +63,11 @@ if (!process.env.OPENCHOREO_E2E_RESOURCE) {
   fs.mkdirSync(userDir, { recursive: true });
   fs.writeFileSync(
     path.join(userDir, 'settings.json'),
-    JSON.stringify({ 'openchoreo.configPath': path.join(profile, 'no-occ-login', '.openchoreo', 'config') }),
+    JSON.stringify({
+      'openchoreo.configPath': path.join(profile, 'no-occ-login', '.openchoreo', 'config'),
+      // The suite checks the bundled server; scripts/test-definitions.mjs checks occ lsp.
+      'openchoreo.languageServer': process.env.OPENCHOREO_E2E_LANGUAGE_SERVER ?? 'bundled',
+    }),
   );
 }
 
