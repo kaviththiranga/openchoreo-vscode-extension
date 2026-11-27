@@ -11,7 +11,11 @@ interface TreeSectionProps {
   title: string;
   section: Section;
   roots: ResourceNodeData[];
+  /** Roots are being fetched again; the current ones stay visible. */
+  refreshing: boolean;
   childrenMap: Record<string, ResourceNodeData[]>;
+  /** Nodes whose children are shown from before a refresh and need fetching again. */
+  staleNodes: Set<string>;
   expandedNodes: Set<string>;
   expanded: boolean;
   createCommand?: string;
@@ -55,7 +59,9 @@ export function TreeSection({
   title,
   section,
   roots,
+  refreshing,
   childrenMap,
+  staleNodes,
   expandedNodes,
   expanded,
   createCommand,
@@ -179,7 +185,7 @@ export function TreeSection({
         </div>
       </div>
 
-      {expanded && roots.length === 0 && (
+      {expanded && (roots.length === 0 || refreshing) && (
         <div class="progress-bar"><div class="progress-bar-indicator" /></div>
       )}
       {expanded && roots.length > 0 && (
@@ -198,6 +204,7 @@ export function TreeSection({
               depth={0}
               parentPath=""
               childrenMap={childrenMap}
+              staleNodes={staleNodes}
               expandedNodes={expandedNodes}
               selectedNodeId={selectedNodeId}
               onToggleNode={onToggleNode}

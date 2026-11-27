@@ -16,12 +16,12 @@ import type { ApiClientManager } from '../api/apiClient';
 import type { CapabilityService } from '../services/capabilityService';
 import type { DeleteService } from '../services/deleteService';
 import type { ResourceNodeData } from '../treeView/types';
-import { CRD_KIND_TO_SCAFFOLD, crdToYaml, scaffoldTemplate } from '../services/yamlService';
+import { CRD_KIND_TO_SCAFFOLD, cleanCrdForWriting, crdToYaml, scaffoldTemplate } from '../services/yamlService';
 import { ResourceService } from '../services/resourceService';
 import { buildPutRequest, fetchResource } from '../services/apiRoutes';
 import { kindSpec } from '../kinds/registry';
 import type { ComponentService } from '../services/componentService';
-import type { WorkflowRunService } from '../services/workflowRunService';
+import { newRunName, type WorkflowRunService } from '../services/workflowRunService';
 import type { ReleaseBindingService } from '../services/releaseBindingService';
 import type { LogOutputService } from '../services/logOutputService';
 import type { SidebarViewProvider } from '../webview/sidebarViewProvider';
@@ -32,6 +32,7 @@ import {
 } from '../filesystem/fileSystemProvider';
 import { analyzeWorkspace, type ProjectProfile } from '../scaffolder';
 import { renderComponentYaml } from '../scaffolder/renderers/component';
+import { folderSource } from '../scaffolder/source';
 import { renderWorkloadYaml } from '../scaffolder/renderers/workload';
 import type { ServerInfoService } from '../services/serverInfoService';
 import {
@@ -443,6 +444,7 @@ export function registerCommands(
         const releaseName = await vscode.window.showInputBox({
           prompt: 'Enter release name (leave empty to auto-generate)',
           placeHolder: 'e.g., v1.0.0',
+          ignoreFocusOut: true,
         });
         if (releaseName === undefined) return; // Escape pressed
 
@@ -490,7 +492,7 @@ export function registerCommands(
           } else {
             const picked = await vscode.window.showQuickPick(
               targets.map(t => ({ label: t })),
-              { placeHolder: 'Select target environment' },
+              { placeHolder: 'Select target environment', ignoreFocusOut: true },
             );
             if (!picked) return;
             targetEnv = picked.label;
@@ -553,7 +555,7 @@ export function registerCommands(
 
           const picked = await vscode.window.showQuickPick(
             releases.map(r => ({ label: r })),
-            { placeHolder: 'Select release to deploy' },
+            { placeHolder: 'Select release to deploy', ignoreFocusOut: true },
           );
           if (!picked) return;
 
@@ -620,7 +622,7 @@ export function registerCommands(
 
           const picked = await vscode.window.showQuickPick(
             [...allEnvs].map(e => ({ label: e })),
-            { placeHolder: 'Select environment to deploy to' },
+            { placeHolder: 'Select environment to deploy to', ignoreFocusOut: true },
           );
           if (!picked) return;
 
@@ -674,14 +676,18 @@ export function registerCommands(
             vscode.window.showInformationMessage(`${node.component} has no other release to compare with.`);
             return;
           }
-          const picked = await vscode.window.showQuickPick(items, { placeHolder: `Compare ${current} with…` });
+          const picked = await vscode.window.showQuickPick(items, { placeHolder: `Compare ${current} with…`, ignoreFocusOut: true });
           if (!picked?.release) return;
           const key = (name: string) => ({ kind: 'ComponentRelease', name, namespace: node.namespace });
+          // The older release on the left, so the diff reads as what the newer one changes,
+          // e.g. what promoting staging's release to production would bring.
+          const created = (name: string) => Date.parse(releases.find((r) => r.name === name)?.created ?? '');
+          const [left, right] = created(picked.release) > created(current) ? [current, picked.release] : [picked.release, current];
           await vscode.commands.executeCommand(
             'vscode.diff',
-            liveUri(key(picked.release)),
-            liveUri(key(current)),
-            `${picked.release} ↔ ${current}`,
+            liveUri(key(left)),
+            liveUri(key(right)),
+            `${left} ↔ ${right}`,
             { preview: true },
           );
         } catch (error) {
@@ -714,7 +720,7 @@ export function registerCommands(
               label: r.name,
               description: r.created ? new Date(r.created).toLocaleString() : undefined,
             })),
-            { placeHolder: `Roll ${node.extra.environment} back from ${current || 'its current release'} to…` },
+            { placeHolder: `Roll ${node.extra.environment} back from ${current || 'its current release'} to…`, ignoreFocusOut: true },
           );
           if (!picked) return;
           await openOrUpdateReleaseBinding(client, fsProvider, {
@@ -767,7 +773,7 @@ export function registerCommands(
             return;
           }
 
-          const runName = `${node.component}-${Date.now()}`;
+          const runName = newRunName(node.component);
           await workflowRunService.createWorkflowRun(ns, {
             metadata: {
               name: runName,
@@ -790,7 +796,6 @@ export function registerCommands(
             `Build triggered: '${runName}' using workflow '${wf.name}'.`,
           );
           resourceExplorer.refresh();
-          sidebarProvider?.refreshAll();
         } catch (error) {
           vscode.window.showErrorMessage(
             `Failed to trigger build: ${error instanceof Error ? error.message : 'Unknown error'}`,
@@ -836,7 +841,7 @@ export function registerCommands(
             apiVersion: 'openchoreo.dev/v1alpha1',
             kind: 'WorkflowRun',
             metadata: {
-              name: `${node.component}-${Date.now()}`,
+              name: newRunName(node.component),
               namespace: ns,
               labels: {
                 'openchoreo.dev/project': node.project ?? '',
@@ -878,7 +883,7 @@ export function registerCommands(
         const scaffold = `apiVersion: openchoreo.dev/v1alpha1
 kind: WorkflowRun
 metadata:
-  name: ${node.resourceName}-${Date.now()}
+  name: ${newRunName(node.resourceName)}
   namespace: "${ns}"
 spec:
   workflow:
@@ -1081,8 +1086,7 @@ spec:
           vscode.window.showInformationMessage(
             `Deleted ${node.type} '${displayName}'.`,
           );
-          resourceExplorer.refresh();
-          infrastructureExplorer.refresh();
+          // Cluster-scoped kinds live in the third section, which has no explorer here.
           sidebarProvider?.refreshAll();
         } catch (error) {
           vscode.window.showErrorMessage(
@@ -1218,6 +1222,7 @@ spec:
       async () => {
         const selected = await vscode.window.showQuickPick(DEV_KINDS, {
           placeHolder: 'Select resource kind to create',
+          ignoreFocusOut: true,
         });
         if (!selected) return;
         const ctxInfo = authProvider.getContextInfo();
@@ -1236,6 +1241,7 @@ spec:
       async () => {
         const selected = await vscode.window.showQuickPick(INFRA_KINDS, {
           placeHolder: 'Select resource kind to create',
+          ignoreFocusOut: true,
         });
         if (!selected) return;
         const ctxInfo = authProvider.getContextInfo();
@@ -1254,6 +1260,7 @@ spec:
       async () => {
         const selected = await vscode.window.showQuickPick(CLUSTER_KINDS, {
           placeHolder: 'Select cluster resource kind to create',
+          ignoreFocusOut: true,
         });
         if (!selected) return;
         openScaffold(selected, fsProvider);
@@ -1327,6 +1334,7 @@ spec:
         const kinds = Object.keys(CRD_KIND_TO_SCAFFOLD);
         const selected = await vscode.window.showQuickPick(kinds, {
           placeHolder: 'Select resource kind to create',
+          ignoreFocusOut: true,
         });
         if (selected) {
           openScaffold(selected, fsProvider, ns, node.project);
@@ -1404,17 +1412,19 @@ async function runScaffoldFromProject(
   const namespace = ctxInfo?.namespace ?? 'default';
   const projectRef = ctxInfo?.project ?? 'default';
 
-  const componentYaml = renderComponentYaml(finalProfile, { namespace, projectRef });
+  const componentYaml = renderComponentYaml(finalProfile, { namespace, projectRef, source: await folderSource(folder) });
   // Endpoint `type` is accepted by every release: 1.4 deprecates it for
   // `protocol` but its admission webhook mirrors the two, while 1.4
   // milestones before the rename (m.1, m.2) and 1.3 reject `protocol`.
   const workloadYaml = renderWorkloadYaml(finalProfile, { namespace, projectRef });
 
   // Show the two files side-by-side as untitled documents so the user can
-  // edit before saving. VS Code will prompt for a filename when they save
-  // — we pre-populate the URI hint below.
-  await showPreview(COMPONENT_REL_PATH, componentYaml, 'yaml');
-  await showPreview(WORKLOAD_REL_PATH, workloadYaml, 'yaml', vscode.ViewColumn.Beside);
+  // edit before saving. Each is tied to its target path, so its tab reads
+  // component.yaml / workload.yaml and Cmd+S saves it there.
+  const componentTarget = vscode.Uri.joinPath(folder.uri, COMPONENT_REL_PATH);
+  const workloadTarget = vscode.Uri.joinPath(folder.uri, WORKLOAD_REL_PATH);
+  const componentPreview = await showPreview(componentTarget, componentYaml);
+  const workloadPreview = await showPreview(workloadTarget, workloadYaml, vscode.ViewColumn.Beside);
 
   const existing = await checkExistingFiles(folder);
   if (existing.componentExists || existing.workloadExists) {
@@ -1433,7 +1443,15 @@ async function runScaffoldFromProject(
   );
   if (saveChoice !== 'Save') return;
 
-  const result = await writeScaffoldFiles(folder, { componentYaml, workloadYaml });
+  // Keep edits made in the previews, then replace them with the saved files.
+  const result = await writeScaffoldFiles(folder, {
+    componentYaml: componentPreview.isClosed ? componentYaml : componentPreview.getText(),
+    workloadYaml: workloadPreview.isClosed ? workloadYaml : workloadPreview.getText(),
+  });
+  await closePreview(componentPreview);
+  await closePreview(workloadPreview);
+  await vscode.window.showTextDocument(result.componentUri, { preview: false });
+  await vscode.window.showTextDocument(result.workloadUri, { viewColumn: vscode.ViewColumn.Beside, preview: false });
 
   const commitChoice = await vscode.window.showInformationMessage(
     `Manifests saved. Commit them to git now?`,
@@ -1521,23 +1539,30 @@ async function promptForAdjustments(
 }
 
 /**
- * Open a preview of a YAML file in an untitled document so the user can
- * review before saving to disk.
+ * Preview a manifest in an untitled document tied to `target` (its tab reads
+ * the file name, and saving writes there) so the user can review it before
+ * it is written. Running the flow again reuses the open preview.
  */
 async function showPreview(
-  relPath: string,
+  target: vscode.Uri,
   content: string,
-  languageId: string,
   column: vscode.ViewColumn = vscode.ViewColumn.Active,
-): Promise<void> {
-  const doc = await vscode.workspace.openTextDocument({
-    content,
-    language: languageId,
-  });
+): Promise<vscode.TextDocument> {
+  const uri = target.with({ scheme: 'untitled' });
+  let doc = await vscode.workspace.openTextDocument(uri);
+  if (doc.languageId !== 'yaml') doc = await vscode.languages.setTextDocumentLanguage(doc, 'yaml');
+  const edit = new vscode.WorkspaceEdit();
+  edit.replace(uri, doc.validateRange(new vscode.Range(0, 0, doc.lineCount, 0)), content);
+  await vscode.workspace.applyEdit(edit);
   await vscode.window.showTextDocument(doc, { viewColumn: column, preview: false });
-  // We open both files in separate tabs; the relPath is shown in the description only,
-  // as untitled documents don't carry a path. The actual write uses the fixed path.
-  void relPath;
+  return doc;
+}
+
+/** Close a preview without the "save changes?" prompt; its content is on disk now. */
+async function closePreview(doc: vscode.TextDocument): Promise<void> {
+  if (doc.isClosed) return;
+  await vscode.window.showTextDocument(doc, { preview: false });
+  await vscode.commands.executeCommand('workbench.action.revertAndCloseActiveEditor');
 }
 
 /** Open a scaffold YAML on the openchoreo:// filesystem so Cmd+S creates on cluster. */
@@ -1676,23 +1701,14 @@ async function openOrUpdateReleaseBinding(
   if (existing) {
     // Open the existing binding with updated releaseName
     const existingName = (existing.metadata?.name as string) ?? '';
-    const crd = existing as Record<string, unknown>;
-    // Update the releaseName in the spec
-    if (crd.spec && typeof crd.spec === 'object') {
-      (crd.spec as Record<string, unknown>).releaseName = releaseName;
-    }
     // Open via the virtual filesystem — this fetches from API, but we want the modified version
     const uri = vscode.Uri.from({
       scheme: FS_SCHEME,
-            authority: getResourceContextId(),
+      authority: getResourceContextId(),
       path: `/namespaces/${ns}/release-binding/${existingName}.yaml`,
     });
-    // Inject apiVersion/kind if missing
-    if (!crd.apiVersion) {
-      crd.apiVersion = 'openchoreo.dev/v1alpha1';
-      crd.kind = 'ReleaseBinding';
-    }
-    const yamlContent = stringify(crd, { lineWidth: 0 });
+    // The binding with the new releaseName, as a change to review: no status or server-set metadata.
+    const yamlContent = stringify(cleanCrdForWriting(desired), { lineWidth: 0 });
     // Use setReadonlyContent (not setPendingContent) to avoid marking as new — Cmd+S will use PUT
     fsProvider.setReadonlyContent(uri, yamlContent);
     const doc = await vscode.workspace.openTextDocument(uri);

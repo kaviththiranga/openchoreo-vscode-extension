@@ -22,20 +22,13 @@ export { createVscodeFs };
 /** Map language + dockerfile-presence into a workflow selection. */
 function chooseWorkflow(language: Language, hasDockerfile: boolean): WorkflowSelection {
   // When the repo has a Dockerfile, honor the user's explicit choice.
-  if (hasDockerfile) {
-    return {
-      name: 'dockerfile-builder',
-      parameters: { docker: { filePath: 'Dockerfile' } },
-    };
-  }
+  if (hasDockerfile) return { name: 'dockerfile-builder' };
 
   // Ballerina has its own language-specific buildpack.
-  if (language === 'ballerina') {
-    return { name: 'ballerina-buildpack-builder', parameters: {} };
-  }
+  if (language === 'ballerina') return { name: 'ballerina-buildpack-builder' };
 
   // Everything else → Paketo CNB. It auto-detects Node/Go/JVM/Python.
-  return { name: 'paketo-buildpacks-builder', parameters: {} };
+  return { name: 'paketo-buildpacks-builder' };
 }
 
 /** Normalize a string into a DNS-1123 label for use as a Kubernetes resource name. */

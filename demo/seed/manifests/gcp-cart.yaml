@@ -1,0 +1,77 @@
+# Online Boutique cart + its Redis, replacing the sample's `redis` Resource.
+#
+# The sample provisions Redis from the `valkey` ClusterResourceType. On this cluster that
+# Resource never becomes ready (its external-secrets Password generator reports no status, so
+# the ResourceReleaseBinding waits forever and cart cannot render). Here Redis is a plain
+# Component and cart reaches it through an endpoint dependency instead of a resource one.
+# Everything else about cart matches samples/gcp-microservices-demo/components/cart-component.yaml.
+apiVersion: openchoreo.dev/v1alpha1
+kind: Component
+metadata:
+  name: redis-cart
+  namespace: default
+  labels:
+    app.kubernetes.io/part-of: vscode-extension-demo
+spec:
+  owner:
+    projectName: gcp-microservice-demo
+  componentType:
+    kind: ClusterComponentType
+    name: deployment/service
+  autoDeploy: true
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: Workload
+metadata:
+  name: redis-cart
+  namespace: default
+spec:
+  owner:
+    componentName: redis-cart
+    projectName: gcp-microservice-demo
+  endpoints:
+    tcp:
+      type: TCP
+      port: 6379
+  container:
+    image: redis:7-alpine
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: Component
+metadata:
+  name: cart
+  namespace: default
+spec:
+  owner:
+    projectName: gcp-microservice-demo
+  componentType:
+    kind: ClusterComponentType
+    name: deployment/service
+  autoDeploy: true
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: Workload
+metadata:
+  name: cart
+  namespace: default
+spec:
+  owner:
+    componentName: cart
+    projectName: gcp-microservice-demo
+  endpoints:
+    grpc:
+      type: gRPC
+      port: 7070
+  dependencies:
+    endpoints:
+      - project: gcp-microservice-demo
+        component: redis-cart
+        name: tcp
+        visibility: project
+        envBindings:
+          address: REDIS_ADDR
+  container:
+    image: us-central1-docker.pkg.dev/google-samples/microservices-demo/cartservice:v0.10.5
+    env:
+      - key: PORT
+        value: "7070"

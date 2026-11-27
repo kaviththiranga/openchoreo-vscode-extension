@@ -3,6 +3,7 @@
 
 import * as path from 'path';
 import * as vscode from 'vscode';
+import { aiFeaturesEnabled } from '../ai/chatHandoffs';
 import { summarizeLogs } from '../ai/logSummary';
 import {
   createObservabilityClientWithUrl,
@@ -15,6 +16,7 @@ import type { ServerInfoService } from '../services/serverInfoService';
 import type { ResourceNodeData } from '../treeView/types';
 import { log } from '../logging/logger';
 import { occTerminalEnv } from '../cli/cliPath';
+import { terminalBinary } from '../cli/terminalPath';
 
 type Client = NonNullable<Awaited<ReturnType<ApiClientManager['getClient']>>>;
 
@@ -111,12 +113,13 @@ export function registerDevLoopCommands(context: vscode.ExtensionContext, deps: 
         { label: 'Last 6 hours', minutes: 360 },
         { label: 'Last 24 hours', minutes: 1440 },
       ],
-      { placeHolder: `Runtime logs for ${target.component} in ${target.environment}` },
+      { placeHolder: `Runtime logs for ${target.component} in ${target.environment}`, ignoreFocusOut: true },
     );
     if (!range) return;
     const searchPhrase = await vscode.window.showInputBox({
       prompt: 'Filter by text (optional)',
       placeHolder: 'e.g. timeout',
+      ignoreFocusOut: true,
     });
     if (searchPhrase === undefined) return;
 
@@ -170,7 +173,7 @@ export function registerDevLoopCommands(context: vscode.ExtensionContext, deps: 
       truncated
         ? `Showing the first ${entries.length} of ${data?.total} matching lines.`
         : `Showing ${entries.length} log lines.`,
-      'Summarize with Copilot',
+      ...(aiFeaturesEnabled() ? ['Summarize with Copilot'] : []),
     );
     if (choice === 'Summarize with Copilot') {
       await vscode.window.withProgress(
@@ -255,7 +258,7 @@ async function resolveTarget(deps: DevLoopDeps, arg: unknown): Promise<Target | 
     return undefined;
   }
   const environment =
-    envs.length === 1 ? envs[0] : await vscode.window.showQuickPick(envs, { placeHolder: 'Environment' });
+    envs.length === 1 ? envs[0] : await vscode.window.showQuickPick(envs, { placeHolder: 'Environment', ignoreFocusOut: true });
   return environment ? { ...base, environment } : undefined;
 }
 
@@ -310,7 +313,7 @@ export async function resolveWorkloadUri(arg: unknown): Promise<vscode.Uri | und
 function runInTerminal(name: string, binary: string, args: string[], cwd?: string): void {
   const terminal = vscode.window.createTerminal({ name, cwd, env: occTerminalEnv() });
   terminal.show();
-  terminal.sendText([binary, ...args].map(shellQuote).join(' '));
+  terminal.sendText([terminalBinary(binary), ...args].map(shellQuote).join(' '));
 }
 
 /** POSIX-quote an argument unless it is plainly safe. */

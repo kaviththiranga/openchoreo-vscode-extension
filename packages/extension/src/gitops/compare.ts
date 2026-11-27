@@ -229,7 +229,7 @@ export function registerCompareCommands(
           ? entries[0]
           : ((await vscode.window.showQuickPick(
               entries.map((e) => ({ label: vscode.workspace.asRelativePath(e.uri), entry: e })),
-              { placeHolder: `${kind} "${name}" is declared more than once` },
+              { placeHolder: `${kind} "${name}" is declared more than once`, ignoreFocusOut: true },
             ))?.entry as RepoEntry);
       if (!entry) return;
       const live = liveUri({ kind, name, namespace: node.namespace }, entry.uri, entry.docIndex);

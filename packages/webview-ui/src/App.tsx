@@ -1,7 +1,7 @@
 // Copyright 2026 The OpenChoreo Authors
 // SPDX-License-Identifier: Apache-2.0
 
-import { useState, useEffect, useCallback } from 'preact/hooks';
+import { useState, useEffect, useCallback, useMemo } from 'preact/hooks';
 import { NamespaceHeader } from './components/NamespaceHeader';
 import { NotConnectedView } from './components/NotConnectedView';
 import { TreeSection } from './components/TreeSection';
@@ -26,6 +26,20 @@ interface PersistedState {
 
 const DEFAULT_TREE_STATE: TreeViewState = { expandedNodes: [], expandedSections: ['projects'] };
 
+const ALL_SECTIONS: Section[] = ['projects', 'infrastructure', 'cluster'];
+
+/**
+ * Loaded children by node ID. After a refresh the previous children stay on
+ * screen as `stale` while expanded nodes fetch theirs again, so the tree
+ * doesn't collapse to "Loading..." and regrow.
+ */
+interface ChildrenState {
+  fresh: Record<string, ResourceNodeData[]>;
+  stale: Record<string, ResourceNodeData[]>;
+}
+
+const invalidate = (prev: ChildrenState): ChildrenState => ({ fresh: {}, stale: { ...prev.stale, ...prev.fresh } });
+
 function getContextKey(ctx?: string, ns?: string): string {
   return `${ctx ?? ''}:${ns ?? ''}`;
 }
@@ -47,7 +61,14 @@ export function App() {
     infrastructure: [],
     cluster: [],
   });
-  const [childrenMap, setChildrenMap] = useState<Record<string, ResourceNodeData[]>>({});
+  const [children, setChildren] = useState<ChildrenState>({ fresh: {}, stale: {} });
+  const childrenMap = useMemo(() => ({ ...children.stale, ...children.fresh }), [children]);
+  const staleNodes = useMemo(
+    () => new Set(Object.keys(children.stale).filter((id) => !(id in children.fresh))),
+    [children],
+  );
+  // Sections waiting for their roots after a refresh; the old roots stay visible meanwhile.
+  const [refreshing, setRefreshing] = useState<Set<Section>>(() => new Set());
   const [iconFontLoaded, setIconFontLoaded] = useState(false);
 
   // Persisted expand state — keyed by context:namespace
@@ -160,21 +181,24 @@ export function App() {
           break;
         case 'setRoots':
           setSectionRoots(prev => ({ ...prev, [msg.section]: msg.nodes }));
+          setRefreshing(prev => {
+            const next = new Set(prev);
+            next.delete(msg.section);
+            return next;
+          });
           break;
         case 'setChildren':
-          setChildrenMap(prev => ({ ...prev, [msg.nodeId]: msg.nodes }));
+          setChildren(prev => ({ ...prev, fresh: { ...prev.fresh, [msg.nodeId]: msg.nodes } }));
           break;
         case 'refreshAll':
-          setChildrenMap({});
-          vscode.postMessage({ type: 'requestRoots', section: 'projects' });
-          vscode.postMessage({ type: 'requestRoots', section: 'infrastructure' });
-          vscode.postMessage({ type: 'requestRoots', section: 'cluster' });
+        case 'refreshSection': {
+          // Node IDs don't say which section they belong to, so every expanded node reloads.
+          const sections = msg.type === 'refreshAll' ? ALL_SECTIONS : [msg.section];
+          setChildren(invalidate);
+          setRefreshing(prev => new Set([...prev, ...sections]));
+          for (const section of sections) vscode.postMessage({ type: 'requestRoots', section });
           break;
-        case 'refreshSection':
-          setChildrenMap({});
-          setSectionRoots(prev => ({ ...prev, [msg.section]: [] }));
-          vscode.postMessage({ type: 'requestRoots', section: msg.section });
-          break;
+        }
       }
     };
     window.addEventListener('message', handler);
@@ -202,7 +226,7 @@ export function App() {
 
   const onRefresh = useCallback(
     (section: Section) => {
-      setSectionRoots(prev => ({ ...prev, [section]: [] }));
+      // The extension answers with refreshSection.
       vscode.postMessage({ type: 'refresh', section });
     },
     [],
@@ -234,7 +258,9 @@ export function App() {
         title="Projects"
         section="projects"
         roots={sectionRoots.projects}
+        refreshing={refreshing.has('projects')}
         childrenMap={childrenMap}
+        staleNodes={staleNodes}
         expandedNodes={expandedNodes}
         expanded={expandedSections.has('projects')}
         createCommand="openchoreo.createDevResource"
@@ -251,7 +277,9 @@ export function App() {
         title="Namespace Resources"
         section="infrastructure"
         roots={sectionRoots.infrastructure}
+        refreshing={refreshing.has('infrastructure')}
         childrenMap={childrenMap}
+        staleNodes={staleNodes}
         expandedNodes={expandedNodes}
         expanded={expandedSections.has('infrastructure')}
         createCommand="openchoreo.createInfraResource"
@@ -268,7 +296,9 @@ export function App() {
         title="Cluster Resources"
         section="cluster"
         roots={sectionRoots.cluster}
+        refreshing={refreshing.has('cluster')}
         childrenMap={childrenMap}
+        staleNodes={staleNodes}
         expandedNodes={expandedNodes}
         expanded={expandedSections.has('cluster')}
         createCommand="openchoreo.createClusterResource"

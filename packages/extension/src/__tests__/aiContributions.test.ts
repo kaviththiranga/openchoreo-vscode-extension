@@ -28,6 +28,18 @@ describe('chat contributions', () => {
     }
   });
 
+  it('hides chat hand-offs when AI features are turned off', () => {
+    const handoffs = ['openchoreo.addToChat', 'openchoreo.addYamlToChat', 'openchoreo.troubleshootWithCopilot', 'openchoreo.fixWithCopilot'];
+    const menus = Object.values(manifest.contributes.menus as Record<string, Array<{ command: string; when?: string }>>).flat();
+    const entries = menus.filter((m) => handoffs.includes(m.command));
+    expect(entries.length).toBeGreaterThan(4);
+    for (const { command, when = '' } of entries) {
+      if (when === 'false') continue;
+      // Every alternative of the clause must carry the check.
+      for (const alternative of when.split('||')) expect(alternative, command).toContain('!config.chat.disableAIFeatures');
+    }
+  });
+
   it('declares every registered language model tool', () => {
     expect(toolNames.sort()).toEqual(Object.values(TOOL_NAMES).sort());
   });

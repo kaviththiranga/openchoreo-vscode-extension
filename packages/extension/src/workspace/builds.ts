@@ -8,7 +8,7 @@
  */
 import * as vscode from 'vscode';
 import type { ApiClientManager } from '../api/apiClient';
-import type { WorkflowRunService } from '../services/workflowRunService';
+import { newRunName, type WorkflowRunService } from '../services/workflowRunService';
 import { log } from '../logging/logger';
 import type { ResourceNodeData } from '../treeView/types';
 import type { ComponentLink, ComponentLinkService, PushEvent } from './componentLinks';
@@ -129,7 +129,7 @@ export class BuildFollower implements vscode.Disposable {
 
   private async createRun(component: SourcedComponent, commit: string, branch?: string): Promise<void> {
     try {
-      const runName = `${component.name}-${Date.now()}`;
+      const runName = newRunName(component.name);
       await this.runs.createWorkflowRun(component.namespace, {
         metadata: {
           name: runName,

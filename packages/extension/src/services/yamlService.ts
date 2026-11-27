@@ -45,6 +45,31 @@ export function cleanCrdForEditing(
   return cleaned;
 }
 
+/** Metadata the server sets; a change sent back never needs it. */
+const SERVER_METADATA = [
+  'uid',
+  'resourceVersion',
+  'generation',
+  'creationTimestamp',
+  'deletionTimestamp',
+  'deletionGracePeriodSeconds',
+  'selfLink',
+];
+
+/**
+ * A resource as a change to review and save: what cleanCrdForEditing keeps,
+ * without status or server-set metadata.
+ */
+export function cleanCrdForWriting(crd: Record<string, unknown>): Record<string, unknown> {
+  const { status: _status, ...cleaned } = cleanCrdForEditing(crd);
+  if (cleaned.metadata && typeof cleaned.metadata === 'object') {
+    const meta = { ...(cleaned.metadata as Record<string, unknown>) };
+    for (const key of SERVER_METADATA) delete meta[key];
+    cleaned.metadata = meta;
+  }
+  return cleaned;
+}
+
 /**
  * Converts a resource JSON object to a clean YAML string for editing.
  */
@@ -77,13 +102,23 @@ spec:
   owner:
     projectName: "{{project}}"
 
+  # <workloadType>/<name> of a ComponentType or ClusterComponentType
   componentType:
-    name: service
+    kind: ClusterComponentType
+    name: deployment/service
 
   workflow:
-    name: docker
+    kind: ClusterWorkflow
+    name: dockerfile-builder
     parameters:
-      dockerfile: Dockerfile
+      repository:
+        url: https://github.com/my-org/my-repo
+        revision:
+          branch: main
+        appPath: .
+      docker:
+        context: .
+        filePath: ./Dockerfile
 
   autoDeploy: true
 `,
@@ -97,8 +132,8 @@ spec:
   workloadType: deployment
 
   allowedWorkflows:
-    - kind: Workflow
-      name: docker
+    - kind: ClusterWorkflow
+      name: dockerfile-builder
 
   parameters:
     openAPIV3Schema:
@@ -367,7 +402,7 @@ spec:
 
   allowedWorkflows:
     - kind: ClusterWorkflow
-      name: docker
+      name: dockerfile-builder
 
   parameters:
     openAPIV3Schema:

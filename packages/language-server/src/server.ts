@@ -18,6 +18,7 @@ import { getCompletionItems } from './completion/completionProvider';
 import { getHoverInfo } from './hover/hoverProvider';
 import { getDocumentSymbols } from './symbols/documentSymbolProvider';
 import { loadSchemas, CrdSchemaMap } from './schemas/schemaLoader';
+import { documentAt, isolatedDocuments } from './documents';
 
 const connection = createConnection(ProposedFeatures.all);
 const documents = new TextDocuments(TextDocument);
@@ -79,12 +80,17 @@ connection.onNotification(
  * OpenChoreo resource) and the diagnostics the editor would show.
  */
 connection.onRequest('openchoreo/validate', (params: { text: string }) => {
-  const kind = detectCrdKind(params.text);
-  const schema = kind ? schemas[kind] : undefined;
-  if (!kind || !schema) return { kind: kind ?? null, diagnostics: [] };
   const document = TextDocument.create('untitled:openchoreo-validate.yaml', 'yaml', 1, params.text);
-  return { kind, diagnostics: validateDocument(params.text, schema, document, resourceNames) };
+  return { kind: detectCrdKind(params.text) ?? null, diagnostics: diagnosticsFor(document) };
 });
+
+/** Diagnostics for every OpenChoreo resource in a file, one per YAML document. */
+function diagnosticsFor(file: TextDocument) {
+  return isolatedDocuments(file).flatMap(({ document, kind }) => {
+    const schema = kind ? schemas[kind] : undefined;
+    return schema ? validateDocument(document.getText(), schema, file, resourceNames) : [];
+  });
+}
 
 // Validate documents on open and change
 documents.onDidChangeContent((change) => {
@@ -94,29 +100,10 @@ documents.onDidChangeContent((change) => {
 async function validateTextDocument(
   textDocument: TextDocument,
 ): Promise<void> {
-  const text = textDocument.getText();
-
-  // Only validate YAML files that contain OpenChoreo CRDs
-  const crdKind = detectCrdKind(text);
-  if (!crdKind) {
-    // Clear diagnostics for non-CRD files
-    connection.sendDiagnostics({
-      uri: textDocument.uri,
-      diagnostics: [],
-    });
-    return;
-  }
-
-  const schema = schemas[crdKind];
-  if (!schema) {
-    // Known CRD kind but no schema yet
-    return;
-  }
-
-  const diagnostics = validateDocument(text, schema, textDocument, resourceNames);
+  // Files without OpenChoreo resources get (and clear) no diagnostics.
   connection.sendDiagnostics({
     uri: textDocument.uri,
-    diagnostics,
+    diagnostics: diagnosticsFor(textDocument),
   });
 }
 
@@ -127,13 +114,12 @@ connection.onCompletion((params): CompletionItem[] => {
     return [];
   }
 
-  const text = document.getText();
-  const crdKind = detectCrdKind(text);
+  const { document: current, kind } = documentAt(document, document.offsetAt(params.position));
   // Pass null schema if no CRD detected or no schema — completions can still
   // offer apiVersion/kind bootstrap and empty-doc scaffolds
-  const schema = crdKind ? (schemas[crdKind] ?? null) : null;
+  const schema = kind ? (schemas[kind] ?? null) : null;
 
-  return getCompletionItems(document, params.position, schema, resourceNames, crdKind ?? undefined, resourceSchemas);
+  return getCompletionItems(current, params.position, schema, resourceNames, kind, resourceSchemas);
 });
 
 // Provide hover info
@@ -143,18 +129,9 @@ connection.onHover((params): Hover | null => {
     return null;
   }
 
-  const text = document.getText();
-  const crdKind = detectCrdKind(text);
-  if (!crdKind) {
-    return null;
-  }
-
-  const schema = schemas[crdKind];
-  if (!schema) {
-    return null;
-  }
-
-  return getHoverInfo(document, params.position, schema);
+  const { document: current, kind } = documentAt(document, document.offsetAt(params.position));
+  const schema = kind ? schemas[kind] : undefined;
+  return schema ? getHoverInfo(current, params.position, schema) : null;
 });
 
 // Provide document symbols (outline view, breadcrumbs)

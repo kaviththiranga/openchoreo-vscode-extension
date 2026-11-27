@@ -19,6 +19,23 @@
 - Commit and push errors from **Promote in Repository** and **Generate Releases** show git's own message
 - Fix: client-credentials logins (service accounts) showed "Session expired" once the token lapsed; the extension now mints a new token like occ does
 - Fix: with `openchoreo.configPath` set to another `.openchoreo/config`, the occ commands the extension runs now use that login
+- Fix: on OpenChoreo 1.4, workflow runs showed no status icon or phase (1.4 reports them as conditions), and failed runs had no **Troubleshoot with Copilot**
+- Fix: lists stopped at the API's first page of 20 items, so larger namespaces had missing tree items and completions and false "not found" warnings
+- Fix: the **Create Component** scaffold and **Scaffold Component from this Project** wrote component types and workflows the API rejects; they now reference a `ClusterComponentType` as `<workloadType>/<name>` (e.g. `deployment/service`) and a `ClusterWorkflow`, with the repository taken from the folder's git remote
+- Component type completions, reference checks and Go to Definition use the `<workloadType>/<name>` form
+- Scaffold previews open as `component.yaml` and `workload.yaml`, Save writes them and opens the files, and **Commit** works (it always failed before)
+- The sidebar refreshes after saves, Generate Release, **Refresh Resources** and `openchoreo.autoRefresh` (these did nothing before), and refreshing keeps expanded nodes open instead of collapsing the tree
+- The bundled language server handles multi-document YAML (validation, completions, hover and CEL per document, one outline entry per document), completes keys inside nested objects and list items (including `kind`), completes ComponentType parameters, shows object defaults properly, lists schema fields before CEL methods, and shows hover docs for keys in list items
+- Fix: completions for objects and arrays were indented twice
+- Workflow run logs are shown in time order (1.4 returned them grouped by step, so lines repeated or went missing)
+- Pickers opened from the sidebar no longer close when focus returns to it; Promote, Deploy and Roll Back drafts are clean YAML without status and server fields
+- **Compare Releases…** puts the older release on the left; **Run Now** shows only on scheduled tasks; sidebar labels keep their space before descriptions
+- Chat hand-offs (Add to Chat, Add YAML to Chat, Troubleshoot, Fix and Summarize with Copilot) are hidden when `chat.disableAIFeatures` is on
+- The GitOps view rescans when it first shows, so files created right after startup appear, and deleting a folder removes its rows; **Compare with Repository** shows once in the menu
+- Workflow runs the extension starts get short names (`<component>-<8 characters>`)
+- Removed an unused snippets file from the package
+- Run Locally and Open Shell terminals run `occ` by name when its folder is on the terminal `PATH`, and Reveal App Folder and Clone Source show workspace-relative paths, folder names or `~` paths instead of absolute ones
+- Fix: with an expired stored token, simultaneous requests at startup could each try to refresh it, and one failed refresh left the sidebar and status bar on "Session expired"; refreshes are now shared and retried once
 
 ## 0.3.0 — 2026-11-18
 

@@ -1,0 +1,23 @@
+# lab-frontend carries the observability-alert-rule trait, which cannot render without a
+# notification channel. Creating its development ReleaseBinding before the Component (the same
+# pattern as samples/from-image/url-shortener/alerting-demo/enable-alert.yaml) lets autoDeploy
+# only fill in the release name and keep this trait configuration.
+apiVersion: openchoreo.dev/v1alpha1
+kind: ReleaseBinding
+metadata:
+  name: lab-frontend-development
+  namespace: default
+  labels:
+    app.kubernetes.io/part-of: vscode-extension-demo
+spec:
+  owner:
+    projectName: latency-lab
+    componentName: lab-frontend
+  environment: development
+  traitEnvironmentConfigs:
+    lab-frontend-5xx-log-alert:
+      enabled: true
+      actions:
+        notifications:
+          channels:
+            - webhook-notification-channel-development

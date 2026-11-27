@@ -16,6 +16,8 @@ export interface Reference {
   /** Kinds the value may name, most likely first. */
   kinds: string[];
   name: string;
+  /** The workload type a component type reference (`<workloadType>/<name>`) requires. */
+  workloadType?: string;
 }
 
 type Path = (string | number)[];
@@ -32,9 +34,12 @@ export function referenceAt(kind: string, path: Path, value: string, sibling: (k
     return { kinds: [cluster, namespaced], name };
   };
   switch (p) {
-    case 'spec.componentType.name':
+    case 'spec.componentType.name': {
       // `<workloadType>/<name>`
-      return typed('ComponentType', 'ClusterComponentType', value.includes('/') ? value.split('/').slice(1).join('/') : value);
+      const slash = value.indexOf('/');
+      if (slash < 0) return typed('ComponentType', 'ClusterComponentType');
+      return { ...typed('ComponentType', 'ClusterComponentType', value.slice(slash + 1)), workloadType: value.slice(0, slash) };
+    }
     case 'spec.traits.*.name':
       return typed('Trait', 'ClusterTrait');
     case 'spec.workflow.name':
@@ -131,7 +136,9 @@ export function registerDefinitions(
           await deps.repoIndex.whenReady();
           if (deps.enabled?.() === false) return undefined;
           const origin = new vscode.Range(document.positionAt(hit.range[0]), document.positionAt(hit.range[1]));
-          const inRepo = ref.kinds.flatMap((k) => deps.repoIndex.find(k, ref.name, namespace));
+          const inRepo = ref.kinds
+            .flatMap((k) => deps.repoIndex.find(k, ref.name, namespace))
+            .filter((e) => !ref.workloadType || !e.workloadType || e.workloadType === ref.workloadType);
           if (inRepo.length) {
             return inRepo.map((e) => ({
               originSelectionRange: origin,

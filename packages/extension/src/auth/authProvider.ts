@@ -303,17 +303,31 @@ export class OccConfigAuthProvider implements vscode.Disposable {
 
     // Check if token is expired
     if (this.isTokenExpired(session.token)) {
-      log.info('Token expired, attempting refresh...');
+      // At startup the sidebar sections, the status bar and the MCP servers all ask at once:
+      // share one refresh, and retry it once so a transient failure doesn't stick as "Session expired".
+      this.refreshing ??= this.refreshWithRetry(session).finally(() => {
+        this.refreshing = undefined;
+      });
+      return this.refreshing;
+    }
+
+    return session.token;
+  }
+
+  private refreshing: Promise<string | undefined> | undefined;
+
+  private async refreshWithRetry(session: AuthSession): Promise<string | undefined> {
+    log.info('Token expired, attempting refresh...');
+    for (let attempt = 0; attempt < 2; attempt++) {
+      if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 1500));
       const refreshed = await this.refreshToken(session);
       if (refreshed) {
         log.info('Token refreshed successfully');
         return refreshed;
       }
-      log.error('Token refresh failed');
-      return undefined;
     }
-
-    return session.token;
+    log.error('Token refresh failed');
+    return undefined;
   }
 
   /**

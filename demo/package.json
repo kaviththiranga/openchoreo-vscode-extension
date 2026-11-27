@@ -1,0 +1,17 @@
+{
+  "name": "openchoreo-vscode-demo",
+  "private": true,
+  "type": "module",
+  "description": "Post-production for the OpenChoreo for VS Code marketing footage (shorts, reel, GIFs, posters). Recording lives in packages/extension (pnpm demo:capture). See README.md.",
+  "scripts": {
+    "timeline": "node scripts/tools/build_timeline.mjs --allow-missing",
+    "render": "make render",
+    "check": "make check"
+  },
+  "dependencies": {
+    "yaml": "^2.9.1"
+  },
+  "engines": {
+    "node": ">=20.11"
+  }
+}

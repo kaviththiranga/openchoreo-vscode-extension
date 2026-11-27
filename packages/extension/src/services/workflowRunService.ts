@@ -3,6 +3,35 @@
 
 import type { ApiClientManager } from '../api/apiClient';
 
+/** Seconds since the epoch and nanoseconds of an RFC 3339 timestamp, or undefined. */
+function timeKey(timestamp: string | undefined): [number, number] | undefined {
+  const m = timestamp && /^(.+T\d{2}:\d{2}:\d{2})(?:\.(\d+))?(Z|[+-]\d{2}:\d{2})$/i.exec(timestamp);
+  if (!m) return undefined;
+  const seconds = Date.parse(`${m[1]}${m[3]}`);
+  return Number.isNaN(seconds) ? undefined : [seconds, Number((m[2] ?? '').padEnd(9, '0').slice(0, 9))];
+}
+
+/**
+ * Log entries in time order. OpenChoreo 1.4 returns a run's logs grouped by
+ * step, so a growing log isn't append-only until it is sorted. Entries are
+ * left as they are when any lacks a timestamp.
+ */
+export function sortByTimestamp<T extends { timestamp?: string }>(entries: T[]): T[] {
+  const keyed = entries.map((entry) => ({ entry, key: timeKey(entry.timestamp) }));
+  if (keyed.some((k) => !k.key)) return entries;
+  return keyed
+    .sort((a, b) => a.key![0] - b.key![0] || a.key![1] - b.key![1])
+    .map((k) => k.entry);
+}
+
+/**
+ * A name for a new run of `base` (a component or workflow): a short suffix
+ * from the current time in base 36, so later runs sort after earlier ones.
+ */
+export function newRunName(base: string, now = Date.now()): string {
+  return `${base}-${now.toString(36)}`;
+}
+
 export class WorkflowRunService {
   constructor(private readonly apiClientManager: ApiClientManager) {}
 
@@ -49,7 +78,7 @@ export class WorkflowRunService {
     );
 
     if (error) throw new Error('Failed to fetch workflow run logs');
-    return (data ?? []) as Array<{ timestamp?: string; log: string }>;
+    return sortByTimestamp((data ?? []) as Array<{ timestamp?: string; log: string }>);
   }
 
   async getEvents(

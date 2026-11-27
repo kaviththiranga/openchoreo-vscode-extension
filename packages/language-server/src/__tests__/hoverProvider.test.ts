@@ -45,3 +45,35 @@ describe('getHoverInfo', () => {
     expect(hoverAt(8, 5)).toContain('**spec.type.name**');
   });
 });
+
+describe('getHoverInfo in list items', () => {
+  const component = [
+    'apiVersion: openchoreo.dev/v1alpha1',
+    'kind: Component',
+    'metadata:',
+    '  name: api',
+    'spec:',
+    '  traits:',
+    '    - name: storage',
+    '      kind: ClusterTrait',
+    '      instanceName: data',
+  ].join('\n');
+  const listDoc = TextDocument.create('file:///c.yaml', 'yaml', 1, component);
+  const at = (line: number, character: number) => {
+    const h = getHoverInfo(listDoc, { line, character }, schemas.Component!);
+    return h && typeof h.contents === 'object' && 'value' in h.contents ? h.contents.value : undefined;
+  };
+
+  it('documents the first key of an item, on its `- key:` line', () => {
+    expect(at(6, 7)).toContain('**spec.traits[].name**');
+  });
+
+  it('documents the later keys of an item', () => {
+    expect(at(7, 7)).toContain('**spec.traits[].kind**');
+    expect(at(8, 8)).toContain('**spec.traits[].instanceName**');
+  });
+
+  it('stays silent off a key', () => {
+    expect(at(6, 14)).toBeUndefined();
+  });
+});

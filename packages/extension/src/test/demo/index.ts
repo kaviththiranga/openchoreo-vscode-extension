@@ -3,41 +3,34 @@
 
 /**
  * Demo capture entry point, bundled and called by scripts/capture-demo.mjs.
- * Add a scene to SCENES to capture it.
+ * Add a scene to its area's list in scenes/<area>/index.ts to capture it.
  */
 import * as fs from 'fs';
 import * as path from 'path';
 import type { ElectronApplication, Page } from 'playwright-core';
 import { Demo, Recorder, type DemoOptions, type Requirement, type Scene } from './demo';
-import { agentFixesYaml } from './scenes/agentFixesYaml';
-import { aiCustomizations } from './scenes/aiCustomizations';
-import { chatTools } from './scenes/chatTools';
-import { fixWithCopilot } from './scenes/fixWithCopilot';
-import { debugAgainstEnv } from './scenes/debugAgainstEnv';
-import { gitopsAuthoring } from './scenes/gitopsAuthoring';
-import { gitopsCompare } from './scenes/gitopsCompare';
-import { gitopsLive } from './scenes/gitopsLive';
-import { linkedComponent } from './scenes/linkedComponent';
+import { aiScenes } from './scenes/ai';
+import { deliveryScenes } from './scenes/delivery';
+import { exploreScenes } from './scenes/explore';
+import { gitopsScenes } from './scenes/gitops';
+import { innerLoopScenes } from './scenes/innerloop';
+import { languageScenes } from './scenes/language';
 import { manual } from './scenes/manual';
-import { otherAgents } from './scenes/otherAgents';
-import { mcpServers } from './scenes/mcpServers';
-import { yamlAuthoring } from './scenes/yamlAuthoring';
 
+/** Each feature area keeps its scenes in scenes/<area>/index.ts. */
 export const SCENES: Scene[] = [
-  yamlAuthoring,
-  mcpServers,
-  aiCustomizations,
-  fixWithCopilot,
-  otherAgents,
-  gitopsCompare,
-  gitopsAuthoring,
-  gitopsLive,
-  linkedComponent,
-  debugAgainstEnv,
-  chatTools,
-  agentFixesYaml,
+  ...exploreScenes,
+  ...languageScenes,
+  ...deliveryScenes,
+  ...innerLoopScenes,
+  ...gitopsScenes,
+  ...aiScenes,
   manual,
 ];
+
+// Scene names name the clips: a name used twice would overwrite another area's footage.
+const duplicates = SCENES.map((s) => s.name).filter((name, i, all) => all.indexOf(name) !== i);
+if (duplicates.length > 0) throw new Error(`Duplicate demo scene names: ${[...new Set(duplicates)].join(', ')}`);
 
 export interface RunOptions extends DemoOptions {
   only: string[];
@@ -65,15 +58,31 @@ export async function runScenes(app: ElectronApplication, page: Page, options: R
     await offCamera.command('Notifications: Clear All Notifications');
     await page.evaluate(() => document.getElementById('oc-demo-cursor')?.remove());
     await offCamera.pause(500);
+    try {
+      await scene.setup?.(offCamera);
+      await page.evaluate(() => document.getElementById('oc-demo-cursor')?.remove());
+    } catch (err) {
+      ok = false;
+      console.error(`- ${scene.name}: SETUP FAILED: ${err instanceof Error ? err.message : err}`);
+      await offCamera.screenshot('setup-failure').catch(() => {});
+      continue;
+    }
 
-    const demo = new Demo(app, page, scene, options);
     const recorder = new Recorder();
+    const demo = new Demo(app, page, scene, options, () => recorder.elapsed());
     const video = `${scene.name}.mp4`;
     if (record) await recorder.start(page, path.join(options.outDir, video), options);
     try {
       await demo.pause(500);
       await scene.run(demo);
       await demo.pause(500);
+      const key = demo.marks.filter((m) => m.label === 'key').pop();
+      fs.writeFileSync(path.join(options.outDir, `${scene.name}.json`), JSON.stringify({
+        ...(key ? { key_moment_s: key.t } : {}),
+        duration_s: recorder.elapsed(),
+        marks: demo.marks,
+        overlays: recorder.overlays.filter((o) => o.to - o.from >= 0.1),
+      }, null, 2));
       console.log(`- ${scene.name}: ok`);
     } catch (err) {
       ok = false;
@@ -81,6 +90,9 @@ export async function runScenes(app: ElectronApplication, page: Page, options: R
       await demo.screenshot('failure').catch(() => {});
     } finally {
       if (record) await recorder.stop();
+      await scene.teardown?.(offCamera).catch((err: unknown) => {
+        console.error(`- ${scene.name}: TEARDOWN FAILED: ${err instanceof Error ? err.message : err}`);
+      });
     }
     index.push(`## ${scene.name}`, '', scene.title, '');
     if (record) index.push(`- video: ${video}`);

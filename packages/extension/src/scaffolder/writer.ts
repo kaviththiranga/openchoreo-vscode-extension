@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import * as vscode from 'vscode';
+import { getGitApi, type GitRepository } from '../git/gitApi';
 
 /** The two scaffolded file paths, relative to the workspace folder. */
 export const COMPONENT_REL_PATH = '.openchoreo/component.yaml';
@@ -65,20 +66,14 @@ export async function writeScaffoldFiles(
   return { componentUri, workloadUri };
 }
 
-// ---------- Minimal subset of vscode.git API (built-in extension) ----------
-
-interface GitRepository {
-  add(resources: vscode.Uri[]): Promise<void>;
-  commit(message: string): Promise<void>;
-  rootUri: vscode.Uri;
-}
-
-interface GitAPI {
-  getRepository(uri: vscode.Uri): GitRepository | null;
-}
-
-interface GitExtension {
-  getAPI(version: 1): GitAPI;
+/** Stage `files` and commit them. The git API stages file paths, not URIs. */
+export async function commitFiles(
+  repo: Pick<GitRepository, 'add' | 'commit'>,
+  files: vscode.Uri[],
+  message: string,
+): Promise<void> {
+  await repo.add(files.map((uri) => uri.fsPath));
+  await repo.commit(message);
 }
 
 /**
@@ -92,23 +87,10 @@ export async function tryCommitScaffold(
   files: WriteResult,
   message = 'chore: add OpenChoreo manifests',
 ): Promise<boolean> {
-  const ext = vscode.extensions.getExtension<GitExtension>('vscode.git');
-  if (!ext) return false;
-
-  if (!ext.isActive) {
-    try {
-      await ext.activate();
-    } catch {
-      return false;
-    }
-  }
-
   try {
-    const api = ext.exports.getAPI(1);
-    const repo = api.getRepository(folder.uri);
+    const repo = (await getGitApi())?.getRepository(folder.uri);
     if (!repo) return false;
-    await repo.add([files.componentUri, files.workloadUri]);
-    await repo.commit(message);
+    await commitFiles(repo, [files.componentUri, files.workloadUri], message);
     return true;
   } catch {
     return false;

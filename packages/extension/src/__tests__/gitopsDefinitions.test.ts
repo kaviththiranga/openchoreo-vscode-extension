@@ -14,13 +14,13 @@ vi.mock('vscode', async importOriginal => {
   };
 });
 
-function fixture() {
+function fixture(typeName = 'service', entries: Array<Record<string, unknown>> = []) {
   let enabled = true;
-  const text = 'apiVersion: openchoreo.dev/v1alpha1\nkind: Component\nmetadata: {name: app}\nspec:\n  componentType:\n    kind: ComponentType\n    name: service\n';
+  const text = `apiVersion: openchoreo.dev/v1alpha1\nkind: Component\nmetadata: {name: app}\nspec:\n  componentType:\n    kind: ComponentType\n    name: ${typeName}\n`;
   const getText = vi.fn(() => text);
-  const document = { getText, offsetAt: () => text.indexOf('service') + 1, positionAt: () => ({line: 0, character: 0}) } as unknown as vscode.TextDocument;
+  const document = { getText, offsetAt: () => text.indexOf(typeName) + 1, positionAt: () => ({line: 0, character: 0}) } as unknown as vscode.TextDocument;
   const whenReady = vi.fn(async () => {});
-  const find = vi.fn(() => []);
+  const find = vi.fn(() => entries);
   const context = { subscriptions: [] } as unknown as vscode.ExtensionContext;
   registerDefinitions(context, {repoIndex: {whenReady, find} as unknown as GitOpsRepoIndex, namespace: () => 'default', enabled: () => enabled});
   const provider = vi.mocked(vscode.languages.registerDefinitionProvider).mock.calls[0][1];
@@ -41,6 +41,14 @@ describe('GitOps definition fallback', () => {
     const locations = await f.run() as vscode.LocationLink[];
     expect(locations).toHaveLength(1);
     expect(locations[0].targetUri.path).toBe('/namespaces/default/component-type/service.yaml');
+  });
+  it('goes to the repository type only when its workload type matches', async () => {
+    const entry = (workloadType: string) => ({ kind: 'ComponentType', name: 'service', uri: vscode.Uri.parse(`file:///repo/${workloadType}.yaml`), line: 0, workloadType });
+    const match = await fixture('deployment/service', [entry('cronjob'), entry('deployment')]).run() as vscode.LocationLink[];
+    expect(match.map((l) => l.targetUri.path)).toEqual(['/repo/deployment.yaml']);
+    vi.clearAllMocks();
+    const other = await fixture('deployment/service', [entry('cronjob')]).run() as vscode.LocationLink[];
+    expect(other.map((l) => l.targetUri.path)).toEqual(['/namespaces/default/component-type/service.yaml']);
   });
   it('discards fallback results if occ starts while the repository index is loading', async () => {
     const f = fixture();

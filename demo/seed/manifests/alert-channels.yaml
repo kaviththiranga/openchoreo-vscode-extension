@@ -1,0 +1,39 @@
+# Alert notification channels for staging + production (the development one ships with the
+# url-shortener sample). Components carrying the observability-alert-rule trait (snip-frontend,
+# lab-frontend) cannot render in an environment without one.
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: ObservabilityAlertsNotificationChannel
+metadata:
+  name: webhook-notification-channel-staging
+  namespace: default
+  labels:
+    app.kubernetes.io/part-of: vscode-extension-demo
+spec:
+  environment: staging
+  type: webhook
+  webhookConfig:
+    url: https://webhook.example.com
+    headers:
+      Content-Type:
+        value: "application/json"
+    payloadTemplate: |
+      {"text": "OpenChoreo alert ${alertName} (${alertSeverity}) on ${component} in ${environment}: ${alertDescription}"}
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: ObservabilityAlertsNotificationChannel
+metadata:
+  name: webhook-notification-channel-production
+  namespace: default
+  labels:
+    app.kubernetes.io/part-of: vscode-extension-demo
+spec:
+  environment: production
+  type: webhook
+  webhookConfig:
+    url: https://webhook.example.com
+    headers:
+      Content-Type:
+        value: "application/json"
+    payloadTemplate: |
+      {"text": "OpenChoreo alert ${alertName} (${alertSeverity}) on ${component} in ${environment}: ${alertDescription}"}

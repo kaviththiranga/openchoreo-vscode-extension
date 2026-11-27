@@ -33,11 +33,17 @@ jobs:
           name: vsix
           path: packages/extension/*.vsix
           if-no-files-found: error
-      - name: Demo footage (scenes that need no cluster)
+      - name: Demo footage (language scenes that need no cluster)
         working-directory: packages/extension
         run: |
           command -v ffmpeg >/dev/null || (sudo apt-get update && sudo apt-get install -y ffmpeg)
-          DEMO_VSIX=$(ls *.vsix) xvfb-run -a --server-args="-screen 0 1920x1080x24" pnpm demo:capture
+          export DEMO_WS_ROOT="$RUNNER_TEMP/demo-ws"
+          bash ../../demo/seed/workspaces-language.sh
+          for group in url-shortener:hover-and-outline platform-config:cel-completions; do
+            DEMO_VSIX=$(ls *.vsix) DEMO_WITH=workspace DEMO_WORKSPACE="$DEMO_WS_ROOT/language/${group%%:*}" DEMO_SCENES="${group#*:}" \
+              DEMO_SETTINGS='{"chat.disableAIFeatures":true,"editor.fontSize":18,"files.autoSave":"onFocusChange","editor.wordBasedSuggestions":"off"}' \
+              xvfb-run -a --server-args="-screen 0 1920x1080x24" pnpm demo:capture
+          done
       - uses: actions/upload-artifact@v7
         if: always()
         with:

@@ -159,7 +159,6 @@ export async function activate(
       resourceExplorer.refresh();
       infrastructureExplorer.refresh();
       clusterExplorer.refresh();
-      sidebarProvider.refreshAll();
     },
   );
   context.subscriptions.push(

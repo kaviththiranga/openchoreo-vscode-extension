@@ -1,0 +1,411 @@
+# demo/storyboard.yaml - OpenChoreo for VS Code feature shorts, highlight reel, GIFs and posters.
+# Schema: the product-demo skill's templates/storyboard.yaml. Each scene = one feature = one short.
+# Clips: out/raw/<id>.mp4 + <id>.json (marks) from the in-repo harness
+# (packages/extension/src/test/demo/scenes/<area>/), collected by `make collect`.
+
+product:
+  name: OpenChoreo for VS Code
+  surface: vscode
+  tagline: Your platform, inside your editor
+  logo: assets/logo.svg          # white version of packages/extension/resources/openchoreo.svg
+
+setup:
+  run: OpenChoreo 1.4.0-m.1 on k3d (see README.md, "Bring up")
+  seed: seed/seed.sh (cluster, on the k3d host) + seed/workspaces-*.sh (scene folders)
+
+style:
+  theme: dark                    # VS Code Default Dark Modern
+  font_size: 16                  # at device scale 2 (1440x810 window)
+  pace: fast
+  voiceover: false
+  music: assets/music.mp3        # "Getting it Done" by Kevin MacLeod (incompetech.com), CC BY 4.0: two passes crossfaded at 3:21 (6:46 bed), normalized to -16 LUFS
+  music_volume: 0.8
+  captions: { landscape: false, portrait: false }   # the reel shows hooks; shorts show `caption`
+  brand:                         # openchoreo.dev: navy #002A69, blue #0480FD (logo), docs #4499F8
+    primary: "#002A69"
+    secondary: "#0480FD"
+    accent: "#4FA8FF"
+    background: "#050D1F"
+    text: "#FFFFFF"
+  shorts: { aspects: [16x9, 9x16, 1x1], hook_s: 1.1, end_s: 1.7 }
+  reel: { max_s: 110, rate: 2.2 }   # highlights: whole actions at 2.2x (clicks, marks and key moments at 1x)
+  tour: { rate: 2.8, chapter_s: 2.2 }   # every feature in one video: whole actions at 2.8x (clicks, marks and key moments at 1x), a chapter card per area
+  idle_rate: 4
+  motion_ignore: []
+
+scenes:
+  # --- explore: the OpenChoreo sidebar ------------------------------------------------------
+  - id: explorer-tour
+    area: Explore and edit
+    still: pipeline
+    gif: true
+    title: "Explore your platform from the sidebar"
+    hook: "Your platform, in the sidebar"
+    caption: "Projects, environments and platform resources, live from your cluster."
+    key_moment: "A component deployed to development, staging and production"
+    max_duration_s: 20
+    highlight: true
+  - id: switch-namespace
+    area: Explore and edit
+    still: switched
+    title: "Switch namespaces"
+    hook: "Switch teams in one click"
+    caption: "Pick a namespace; the tree and status bar follow."
+    key_moment: "The tree reloads with the other namespace"
+    max_duration_s: 20
+  - id: edit-and-save
+    area: Explore and edit
+    still: saved
+    title: "Edit a live resource and save it"
+    hook: "Edit live. Save to cluster."
+    caption: "Open any resource as YAML, change it, save to apply."
+    key_moment: "\"updated on cluster\" after Cmd+S"
+    max_duration_s: 20
+  - id: create-resource
+    area: Explore and edit
+    still: created
+    title: "Create a component from a scaffold"
+    hook: "New component in seconds"
+    caption: "Pre-filled scaffold, cluster-aware completion, save to create."
+    key_moment: "The new component appears in the tree"
+    max_duration_s: 22
+  - id: delete-resource
+    area: Explore and edit
+    still: confirm
+    title: "Delete a resource"
+    hook: "Clean up, safely"
+    caption: "Delete from the tree, with a confirmation first."
+    key_moment: "The tree reloads without the component"
+    max_duration_s: 20
+  - id: scaffold-from-source
+    area: Explore and edit
+    still: preview
+    title: "Scaffold a component from source"
+    hook: "From source to manifests"
+    caption: "Detects the framework, port and Dockerfile; writes Component and Workload YAML."
+    key_moment: ".openchoreo/ files appear in the Explorer"
+    max_duration_s: 22
+
+  # --- language: OpenChoreo YAML authoring ------------------------------------------------
+  - id: smart-completions
+    area: YAML authoring
+    still: component-types
+    gif: true
+    title: "Cluster-aware completions"
+    hook: "Your cluster, in autocomplete"
+    caption: "Component types and traits suggested straight from your live cluster."
+    key_moment: "Component types listed from the cluster"
+    max_duration_s: 20
+    highlight: true
+  - id: parameter-completions
+    area: YAML authoring
+    still: trait-parameters
+    title: "Parameter completions from the cluster schema"
+    hook: "Parameters with platform defaults"
+    caption: "Trait parameters and defaults, completed from the cluster's schema."
+    key_moment: "Trait parameters with their defaults"
+    max_duration_s: 20
+  - id: live-validation
+    area: YAML authoring
+    still: problems
+    gif: true
+    title: "Validation as you type"
+    hook: "Typos caught as you type"
+    caption: "Unknown fields, invalid values and missing components flagged instantly."
+    key_moment: "The Problems panel lists every mistake"
+    max_duration_s: 20
+    highlight: true
+  - id: cel-completions
+    area: YAML authoring
+    still: parameters
+    title: "Completions inside CEL templates"
+    hook: "CEL that autocompletes"
+    caption: "Template variables, oc_* functions and your own parameters, suggested."
+    key_moment: "Parameters from the trait schema inside ${...}"
+    max_duration_s: 22
+  - id: hover-and-outline
+    area: YAML authoring
+    still: workload-hover
+    title: "Hover docs and outline"
+    hook: "Docs right at your cursor"
+    caption: "Field docs on hover; an outline to jump through any resource."
+    key_moment: "Hover docs inside the Workload of a multi-document file"
+    max_duration_s: 20
+  - id: bootstrap-snippets
+    area: YAML authoring
+    still: scaffolds
+    title: "Scaffold snippets"
+    hook: "Empty file to Environment"
+    caption: "Scaffold any OpenChoreo resource, then finish it with cluster-aware completions."
+    key_moment: "The oc-* scaffold list"
+    max_duration_s: 20
+
+  # --- delivery: builds, releases, deployments ------------------------------------------------
+  - id: trigger-build
+    area: Build and deploy
+    still: run-started
+    title: "Trigger a build"
+    hook: "Build from the sidebar"
+    caption: "Right-click, Trigger Build: the run appears with live status."
+    key_moment: "The new run with its first step"
+    max_duration_s: 20
+  - id: build-logs
+    area: Build and deploy
+    still: build-logs
+    gif: true
+    title: "Live build status and logs"
+    hook: "Watch it build live"
+    caption: "Step status, timing and build logs, streaming inside VS Code."
+    key_moment: "Build output streaming in the Output panel"
+    max_duration_s: 24
+    highlight: true
+  - id: generate-release
+    area: Build and deploy
+    still: generated
+    title: "Generate a release"
+    hook: "Snapshot a release"
+    caption: "Generate an immutable, named release of your component."
+    key_moment: "The new release in the tree"
+    max_duration_s: 20
+  - id: deploy-release
+    area: Build and deploy
+    still: deployed
+    title: "Deploy a release"
+    hook: "Deploy with a keystroke"
+    caption: "Pick an environment, review the binding, Cmd+S deploys it."
+    key_moment: "development runs the new release"
+    max_duration_s: 20
+  - id: promote
+    area: Build and deploy
+    still: promoted
+    title: "Promote to the next environment"
+    hook: "Promote in one click"
+    caption: "Promote development to staging, reviewed as YAML, applied with Cmd+S."
+    key_moment: "staging runs the promoted release"
+    max_duration_s: 20
+    highlight: true
+  - id: deployed-resources
+    area: Build and deploy
+    still: resource-tree
+    title: "Deployed Kubernetes resources and pod logs"
+    hook: "See what's really running"
+    caption: "Deployment, ReplicaSet and Pod with health, then live pod logs."
+    key_moment: "The healthy resource tree"
+    max_duration_s: 22
+    highlight: true
+  - id: compare-releases
+    area: Build and deploy
+    still: release-diff
+    title: "Compare releases"
+    hook: "Diff before you promote"
+    caption: "See exactly what staging changes compared with production."
+    key_moment: "The added config lines in the diff"
+    max_duration_s: 20
+  - id: roll-back
+    area: Build and deploy
+    still: rolled-back
+    title: "Roll back"
+    hook: "Roll back safely"
+    caption: "Pick an earlier release, review the binding, Cmd+S rolls back."
+    key_moment: "development back on v1"
+    max_duration_s: 20
+  - id: run-now
+    area: Build and deploy
+    still: job-started
+    title: "Run a scheduled task now"
+    hook: "Run a cron job now"
+    caption: "Start a scheduled task on demand and inspect its Job."
+    key_moment: "The new Job in the tree"
+    max_duration_s: 20
+  - id: failed-build
+    area: Build and deploy
+    still: step-logs
+    title: "Find why a build failed"
+    hook: "Spot the failing step"
+    caption: "The red step's logs point straight at the compile error."
+    key_moment: "The compile error in the step logs"
+    max_duration_s: 20
+
+  # --- innerloop: the code in front of you ------------------------------------------------
+  - id: linked-component
+    area: Inner loop
+    title: "The repository knows its components"
+    hook: "Code that knows its component"
+    caption: "Open a repo: the status bar finds the components it builds."
+    key_moment: "The linked components and their actions"
+    max_duration_s: 20
+  - id: build-this-commit
+    area: Inner loop
+    title: "Build the checked-out commit"
+    hook: "Build this exact commit"
+    caption: "One click builds the commit you're on, followed live."
+    key_moment: "The build followed in the status bar"
+    max_duration_s: 20
+  - id: follow-after-push
+    area: Inner loop
+    title: "Build after a push"
+    hook: "Push, then watch it build"
+    caption: "Push your branch; build the pushed commit, right in the status bar."
+    key_moment: "The build of the pushed commit in the status bar"
+    max_duration_s: 20
+  - id: clone-source
+    area: Inner loop
+    title: "Clone a component's source"
+    hook: "From component to code"
+    caption: "Right-click a component: repo cloned, app folder open, linked."
+    key_moment: "The app folder open and linked"
+    max_duration_s: 20
+  - id: debug-against-env
+    area: Inner loop
+    gif: true
+    title: "Debug locally against a real environment"
+    hook: "Debug against real services"
+    caption: "Breakpoints in local code, live data from the environment."
+    key_moment: "The Variables view with live data from the environment"
+    max_duration_s: 20
+    highlight: true
+  - id: run-locally
+    area: Inner loop
+    title: "Run locally against an environment"
+    hook: "Run local, talk to dev"
+    caption: "A shell wired to the environment's real dependencies."
+    key_moment: "The local app printing live data through the tunnels"
+    max_duration_s: 20
+  - id: open-shell
+    area: Inner loop
+    title: "Open a shell in a running pod"
+    hook: "Shell into any pod"
+    caption: "Right-click an environment, land in its running pod."
+    key_moment: "Commands running inside the pod"
+    max_duration_s: 20
+    speed:                       # the shell connecting
+      - { from_s: 3.0, to_s: 9.2, rate: 4 }
+      - auto
+  - id: runtime-logs
+    area: Inner loop
+    title: "Runtime logs from the observability plane"
+    hook: "Logs without kubectl"
+    caption: "Filtered runtime logs from the observability plane, in the editor."
+    key_moment: "Filtered logs with pod and level"
+    max_duration_s: 20
+    highlight: true
+
+  # --- gitops: Flux-managed resources -------------------------------------------------------
+  - id: gitops-sync-view
+    area: GitOps
+    still: sync-view
+    title: "The GitOps sync view"
+    hook: "Git vs. cluster, at a glance"
+    caption: "Every declared resource checked against the cluster, drift both ways."
+    key_moment: "Matching, differing, new and cluster-only rows"
+    max_duration_s: 20
+    trim: { start_s: 0, end_s: 18.4 }
+  - id: gitops-guard
+    area: GitOps
+    still: save-guard
+    gif: true
+    title: "Saves that respect GitOps"
+    hook: "Saves that respect GitOps"
+    caption: "Flux-managed? Change it in Git, not on the cluster."
+    key_moment: "The edited line in the repository file"
+    max_duration_s: 20
+    highlight: true
+  - id: compare-with-cluster
+    area: GitOps
+    still: compare-with-cluster
+    title: "Compare a repo file with the cluster"
+    hook: "Only the real diff"
+    caption: "Repo file vs. live cluster, without status or server noise."
+    key_moment: "The added traits block in the diff"
+    max_duration_s: 15
+    highlight: true
+  - id: compare-with-repository
+    area: GitOps
+    still: compare-with-repository
+    title: "Compare a live resource with its file"
+    hook: "Cluster meets Git"
+    caption: "Right-click a live resource, diff it with its GitOps file."
+    key_moment: "The diff opens from the sidebar"
+    max_duration_s: 15
+  - id: go-to-definition
+    area: GitOps
+    still: declared-in-repository
+    title: "Go to Definition across the repo and cluster"
+    hook: "Jump to any reference"
+    caption: "F12 follows references to the repo file, or the cluster."
+    key_moment: "The ClusterComponentType file opens"
+    max_duration_s: 20
+  - id: gitops-generate-releases
+    area: GitOps
+    still: release-generated
+    title: "Generate releases in Git"
+    hook: "Releases, generated in Git"
+    caption: "New image tag, and occ writes the release into your repo."
+    key_moment: "The generated release, ready to commit"
+    max_duration_s: 20
+  - id: gitops-promote
+    area: GitOps
+    still: committed
+    title: "Promote through a pull request"
+    hook: "Promote with a pull request"
+    caption: "occ writes the staging binding; commit, then open a PR."
+    key_moment: "\"Push and Open Pull Request\" offered"
+    max_duration_s: 22
+
+  # --- ai: MCP, skills, chat hand-offs ------------------------------------------------------
+  - id: mcp-servers
+    area: AI and MCP
+    still: tools
+    title: "MCP servers from your login"
+    hook: "MCP servers, zero config"
+    caption: "Your occ login registers OpenChoreo MCP servers: 72 tools, one click."
+    key_moment: "The MCP server started with its tools"
+    max_duration_s: 24
+    highlight: true
+  - id: ai-customizations
+    area: AI and MCP
+    still: skills
+    title: "Skills, agents and instructions"
+    hook: "Skills and agents, built in"
+    caption: "Official OpenChoreo skills, agents and instructions ship with the extension."
+    key_moment: "The OpenChoreo skills list"
+    max_duration_s: 20
+  - id: other-agents
+    area: AI and MCP
+    still: guide
+    title: "Use with other AI agents"
+    hook: "Bring it to any agent"
+    caption: "Same MCP servers, ready-to-run Claude Code commands."
+    key_moment: "Claude Code commands with your server URLs"
+    max_duration_s: 20
+  - id: chat-add-yaml
+    area: AI and MCP
+    still: attached
+    title: "Live YAML to chat"
+    hook: "Live YAML, straight to chat"
+    caption: "Right-click any resource to attach its live YAML to chat."
+    key_moment: "The attachment in the chat input"
+    max_duration_s: 20
+  - id: troubleshoot-build
+    area: AI and MCP
+    still: prompt
+    title: "Troubleshoot a failed build"
+    hook: "Why did my build fail?"
+    caption: "Right-click a failed build: the question is ready to send."
+    key_moment: "The pre-filled troubleshooting prompt"
+    max_duration_s: 20
+  - id: fix-with-copilot
+    area: AI and MCP
+    still: quick-fix
+    title: "Fix validation problems with Copilot"
+    hook: "From typo to fix"
+    caption: "Validation problems hand off to Copilot from the lightbulb."
+    key_moment: "Fix with Copilot in the quick-fix menu"
+    max_duration_s: 20
+
+outro:
+  cta: Install OpenChoreo for VS Code
+  url: https://marketplace.visualstudio.com/items?itemName=KavithLokuhewage.openchoreo-unofficial
+  url_label: Search "OpenChoreo" in the VS Code Extensions view
+  note: Community-maintained · not an official OpenChoreo release
+  credit: "Music: “Getting it Done” by Kevin MacLeod (incompetech.com) · Licensed under CC BY 4.0"

@@ -18,6 +18,11 @@ export interface ChatOpenOptions {
   send?: boolean;
 }
 
+/** False when the user turned AI features off (chat.disableAIFeatures); chat hand-offs are hidden then. */
+export function aiFeaturesEnabled(): boolean {
+  return !vscode.workspace.getConfiguration('chat').get<boolean>('disableAIFeatures', false);
+}
+
 export async function openChat(query: string, options: ChatOpenOptions = {}): Promise<void> {
   try {
     await vscode.commands.executeCommand('workbench.action.chat.open', {
@@ -95,7 +100,7 @@ export function registerChatHandoffs(
       {
         provideCodeActions(document, _range, ctx) {
           const ours = ctx.diagnostics.filter((d) => d.source === 'openchoreo');
-          if (ours.length === 0) return [];
+          if (ours.length === 0 || !aiFeaturesEnabled()) return [];
           const action = new vscode.CodeAction('Fix with Copilot', vscode.CodeActionKind.QuickFix);
           action.diagnostics = ours;
           action.command = {

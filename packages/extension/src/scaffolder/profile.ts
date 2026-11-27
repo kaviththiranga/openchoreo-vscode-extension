@@ -12,6 +12,14 @@ export type Language = 'node' | 'go' | 'jvm' | 'python' | 'docker' | 'ballerina'
 
 export type ComponentType = 'service' | 'web-application' | 'scheduled-task' | 'worker';
 
+/** Workload type of each default ClusterComponentType; a Component names its type `<workloadType>/<name>`. */
+export const WORKLOAD_TYPES: Record<ComponentType, string> = {
+  service: 'deployment',
+  'web-application': 'deployment',
+  worker: 'deployment',
+  'scheduled-task': 'cronjob',
+};
+
 export type Confidence = 'high' | 'medium' | 'low';
 
 /**
@@ -31,7 +39,6 @@ export type WorkflowName =
 
 export interface WorkflowSelection {
   name: WorkflowName;
-  parameters: Record<string, unknown>;
 }
 
 export interface EnvVar {

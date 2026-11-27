@@ -13,6 +13,7 @@ import type {
   ResourceNode,
 } from '../services/releaseBindingService';
 import type { ResourceNodeData, ResourceNodeType } from './types';
+import { workflowRunPhase } from './runPhase';
 import { markGitOps, toTreeItem } from './shared';
 import { ownerExtra, ownerFromExtra } from '../gitops/managed';
 import { stringify } from 'yaml';
@@ -359,7 +360,10 @@ export class ResourceExplorerProvider
       '/api/v1/namespaces/{namespaceName}/components/{componentName}',
       { params: { path: { namespaceName: ns, componentName: compName } } },
     );
-    const hasWorkflow = !!(compData as { spec?: { workflow?: { name?: string } } })?.spec?.workflow?.name;
+    const compSpec = (compData as { spec?: { workflow?: { name?: string }; componentType?: { name?: string } } } | undefined)?.spec;
+    const hasWorkflow = !!compSpec?.workflow?.name;
+    // `<workloadType>/<name>`; cronjob components can be run on demand from their bindings.
+    const workloadType = compSpec?.componentType?.name?.split('/')[0];
 
     // Fetch workload for this component
     const { data: workloadData } = await client.GET(
@@ -426,7 +430,7 @@ export class ResourceExplorerProvider
       type: 'component-category',
       contextValue: 'component-category',
       ...base,
-      extra: ownerExtra(ownerFromExtra(element.extra)),
+      extra: { ...ownerExtra(ownerFromExtra(element.extra)), ...(workloadType ? { workloadType } : {}) },
       childrenMode: 'lazy',
       lazyChildrenKey: 'release-bindings',
     });
@@ -461,7 +465,7 @@ export class ResourceExplorerProvider
 
     return items.map((item) => {
       const isDeleting = !!(item as { metadata?: { deletionTimestamp?: string } }).metadata?.deletionTimestamp;
-      const phase = (item as { status?: { phase?: string } }).status?.phase;
+      const phase = workflowRunPhase((item as { status?: Parameters<typeof workflowRunPhase>[0] }).status);
       return {
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'workflow-run' as const,
@@ -538,6 +542,11 @@ export class ResourceExplorerProvider
     ]);
 
     const bindings = bindingsRes.data?.items ?? [];
+    // Run Now (a CronJob's job on demand) applies only to scheduled tasks.
+    const bindingContext = (isDeleting: boolean, suffix = '') =>
+      isDeleting
+        ? 'release-binding'
+        : `${this.resolveContextValue('release-binding')}${suffix}${element.extra?.workloadType === 'cronjob' ? '_scheduled' : ''}`;
     const metaByName = new Map(bindings.map((b) => [b.metadata?.name as string, b.metadata]));
     const mark = (n: ResourceNodeData) =>
       n.type === 'release-binding' || n.type === 'release-binding-placeholder'
@@ -600,7 +609,7 @@ export class ResourceExplorerProvider
         return {
           label: (item.metadata?.name as string) ?? 'unknown',
           type: 'release-binding' as const,
-          contextValue: isDeleting ? 'release-binding' : this.resolveContextValue('release-binding'),
+          contextValue: bindingContext(isDeleting),
           description: isDeleting ? '(deleting)' : undefined,
           namespace: ns,
           project,
@@ -623,7 +632,7 @@ export class ResourceExplorerProvider
         nodes.push({
           label: env,
           type: 'release-binding',
-          contextValue: isDeleting ? 'release-binding' : this.resolveContextValue('release-binding') + '_promotable',
+          contextValue: bindingContext(isDeleting, '_promotable'),
           description: isDeleting ? '(deleting)' : releaseName ?? undefined,
           namespace: ns,
           project,
@@ -661,7 +670,7 @@ export class ResourceExplorerProvider
         nodes.push({
           label: (b.metadata?.name as string) ?? 'unknown',
           type: 'release-binding',
-          contextValue: isDeleting ? 'release-binding' : this.resolveContextValue('release-binding'),
+          contextValue: bindingContext(isDeleting),
           description: isDeleting ? '(deleting)' : undefined,
           namespace: ns,
           project,

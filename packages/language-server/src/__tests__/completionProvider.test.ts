@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, it, expect } from 'vitest';
+import * as path from 'path';
 import { getCompletionItems } from '../completion/completionProvider';
 import { TextDocument } from 'vscode-languageserver-textdocument';
-import type { JsonSchema } from '../schemas/schemaLoader';
+import { loadSchemas, type JsonSchema } from '../schemas/schemaLoader';
 
 const testSchema: JsonSchema = {
   type: 'object',
@@ -89,5 +90,30 @@ spec:
     expect(labels).toContain('deployment');
     expect(labels).toContain('statefulset');
     expect(labels).toContain('cronjob');
+  });
+});
+
+describe('nested keys', () => {
+  const schemas = loadSchemas(path.resolve(__dirname, '../../../../schemas'));
+  const labels = (textWithCursor: string) => {
+    const offset = textWithCursor.indexOf('|');
+    const doc = TextDocument.create('file:///c.yaml', 'yaml', 1, textWithCursor.replace('|', ''));
+    return getCompletionItems(doc, doc.positionAt(offset), schemas.Component!, {}, 'Component');
+  };
+  const head = ['apiVersion: openchoreo.dev/v1alpha1', 'kind: Component', 'metadata:', '  name: api', 'spec:'];
+
+  it('offer kind below the root', () => {
+    expect(labels([...head, '  componentType:', '    |'].join('\n')).map((i) => i.label)).toEqual(['kind', 'name']);
+  });
+
+  it('offer the other keys of an array item after its first key', () => {
+    const items = labels([...head, '  traits:', '    - name: storage', '      |'].join('\n')).map((i) => i.label);
+    expect(items).toEqual(expect.arrayContaining(['instanceName', 'kind', 'parameters']));
+    expect(items).not.toContain('name');
+  });
+
+  it('leave the indentation of an object key snippet to the editor', () => {
+    const item = labels([...head, '  |'].join('\n')).find((i) => i.label === 'componentType');
+    expect(item?.insertText).toBe('componentType:\n  $0');
   });
 });

@@ -549,6 +549,17 @@ export const REFERENCE_TARGET_KINDS: readonly string[] = [
 ];
 
 /**
+ * The value other resources use to reference a resource: a Component names
+ * its (Cluster)ComponentType as `<workloadType>/<name>`, e.g. deployment/service.
+ * Everything else is referenced by its plain name.
+ */
+export function referenceName(kind: string, name: string, workloadType: unknown): string {
+  return (kind === 'ComponentType' || kind === 'ClusterComponentType') && typeof workloadType === 'string' && workloadType
+    ? `${workloadType}/${name}`
+    : name;
+}
+
+/**
  * Kinds whose resources define a `parameters` / `environmentConfigs` schema
  * that other resources fill in (Component → ComponentType, Project →
  * ProjectType, Resource → ResourceType, traits, workflows).

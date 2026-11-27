@@ -1,0 +1,92 @@
+# Gentle background traffic so runtime logs (View Runtime Logs, the observer MCP tools) always have
+# fresh, believable lines: URL Shortener visits and lookups in every environment, and Online
+# Boutique page views in development. A plain Deployment outside OpenChoreo, so it never shows up
+# in the extension's trees. seed.sh replaces the __*_HOST__ placeholders with the endpoint hosts
+# from the ReleaseBindings and applies this file (phase `traffic`).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo-traffic
+  labels:
+    app.kubernetes.io/part-of: vscode-extension-demo
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: traffic-script
+  namespace: demo-traffic
+data:
+  traffic.sh: |
+    #!/bin/sh
+    GW=http://gateway-default.openchoreo-data-plane.svc.cluster.local:19080
+    SNIP_HOSTS="$SNIP_DEV_HOST $SNIP_STAGING_HOST $SNIP_PROD_HOST"
+    req() { h="$1"; shift; curl -s -o /dev/null -m 20 -H "Host: $h" "$@"; }
+    shorten() {
+      curl -s -m 20 -H "Host: $1" -H 'Content-Type: application/json' -X POST "$GW/api/shorten" \
+        -d "{\"url\":\"$2\",\"username\":\"$3\"}" | sed -n 's/.*"short_code":"\([^"]*\)".*/\1/p'
+    }
+    # Seed a few links per environment (idempotent enough: duplicates are just more links).
+    for h in $SNIP_HOSTS; do
+      [ -n "$h" ] || continue
+      until curl -s -m 10 -H "Host: $h" "$GW/api/urls?username=ops" | grep -q '^\['; do sleep 5; done
+      if ! curl -s -m 10 -H "Host: $h" "$GW/api/urls?username=dana" | grep -q short_code; then
+        shorten "$h" https://openchoreo.dev/docs/ dana >/dev/null
+        shorten "$h" https://github.com/openchoreo/openchoreo dana >/dev/null
+        shorten "$h" https://openchoreo.dev/blog/ priya >/dev/null
+        shorten "$h" https://kubernetes.io/docs/concepts/ priya >/dev/null
+      fi
+    done
+    i=0
+    while true; do
+      i=$((i + 1))
+      for h in $SNIP_HOSTS; do
+        [ -n "$h" ] || continue
+        codes=$(curl -s -m 10 -H "Host: $h" "$GW/api/urls?username=dana" | sed 's/"short_code":"/\n/g' | sed -n '2,$s/".*//p')
+        for c in $codes; do req "$h" "$GW/r/$c"; done
+        req "$h" "$GW/api/urls?username=priya"
+        # an unknown code now and then: a 404 line in the api-service logs
+        [ $((i % 4)) -eq 0 ] && req "$h" "$GW/r/$(head -c 3 /dev/urandom | od -An -tx1 | tr -d ' \n')"
+      done
+      if [ -n "$BOUTIQUE_HOST" ] && [ $((i % 3)) -eq 0 ]; then
+        req "$BOUTIQUE_HOST" "$GW/"
+        req "$BOUTIQUE_HOST" "$GW/product/OLJCESPC7Z"
+        req "$BOUTIQUE_HOST" "$GW/product/66VCHSJNUP"
+        req "$BOUTIQUE_HOST" -X POST "$GW/setCurrency" -d currency_code=EUR
+        req "$BOUTIQUE_HOST" "$GW/cart"
+      fi
+      sleep 6
+    done
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: traffic
+  namespace: demo-traffic
+  labels:
+    app.kubernetes.io/part-of: vscode-extension-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: traffic}
+  template:
+    metadata:
+      labels: {app: traffic}
+    spec:
+      containers:
+        - name: traffic
+          image: docker.io/curlimages/curl:8.22.0
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh", "/scripts/traffic.sh"]
+          env:
+            - {name: SNIP_DEV_HOST, value: "__SNIP_DEV_HOST__"}
+            - {name: SNIP_STAGING_HOST, value: "__SNIP_STAGING_HOST__"}
+            - {name: SNIP_PROD_HOST, value: "__SNIP_PROD_HOST__"}
+            - {name: BOUTIQUE_HOST, value: "__BOUTIQUE_HOST__"}
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {cpu: 100m, memory: 64Mi}
+          volumeMounts:
+            - {name: scripts, mountPath: /scripts}
+      volumes:
+        - name: scripts
+          configMap: {name: traffic-script}

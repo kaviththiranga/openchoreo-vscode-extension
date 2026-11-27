@@ -127,7 +127,28 @@ describe('reference checks', () => {
       validateDocument(component, schemas.Component!, TextDocument.create('file:///c.yaml', 'yaml', 1, component), {
         ComponentType: [], ClusterComponentType: types, Project: ['shop'],
       }).map((d) => d.message);
-    expect(check(['service', 'worker'])).toEqual([]);
-    expect(check(['worker'])).toContain("ComponentType or ClusterComponentType 'deployment/service' not found in current namespace");
+    // The extension sends component types in the form references use.
+    expect(check(['deployment/service', 'deployment/worker'])).toEqual([]);
+    expect(check(['deployment/worker'])).toContain("ComponentType or ClusterComponentType 'deployment/service' not found in current namespace");
+    // Same name, other workload type: not the type the Component asks for.
+    expect(check(['cronjob/service'])).toContain("ComponentType or ClusterComponentType 'deployment/service' not found in current namespace");
+  });
+});
+
+describe('Component type parameters', () => {
+  it('offer the parameters of a type named workloadType/name', () => {
+    const doc = [
+      'apiVersion: openchoreo.dev/v1alpha1',
+      'kind: Component',
+      'metadata:',
+      '  name: link-expiry',
+      'spec:',
+      '  componentType:',
+      '    kind: ClusterComponentType',
+      '    name: cronjob/default',
+      '  parameters:',
+      '    |',
+    ].join('\n');
+    expect(complete(doc, 'Component')).toContain('replicas');
   });
 });

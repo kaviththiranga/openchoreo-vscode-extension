@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 import * as vscode from 'vscode';
 import { parse } from 'yaml';
 import { gitopsOwner, guardingOwner, ownerExtra, ownerFromExtra, toDesiredState } from '../gitops/managed';
-import { changedPaths, entriesFromText, isAppManifest } from '../gitops/repoIndex';
+import { changedPaths, entriesFromText, filesUnder, isAppManifest } from '../gitops/repoIndex';
 import { alignKeys, liveUri, liveYaml, parseLiveUri, resourceAt } from '../gitops/compare';
 import { markGitOps } from '../treeView/shared';
 
@@ -106,6 +106,8 @@ apiVersion: openchoreo.dev/v1alpha1
 kind: ClusterComponentType
 metadata:
   name: deployment-service
+spec:
+  workloadType: deployment
 `;
 
   it('indexes OpenChoreo documents with their namespace and line', () => {
@@ -115,6 +117,7 @@ metadata:
       { kind: 'ReleaseBinding', name: 'api-development', namespace: 'other', docIndex: 2, line: 12 },
       { kind: 'ClusterComponentType', name: 'deployment-service', namespace: undefined, docIndex: 3, line: 20 },
     ]);
+    expect(entries[2].workloadType).toBe('deployment');
   });
 
   it('skips files without OpenChoreo resources and broken documents', () => {
@@ -127,6 +130,12 @@ metadata:
     expect(isAppManifest('services/api/workload.yaml')).toBe(true);
     expect(isAppManifest('namespaces/acme/projects/shop/components/api/workload.yaml')).toBe(true);
     expect(isAppManifest('namespaces/acme/projects/shop/components/api/component.yaml')).toBe(false);
+  });
+
+  it('finds the indexed files inside a deleted folder', () => {
+    const files = ['file:///repo/components/cart/component.yaml', 'file:///repo/components/cart/workload.yaml', 'file:///repo/components/cartography.yaml'];
+    expect(filesUnder(files, 'file:///repo/components/cart')).toEqual(files.slice(0, 2));
+    expect(filesUnder(files, 'file:///repo/components/cart/')).toEqual(files.slice(0, 2));
   });
 
   it('computes leaf changes, treating arrays whole', () => {

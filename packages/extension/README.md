@@ -4,6 +4,10 @@ Community-maintained by Kavith Lokuhewage, an OpenChoreo contributor. Learn abou
 
 IDE-native tooling for the [OpenChoreo](https://openchoreo.dev) developer platform — resource management, CRD editing with intelligent completions, and AI: OpenChoreo MCP servers registered from your login, the official OpenChoreo agent skills, custom agents and chat tools for Copilot, and one-click troubleshooting and fixes (see [Copilot Chat Integration](#copilot-chat-integration)).
 
+![The OpenChoreo sidebar: a project, its components and the environments each one runs in](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/gifs/explorer-tour.gif)
+
+**[▶ Every feature in six minutes](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/openchoreo-for-vs-code-tour.mp4)** · [The 90-second highlights](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/openchoreo-for-vs-code-reel.mp4) · [Each feature in a short video](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/README.md)
+
 ## Prerequisites
 
 - **VSCode** 1.85+ (1.99+ recommended for MCP/Copilot features)
@@ -87,6 +91,10 @@ A unified webview sidebar replaces the traditional tree views, providing a riche
 
 Each section has a title bar with **create (+)**, **refresh**, and **collapse all** buttons.
 
+![A component deployed to development, staging and production, under its project](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/explorer-tour.png)
+
+▶ [Tour the sidebar](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/explorer-tour.mp4) · [Switch namespaces](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/switch-namespace.mp4)
+
 **Selection & Keyboard Navigation** — click to select and activate a node. Use arrow keys to navigate (Up/Down to move, Left/Right to collapse/expand, Enter to open, Space to toggle). Selection persists across view switches.
 
 **Indent Guides** — vertical guide lines appear on hover at each depth level, with the selected node's guide rendered at full opacity for clarity.
@@ -104,8 +112,12 @@ Click any resource in the tree to open it as a YAML file. The extension uses a v
 - **Open** — fetches the resource via GET and displays as clean YAML
 - **Edit** — make changes in the editor, file becomes dirty (dot in tab)
 - **Save (Cmd+S)** — pushes changes to the cluster via PUT with optimistic concurrency
-- **Conflict detection** — if the resource was modified on the cluster since you opened it (409 Conflict), you're prompted to reopen with the latest version
+- **Last write wins** — the OpenChoreo API applies a save to the resource as it is now (no optimistic concurrency), so reopen a resource that someone else may have changed since you opened it
 - **Read-only resources** — Workflow Runs, Component Releases and Project Releases open as read-only (run history and immutable snapshots)
+
+![A live Component opened from the sidebar, edited and saved back to the cluster](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/edit-and-save.png)
+
+▶ [Edit and save](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/edit-and-save.mp4) · [Delete safely](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/delete-resource.mp4)
 
 ### Resource Creation
 
@@ -115,13 +127,21 @@ Click the **+** button on a tree category or project to create a new resource fr
 - Edit the template, then **Cmd+S** to create the resource on the cluster (uses POST)
 - After successful creation, the tab reopens pointing to the actual resource
 
+![A new component created from the scaffold appears in the sidebar](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/create-resource.png)
+
+▶ [Create a component](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/create-resource.mp4)
+
 Available scaffolds: Project, Component, ComponentType, ProjectType, Trait, Environment, DataPlane, WorkflowPlane, ObservabilityPlane, Workflow, Workload, DeploymentPipeline, SecretReference, AuthzRole, AuthzRoleBinding, ClusterComponentType, ClusterProjectType, ClusterWorkflow, ClusterTrait, ClusterDataPlane, ClusterWorkflowPlane, ClusterObservabilityPlane, ClusterAuthzRole, ClusterAuthzRoleBinding
 
 The Project scaffold includes the `spec.type` project type reference that OpenChoreo 1.3 requires (`ClusterProjectType` `default`), and leaves it out for older control planes.
 
 ### Scaffold from Your Source Code
 
-**OpenChoreo: Scaffold Component from this Project** inspects the open folder (Node, Go, JVM, Python, Dockerfile), proposes a Component and Workload, previews both, and writes them to `.openchoreo/component.yaml` and `.openchoreo/workload.yaml`.
+**OpenChoreo: Scaffold Component from this Project** inspects the open folder (Node, Go, JVM, Python, Dockerfile), proposes a Component and Workload, previews both as `component.yaml` and `workload.yaml`, and writes them to `.openchoreo/component.yaml` and `.openchoreo/workload.yaml` (and offers to commit them). The Component references a `ClusterComponentType` such as `deployment/service` and builds with a `ClusterWorkflow`, with the repository URL, branch and app path taken from the folder's git remote.
+
+![Scaffold Component from this Project: the detected Flask service previewed as component.yaml and workload.yaml](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/scaffold-from-source.png)
+
+▶ [From source to manifests](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/scaffold-from-source.mp4)
 
 ### Create Namespace
 
@@ -146,6 +166,10 @@ Expand any Workflow Run in the tree to see its step-by-step execution status:
 
 Enable `openchoreo.autoRefresh` in settings to automatically poll running workflow run status.
 
+![A running build: each step with its status and duration, and its logs streaming into the Output panel](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/gifs/build-logs.gif)
+
+▶ [Trigger a build](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/trigger-build.mp4) · [Live build logs](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/build-logs.mp4) · [Find the failing step](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/failed-build.mp4)
+
 ### Deployed Resource Tree
 
 Expand any Release Binding in the tree to see the Kubernetes resources deployed by that release:
@@ -155,6 +179,10 @@ Expand any Release Binding in the tree to see the Kubernetes resources deployed 
 - **View Definition** — click any K8s resource to view its full YAML definition (read-only)
 - **Pod Logs** — right-click a Pod → "View Pod Logs" to stream container output with auto-refresh
 - **Resource Events** — right-click any deployed resource → "View Events" to see Kubernetes events with auto-refresh
+
+![The Kubernetes resources behind the production environment, all healthy](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/deployed-resources.png)
+
+▶ [See what's running](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/deployed-resources.mp4) · [Run a scheduled task now](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/run-now.mp4)
 
 ### Inner Loop (OpenChoreo 1.3+)
 
@@ -177,13 +205,19 @@ Work against a real environment without leaving the editor:
 - **View Runtime Logs** — right-click a Component or one of its environments → choose a window (15 minutes to 24 hours) and an optional text filter; logs are read from the environment's observability plane and shown in an Output channel with pod and level. Works wherever the environment's data plane has an observability plane with an observer
 - **Run Now** — right-click a deployed environment of a scheduled-task (cronjob) component to start a one-off Job from its schedule
 
+![Debug Against Environment: the debugger stops in local code with the environment's dependency URLs in its environment](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/gifs/debug-against-env.gif)
+
+▶ [Debug against an environment](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/debug-against-env.mp4) · [Run locally](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/run-locally.mp4) · [Open a shell](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/open-shell.mp4) · [Runtime logs](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/runtime-logs.mp4)
+
 ### Linked Components
 
 Open the source of a component and the extension finds which OpenChoreo components it builds: it matches the folder's git remotes and its path in the repository against each component's repository URL and app path. The workflow marks those parameters with `x-openchoreo-component-parameter-repository-*` schema keys, the same ones auto-build and the Backstage portal use, so it works whatever the workflow calls them.
 
 A status bar item with a link icon and the component name appears (the component the active file belongs to comes first). Click it to open the Component YAML, build the commit you're on, view runtime logs, open a shell, run its workload locally, or open the repository. Components without a build workflow (external CI or prebuilt images) have no repository to match.
 
-![Linked component actions for greeter, opened from the status bar in a clone of its repository](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/linked-component-actions.png)
+![The status bar names the component the open repository builds, with its actions](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/linked-component.png)
+
+▶ [Linked component](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/linked-component.mp4) · [Build this commit](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/build-this-commit.mp4) · [Build after a push](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/follow-after-push.mp4) · [Clone source](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/clone-source.mp4)
 
 - **Clone Source** — right-click a Component with a build workflow to clone its repository at the branch it builds from; the clone opens with the app folder revealed
 - **Build This Commit** — builds the commit checked out in a linked folder by setting the workflow's commit parameter (offers to push it first if the remote doesn't have it)
@@ -198,21 +232,25 @@ If you manage OpenChoreo resources from a Git repository synced by Flux, Argo CD
 - **GitOps-managed resources** — resources that carry Flux (`kustomize.toolkit.fluxcd.io/*`, `helm.toolkit.fluxcd.io/*`) or Argo CD (`argocd.argoproj.io/*`) markers get a merge badge in the sidebar. Saving, applying, promoting, deploying or deleting one through the API asks first, because the next sync reverts the change. **Change in Repository** makes the change in the GitOps repository instead: it edits the document that declares the resource, keeping its comments and layout, or creates a file next to related resources, and saves it for you to review and commit (a file with unsaved edits of yours is left unsaved). The sidebar copy then shows the cluster again, which changes once the repository syncs
 - Set `openchoreo.gitops.mode` to `all` when manifests are applied without such markers (by CI, for example), and turn off `openchoreo.gitops.allowDirectChanges` to allow changes only through the repository
 
-![Compare with Cluster: only the real difference shows, without status or server defaults](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/gitops-compare.png)
+![Compare with Cluster: only the real difference shows, without status or server defaults](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/compare-with-cluster.png)
 
-![Resources synced by Flux carry a merge badge in the sidebar](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/gitops-badges.png)
+▶ [Compare with Cluster](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/compare-with-cluster.mp4) · [Compare with Repository](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/compare-with-repository.mp4)
 
-![Saving a Flux-managed Component asks first and offers Change in Repository](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/gitops-save-guard.png)
+![A Flux-managed Component carries a merge badge; saving it asks first, and Change in Repository edits the declaring file instead](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/gifs/gitops-guard.gif)
 
-![Change in Repository edits the declaring file in the GitOps repository, keeping its layout](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/gitops-change-in-repository.png)
+▶ [Saves that respect GitOps](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/gitops-guard.mp4)
 
 - **OpenChoreo GitOps view** (in the Explorer) — every resource the repository declares, by namespace and kind, marked as matching the cluster, differing, or not on the cluster yet, plus resources of the same kinds that exist only on the cluster. **Check Sync with Cluster** re-checks; the inline button compares one resource
 - **Generate Releases in Repository…** and **Promote in Repository…** — run `occ componentrelease generate` / `occ releasebinding generate` in file-system mode for all components, a project or one component, write the ComponentReleases or ReleaseBindings into the repository, then **Commit on a New Branch** and **Push and Open Pull Request** (through the GitHub Pull Requests extension when installed, else the host's compare page). Promotion takes each component's release from the previous environment in the pipeline, as the OpenChoreo bulk-promote workflow does
 - **Go to Definition** on references — a Component's `componentType`, `traits` and `workflow`, `owner.projectName`/`componentName`, a binding's `environment` and `releaseName`, a Project's `deploymentPipelineRef` and type, pipeline environments, and plane references jump to the file that declares the target, or open it from the cluster. Reference validation also accepts resources declared in the repository that aren't synced yet
 
-![The OpenChoreo GitOps view: each declared resource and whether it matches the cluster](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/gitops-sync-view.png)
+![The OpenChoreo GitOps view: each declared resource matches, differs, or is not on the cluster yet, plus cluster-only resources](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/gitops-sync-view.png)
 
-![Promote in Repository wrote the staging ReleaseBinding with occ; it is not on the cluster yet and the edited Component is out of sync](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/images/gitops-promote.png)
+▶ [Sync view](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/gitops-sync-view.mp4) · [Go to Definition](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/go-to-definition.mp4)
+
+![Promote in Repository wrote the staging ReleaseBinding with occ and committed it on a new branch, ready for a pull request](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/gitops-promote.png)
+
+▶ [Generate releases in Git](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/gitops-generate-releases.mp4) · [Promote with a pull request](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/gitops-promote.mp4)
 
 A workspace folder counts as a GitOps repository when it declares OpenChoreo resources other than an app's own `workload.yaml` and `.openchoreo/` files.
 
@@ -220,10 +258,16 @@ A workspace folder counts as a GitOps repository when it declares OpenChoreo res
 
 Right-click a Component → "Generate Release" to create an immutable release snapshot from the current component state (ComponentType + Traits + Workload configuration). Optionally provide a release name or let the server auto-generate one.
 
+▶ [Generate a release](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/generate-release.mp4)
+
 ### Compare Releases and Roll Back
 
 - **Compare Releases…** — right-click a release, or a deployed environment, to diff it with another release or with what another environment runs, before you promote
 - **Roll Back…** — right-click a deployed environment and pick an earlier release; the release binding opens for review like Promote (and goes through the GitOps guard)
+
+![Compare Releases: what staging adds over production, before you promote](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/compare-releases.png)
+
+▶ [Compare releases](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/compare-releases.mp4) · [Roll back](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/roll-back.mp4)
 
 ### Trigger Build
 
@@ -245,14 +289,22 @@ The Release Bindings section under each component shows the full deployment pipe
 
 - **Pipeline visualization** — all environments from the project's DeploymentPipeline are shown in topological order
 - **Active bindings** — environments with deployed releases show the release name, are expandable to show K8s resources, and have a "Promote" action
-- **Inactive environments** — environments without a deployment show as "(not deployed)" with a "Deploy Release..." action
+- **Inactive environments** — environments without a deployment show as "(not deployed)" with a "Deploy Release…" action
 - **Promote** — right-click an active binding to promote its release to the next environment(s) in the pipeline. Opens a ReleaseBinding YAML with the release pre-filled for the target environment.
 - **Deploy to Environment** — right-click a ComponentRelease to deploy it to a chosen environment from the pipeline
 - **Deploy Release** — right-click an inactive environment to pick a release and create a new ReleaseBinding
 
+![Promote: staging now runs the release promoted from development](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/promote.png)
+
+▶ [Deploy a release](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/deploy-release.mp4) · [Promote](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/promote.mp4)
+
 ### Intelligent Completions
 
 The built-in language server provides context-aware completions across multiple dimensions:
+
+![Writing a Component: schema keys, then component types and traits offered from the live cluster](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/gifs/smart-completions.gif)
+
+▶ [Cluster-aware completions](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/smart-completions.mp4) · [Parameters from the cluster schema](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/parameter-completions.mp4) · [CEL completions](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/cel-completions.mp4) · [Scaffold snippets](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/bootstrap-snippets.mp4)
 
 #### Schema-Based Completions
 
@@ -283,7 +335,7 @@ The full list lives in [`schemas/refs.json`](../../schemas/refs.json).
 
 #### Cross-Document Schema Completions
 
-When editing a **Component**, `spec.parameters` offers property completions from the referenced ComponentType's `openAPIV3Schema` — including types, defaults, and enum values. **Project** `spec.parameters` (1.3+) does the same from its ProjectType, and **Resource** `spec.parameters` from its ResourceType.
+When editing a **Component**, `spec.parameters` offers property completions from the referenced ComponentType's `openAPIV3Schema` (named as `<workloadType>/<name>`, e.g. `deployment/service`, which is also what `componentType.name` completion offers) — including types, defaults, and enum values. **Project** `spec.parameters` (1.3+) does the same from its ProjectType, and **Resource** `spec.parameters` from its ResourceType.
 
 Component `spec.traits[].parameters` offers the parameters of the trait entry you're editing (falling back to all traits while its `name` is still empty), and **ReleaseBinding** `componentTypeEnvironmentConfigs` offers properties from component type environment config schemas.
 
@@ -317,7 +369,11 @@ Inside `${...}` expressions (used in ComponentType and Trait templates), the ext
 
 ### Schema Validation
 
-Real-time diagnostics as you type, against JSON Schemas generated from the OpenChoreo v1.3.3 CRDs for all 37 kinds:
+Real-time diagnostics as you type, against JSON Schemas generated from the OpenChoreo v1.3.3 CRDs for all 37 kinds (kinds added in 1.4, such as Endpoint and ReleaseLine, have no schema yet). Multi-document files are checked document by document:
+
+![A ReleaseBinding with a misspelled field, an invalid value and a component that does not exist, flagged as you type](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/gifs/live-validation.gif)
+
+▶ [Validation as you type](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/live-validation.mp4)
 
 - **Type checking** — detects mismatches (string where integer expected, etc.)
 - **Required fields** — errors for missing required properties
@@ -358,6 +414,11 @@ The Outline view (Cmd+Shift+O) shows the hierarchical structure of OpenChoreo YA
 - Arrays show item count and named items (by `name`, `id`, or `instanceName`)
 - Scalar values show their value as detail text
 - Enables breadcrumb navigation in the editor
+- Multi-document files list one entry per document (e.g. `Component api`, `Workload api`)
+
+![Breadcrumbs deep inside a ComponentType, next to its outline](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/hover-and-outline.png)
+
+▶ [Hover docs and outline](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/hover-and-outline.mp4)
 
 ### Common Labels & Annotations
 
@@ -370,6 +431,10 @@ Inside `metadata.labels:` and `metadata.annotations:`, the extension suggests co
 ### Copilot Chat Integration
 
 On VSCode 1.99+ with GitHub Copilot, the extension registers the OpenChoreo MCP servers, named like the servers in the [OpenChoreo skills](https://github.com/openchoreo/skills):
+
+![The OpenChoreo MCP servers, registered from the occ login, with 72 tools discovered](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/mcp-servers.png)
+
+▶ [MCP servers, zero config](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/mcp-servers.mp4) · [Skills and agents](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/ai-customizations.mp4) · [Use with other agents](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/other-agents.mp4)
 
 | Server | Tools | Registered |
 |---|---|---|
@@ -417,6 +482,12 @@ Both actions open Copilot Chat without auto-submitting, so you can compose your 
 **Fix with Copilot** — OpenChoreo validation problems in the editor offer a *Fix with Copilot* quick fix (`Ctrl+.` / `Cmd+.`), which sends the file and the problems to chat.
 
 **Summarize with Copilot** — after **View Runtime Logs**, summarize the lines with your chat model (Copilot or a model you added); the summary is appended to the log output.
+
+These hand-offs are hidden when chat is turned off (`chat.disableAIFeatures`).
+
+![Troubleshoot with Copilot on a failed build: the question is ready to send](https://raw.githubusercontent.com/kaviththiranga/openchoreo-vscode-extension/main/docs/media/screens/troubleshoot-build.png)
+
+▶ [Live YAML to chat](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/chat-add-yaml.mp4) · [Troubleshoot a failed build](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/troubleshoot-build.mp4) · [Fix with Copilot](https://github.com/kaviththiranga/openchoreo-vscode-extension/blob/main/docs/media/videos/fix-with-copilot.mp4)
 
 ### Status Bar
 
@@ -483,8 +554,8 @@ AuthzRole, AuthzRoleBinding (in Namespace Resources), ClusterAuthzRole, ClusterA
 | `OpenChoreo: Trigger Build with Parameters` | Open pre-filled WorkflowRun YAML for the component's workflow (tree context menu) |
 | `OpenChoreo: Run Workflow` | Run a generic Workflow/ClusterWorkflow (tree context menu) |
 | `OpenChoreo: Promote` | Promote a release binding to the next pipeline environment (tree context menu) |
-| `OpenChoreo: Deploy Release...` | Deploy a release to an inactive pipeline environment (tree context menu) |
-| `OpenChoreo: Deploy to Environment...` | Deploy a ComponentRelease to a chosen environment (tree context menu) |
+| `OpenChoreo: Deploy Release…` | Deploy a release to an inactive pipeline environment (tree context menu) |
+| `OpenChoreo: Deploy to Environment…` | Deploy a ComponentRelease to a chosen environment (tree context menu) |
 | `OpenChoreo: View Logs` | View all workflow run logs (tree context menu) |
 | `OpenChoreo: View Events` | View all workflow run Kubernetes events (tree context menu) |
 | `OpenChoreo: View Step Logs` | View logs for a specific workflow run step (tree context menu) |

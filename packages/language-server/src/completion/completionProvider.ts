@@ -151,7 +151,7 @@ export function getCompletionItems(
   // Try these even when contextSchema is null (schema path unresolved for dynamic fields)
   if (crdKind) {
     const crossDocItems = getCrossDocumentCompletions(
-      text, yamlPath, crdKind, resourceSchemas, indent, existingKeys, document.offsetAt(position),
+      text, yamlPath, crdKind, resourceSchemas, existingKeys, document.offsetAt(position),
     );
     // Note: crossDocItems may be empty if path doesn't match or schema not found
     if (crossDocItems.length > 0) {
@@ -164,7 +164,7 @@ export function getCompletionItems(
   const keySchema = (contextSchema.type === 'array' && contextSchema.items?.properties)
     ? contextSchema.items
     : contextSchema;
-  return getPropertyCompletions(keySchema, indent, existingKeys);
+  return getPropertyCompletions(keySchema, existingKeys, yamlPath.length === 0);
 }
 
 /**
@@ -273,19 +273,18 @@ function getLabelAnnotationKeyCompletions(
 
 function getPropertyCompletions(
   schema: JsonSchema,
-  indent: number,
   existingKeys: Set<string> = new Set(),
+  isRoot = false,
 ): CompletionItem[] {
   if (!schema.properties) {
     return [];
   }
 
   const items: CompletionItem[] = [];
-  const indentStr = ' '.repeat(indent);
 
   for (const [key, propSchema] of Object.entries(schema.properties)) {
-    // Skip standard k8s fields — they're handled separately
-    if (['apiVersion', 'kind', 'metadata', 'status'].includes(key)) {
+    // Skip the root's standard k8s fields — they're handled separately
+    if (isRoot && ['apiVersion', 'kind', 'metadata', 'status'].includes(key)) {
       continue;
     }
 
@@ -303,10 +302,11 @@ function getPropertyCompletions(
     };
 
     // Generate smart insert text based on type
+    // The editor indents a snippet's later lines like the cursor's line.
     if (propSchema.type === 'object' && propSchema.properties) {
-      item.insertText = `${key}:\n${indentStr}  $0`;
+      item.insertText = `${key}:\n  $0`;
     } else if (propSchema.type === 'array') {
-      item.insertText = `${key}:\n${indentStr}  - $0`;
+      item.insertText = `${key}:\n  - $0`;
     } else if (propSchema.type === 'boolean') {
       item.insertText = `${key}: \${1|true,false|}`;
     } else if (propSchema.enum) {
@@ -394,15 +394,16 @@ function resolveYamlPath(lines: string[], targetLine: number, cursorIndent?: num
       continue;
     }
 
-    const indent = line.search(/\S/);
-    // Match both regular keys and array item keys (- key:)
-    const keyMatch = line.match(/^\s*(?:-\s+)?(\w[\w.-]*):/);
+    // Match both regular keys and array item keys (- key:); an item's key
+    // sits right of its dash, level with the item's other keys.
+    const keyMatch = line.match(/^(\s*(?:-\s+)?)(\w[\w.-]*):/);
 
     if (!keyMatch) {
       continue;
     }
 
-    const key = keyMatch[1];
+    const indent = keyMatch[1].length;
+    const key = keyMatch[2];
 
     // Pop path entries for equal or lesser indentation
     while (indentStack.length > 0 && indent <= indentStack[indentStack.length - 1]) {
@@ -439,6 +440,12 @@ function getExistingKeys(lines: string[], targetLine: number, targetIndent: numb
   for (let i = targetLine - 1; i >= 0; i--) {
     const line = lines[i];
     if (!line || line.trim() === '' || line.trim().startsWith('#')) continue;
+    // The first key of an array item (`- key:`) is level with the item's other keys.
+    const item = line.match(/^(\s*-\s+)(\w[\w.-]*):/);
+    if (item && item[1].length === targetIndent) {
+      keys.add(item[2]);
+      break; // the item starts here
+    }
     const lineIndent = line.search(/\S/);
     if (lineIndent < targetIndent) break; // reached parent level
     if (lineIndent === targetIndent) {
@@ -498,7 +505,6 @@ function getCrossDocumentCompletions(
   yamlPath: string[],
   crdKind: string,
   resourceSchemas: ResourceSchemaCache,
-  indent: number,
   existingKeys: Set<string> = new Set(),
   offset?: number,
 ): CompletionItem[] {
@@ -514,11 +520,13 @@ function getCrossDocumentCompletions(
     // Resource → spec.type (ResourceType).
     const typeRef = PARAMETER_TYPE_REFS[crdKind];
     if (typeRef && (pathStr === 'spec.parameters' || pathStr.startsWith('spec.parameters.'))) {
-      const typeName = extractFieldValue(contents, ['spec', typeRef.field, 'name']);
+      const ref = extractFieldValue(contents, ['spec', typeRef.field, 'name']);
+      // A Component names its type as `<workloadType>/<name>`, e.g. deployment/service.
+      const typeName = crdKind === 'Component' && ref?.includes('/') ? ref.slice(ref.indexOf('/') + 1) : ref;
       const typeKind = extractFieldValue(contents, ['spec', typeRef.field, 'kind']);
       const subPath = yamlPath.slice(2); // remove 'spec', 'parameters' → remaining nested path
       if (typeName) {
-        return getSchemaPropertyCompletions(typeName, 'parameters', resourceSchemas, indent, existingKeys, subPath,
+        return getSchemaPropertyCompletions(typeName, 'parameters', resourceSchemas, existingKeys, subPath,
           typeKind ? [typeKind] : typeRef.kinds);
       }
     }
@@ -528,17 +536,17 @@ function getCrossDocumentCompletions(
       const wfName = extractFieldValue(doc.contents, ['spec', 'workflow', 'name']);
       const subPath = yamlPath.slice(3); // remove 'spec', 'workflow', 'parameters'
       if (wfName) {
-        return getSchemaPropertyCompletions(wfName, 'parameters', resourceSchemas, indent, existingKeys, subPath,
+        return getSchemaPropertyCompletions(wfName, 'parameters', resourceSchemas, existingKeys, subPath,
           ['Workflow', 'ClusterWorkflow']);
       }
       // Fallback: offer merged parameters from all known workflows
-      return getAllSchemaPropertyCompletions('parameters', resourceSchemas, indent,
+      return getAllSchemaPropertyCompletions('parameters', resourceSchemas,
         ['Workflow', 'ClusterWorkflow'], existingKeys);
     }
 
     // ReleaseBinding: spec.componentTypeEnvironmentConfigs[.nested...] → ComponentType environmentConfigs
     if (crdKind === 'ReleaseBinding' && (pathStr === 'spec.componentTypeEnvironmentConfigs' || pathStr.startsWith('spec.componentTypeEnvironmentConfigs.'))) {
-      return getAllSchemaPropertyCompletions('environmentConfigs', resourceSchemas, indent, undefined, existingKeys);
+      return getAllSchemaPropertyCompletions('environmentConfigs', resourceSchemas, undefined, existingKeys);
     }
 
     // ReleaseBinding: spec.traitEnvironmentConfigs → offer trait instance names as keys
@@ -553,11 +561,11 @@ function getCrossDocumentCompletions(
         // merged set when it can't be resolved (e.g. name not typed yet).
         const trait = offset !== undefined ? traitEntryAt(contents, offset) : undefined;
         if (trait?.name) {
-          const items = getSchemaPropertyCompletions(trait.name, 'parameters', resourceSchemas, indent,
+          const items = getSchemaPropertyCompletions(trait.name, 'parameters', resourceSchemas,
             existingKeys, yamlPath.slice(paramsIdx + 1), trait.kind ? [trait.kind] : ['Trait', 'ClusterTrait']);
           if (items.length > 0) return items;
         }
-        return getAllSchemaPropertyCompletions('parameters', resourceSchemas, indent,
+        return getAllSchemaPropertyCompletions('parameters', resourceSchemas,
           ['Trait', 'ClusterTrait'], existingKeys);
       }
     }
@@ -619,7 +627,6 @@ function getSchemaPropertyCompletions(
   resourceName: string,
   section: 'parameters' | 'environmentConfigs',
   resourceSchemas: ResourceSchemaCache,
-  indent: number,
   existingKeys: Set<string> = new Set(),
   subPath: string[] = [],
   kinds?: string[],
@@ -634,7 +641,7 @@ function getSchemaPropertyCompletions(
         if (!nested) return [];
         schema = nested;
       }
-      return openAPIV3SchemaToCompletions(schema, indent, existingKeys);
+      return openAPIV3SchemaToCompletions(schema, existingKeys);
     }
   }
   return [];
@@ -644,7 +651,6 @@ function getSchemaPropertyCompletions(
 function getAllSchemaPropertyCompletions(
   section: 'parameters' | 'environmentConfigs',
   resourceSchemas: ResourceSchemaCache,
-  indent: number,
   kindFilter?: string[],
   existingKeys: Set<string> = new Set(),
 ): CompletionItem[] {
@@ -655,7 +661,7 @@ function getAllSchemaPropertyCompletions(
     if (kindFilter && !kindFilter.includes(kind)) continue;
     for (const schemaData of Object.values(kindSchemas)) {
       if (schemaData[section]) {
-        for (const item of openAPIV3SchemaToCompletions(schemaData[section] as Record<string, unknown>, indent, existingKeys)) {
+        for (const item of openAPIV3SchemaToCompletions(schemaData[section] as Record<string, unknown>, existingKeys)) {
           if (!seen.has(item.label)) {
             seen.add(item.label);
             items.push(item);
@@ -700,7 +706,6 @@ function resolveSchemaSubPath(
 /** Convert an openAPIV3Schema to completion items for its properties. */
 function openAPIV3SchemaToCompletions(
   schema: Record<string, unknown>,
-  indent: number,
   existingKeys: Set<string> = new Set(),
 ): CompletionItem[] {
   const props = schema.properties as Record<string, Record<string, unknown>> | undefined;
@@ -708,7 +713,6 @@ function openAPIV3SchemaToCompletions(
 
   const defs = (schema.$defs ?? schema.definitions ?? {}) as Record<string, Record<string, unknown>>;
   const items: CompletionItem[] = [];
-  const indentStr = ' '.repeat(indent);
 
   for (const [name, propSchema] of Object.entries(props)) {
     if (existingKeys.has(name)) continue;
@@ -727,7 +731,7 @@ function openAPIV3SchemaToCompletions(
     const enumVals = resolved.enum as string[] | undefined;
 
     let detail = type ?? 'any';
-    if (defaultVal !== undefined) detail += ` (default: ${defaultVal})`;
+    if (defaultVal !== undefined) detail += ` (default: ${typeof defaultVal === 'object' ? JSON.stringify(defaultVal) : defaultVal})`;
 
     const item: CompletionItem = {
       label: name,
@@ -738,12 +742,12 @@ function openAPIV3SchemaToCompletions(
     };
 
     if (type === 'object') {
-      item.insertText = `${name}:\n${indentStr}  $0`;
+      item.insertText = `${name}:\n  $0`;
     } else if (enumVals) {
       item.insertText = `${name}: \${1|${enumVals.join(',')}|}`;
     } else if (type === 'boolean') {
       item.insertText = `${name}: \${1|true,false|}`;
-    } else if (defaultVal !== undefined) {
+    } else if (defaultVal !== undefined && typeof defaultVal !== 'object') {
       item.insertText = `${name}: ${defaultVal}`;
     } else {
       item.insertText = `${name}: $0`;

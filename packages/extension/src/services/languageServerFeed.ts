@@ -11,6 +11,7 @@ import {
   kindSpec,
   PARAMETER_SCHEMA_KINDS,
   REFERENCE_TARGET_KINDS,
+  referenceName,
   type KindSpec,
 } from '../kinds/registry';
 import { log } from '../logging/logger';
@@ -40,7 +41,8 @@ const itemName = (i: Item) => i.metadata?.name;
 
 /**
  * Fetch names of every reference-target kind and push them to the language
- * server for value completions and reference checks. A kind whose list
+ * server for value completions and reference checks, in the form references
+ * use (component types as `<workloadType>/<name>`). A kind whose list
  * failed is left out, which tells the server not to check against it.
  */
 export async function pushResourceNames(
@@ -70,7 +72,12 @@ export async function pushResourceNames(
       ...REFERENCE_TARGET_KINDS.map(async (kind) => {
         const spec = kindSpec(kind);
         const items = spec && (await itemsFor(kind));
-        if (items) resources[kind] = items.map(itemName).filter((n): n is string => !!n);
+        if (items) {
+          resources[kind] = items.flatMap((i) => {
+            const name = itemName(i);
+            return name ? [referenceName(kind, name, i.spec?.workloadType)] : [];
+          });
+        }
       }),
       // Releases grouped by component for scoped completions
       (async () => {

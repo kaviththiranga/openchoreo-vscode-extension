@@ -24,6 +24,16 @@ export function updateTerminalPath(context: vscode.ExtensionContext): void {
   collection.prepend('PATH', `${path.dirname(binary)}${path.delimiter}`);
 }
 
+/**
+ * How a terminal should run `binary`: by its name when the extension puts its
+ * folder on the terminal PATH, so no absolute path (with the user's home in it)
+ * is typed on screen.
+ */
+export function terminalBinary(binary: string): string {
+  const onPath = vscode.workspace.getConfiguration('openchoreo').get<boolean>('addCliToTerminalPath', true);
+  return onPath && path.isAbsolute(binary) ? path.basename(binary) : binary;
+}
+
 export function registerTerminalPath(context: vscode.ExtensionContext): void {
   updateTerminalPath(context);
   context.subscriptions.push(

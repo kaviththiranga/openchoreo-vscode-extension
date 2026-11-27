@@ -12,6 +12,8 @@ interface TreeNodeProps {
   depth: number;
   parentPath: string;
   childrenMap: Record<string, ResourceNodeData[]>;
+  /** Nodes whose children are shown from before a refresh and need fetching again. */
+  staleNodes: Set<string>;
   expandedNodes: Set<string>;
   selectedNodeId?: string;
   /** Depth index of a guide that should always be visible (from a selected+expanded ancestor). */
@@ -44,7 +46,7 @@ const NON_CLICKABLE = new Set([
   'resource-category', 'workflow-run-step', 'k8s-rendered-release',
 ]);
 
-export function TreeNode({ node, section, depth, parentPath, childrenMap, expandedNodes, selectedNodeId, activeGuideDepth, onToggleNode, onRequestChildren, onNodeClick, onSelectNode }: TreeNodeProps) {
+export function TreeNode({ node, section, depth, parentPath, childrenMap, staleNodes, expandedNodes, selectedNodeId, activeGuideDepth, onToggleNode, onRequestChildren, onNodeClick, onSelectNode }: TreeNodeProps) {
   const nodeId = buildNodeId(parentPath, node);
   const expanded = expandedNodes.has(nodeId);
   const selected = selectedNodeId === nodeId;
@@ -58,13 +60,14 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
     : childrenMap[nodeId];
 
   const loading = expanded && node.childrenMode === 'lazy' && !resolvedChildren;
+  const stale = staleNodes.has(nodeId);
 
-  // Request lazy children when expanded and not yet loaded
+  // Request lazy children when expanded and not loaded since the last refresh
   useEffect(() => {
-    if (expanded && node.childrenMode === 'lazy' && !resolvedChildren && node.lazyChildrenKey) {
+    if (expanded && node.childrenMode === 'lazy' && (!resolvedChildren || stale) && node.lazyChildrenKey) {
       onRequestChildren(section, nodeId, node.lazyChildrenKey);
     }
-  }, [expanded, node.childrenMode, node.lazyChildrenKey, resolvedChildren, section, nodeId, onRequestChildren]);
+  }, [expanded, node.childrenMode, node.lazyChildrenKey, resolvedChildren, stale, section, nodeId, onRequestChildren]);
 
   const onToggle = useCallback(() => {
     if (isLeaf) return;
@@ -102,6 +105,7 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
     isDeployable: cv.includes('_deployable'),
     isBuildable: cv.includes('_buildable'),
     isGitOpsManaged: cv.includes('_gitops'),
+    isScheduledTask: cv.includes('_scheduled'),
     preventDefaultContextMenuItems: true,
   });
 
@@ -178,6 +182,7 @@ export function TreeNode({ node, section, depth, parentPath, childrenMap, expand
               depth={depth + 1}
               parentPath={nodeId}
               childrenMap={childrenMap}
+              staleNodes={staleNodes}
               expandedNodes={expandedNodes}
               selectedNodeId={selectedNodeId}
               activeGuideDepth={childActiveGuideDepth}

@@ -4,6 +4,7 @@
 import { createOpenChoreoApiClient } from '@openchoreo/openchoreo-client-node';
 import type { OccConfigAuthProvider } from '../auth/authProvider';
 import { log } from '../logging/logger';
+import { paginatedFetch } from './paginatedFetch';
 
 type OpenChoreoClient = ReturnType<typeof createOpenChoreoApiClient>;
 
@@ -55,7 +56,8 @@ export class ApiClientManager {
     log.debug(
       `Creating API client for ${baseUrl} (auth: ${session.securityEnabled ? 'bearer' : 'disabled'})`,
     );
-    this.client = createOpenChoreoApiClient({ baseUrl, token });
+    // List calls read `items` only; follow the API's pages so they see everything.
+    this.client = createOpenChoreoApiClient({ baseUrl, token, fetchApi: paginatedFetch() });
     this.clientBaseUrl = baseUrl;
     this.clientToken = cacheKey;
     return this.client;

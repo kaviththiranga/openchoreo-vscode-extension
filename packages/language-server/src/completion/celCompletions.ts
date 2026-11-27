@@ -304,6 +304,7 @@ export function getCelCompletionItems(
             detail: info.type ? `${info.type}${info.default !== undefined ? ` (default: ${info.default})` : ''}` : undefined,
             documentation: info.enum ? `Enum: ${info.enum.join(', ')}` : undefined,
             textEdit: TextEdit.replace(replaceRange, name),
+            sortText: `0${name}`,
           });
         }
       }
@@ -330,11 +331,12 @@ export function getCelCompletionItems(
           kind: CompletionItemKind.Field,
           detail: info.description,
           textEdit: TextEdit.replace(replaceRange, name),
+          sortText: `0${name}`,
         });
       }
     }
 
-    // Always offer CEL methods after a dot
+    // Always offer CEL methods after a dot, below the members
     for (const method of CEL_METHODS) {
       items.push({
         label: method.label,
@@ -342,6 +344,7 @@ export function getCelCompletionItems(
         detail: method.detail,
         insertTextFormat: InsertTextFormat.Snippet,
         textEdit: TextEdit.replace(replaceRange, method.insertText),
+        sortText: `1${method.label}`,
       });
     }
 

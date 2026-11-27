@@ -1,0 +1,7 @@
+node_modules/
+out/
+public/clips/
+public/audio/
+public/timeline.json
+public/music.*
+public/logo.*

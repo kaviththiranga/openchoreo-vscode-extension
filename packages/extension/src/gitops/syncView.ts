@@ -56,6 +56,7 @@ export class GitOpsSyncView implements vscode.TreeDataProvider<Node>, vscode.Dis
   private readonly states = new Map<string, { state: SyncState; detail?: string }>();
   private readonly clusterOnly = new Map<string, string[]>();
   private checking: Promise<void> | undefined;
+  private shown = false;
   private readonly disposables: vscode.Disposable[] = [];
   private readonly view: vscode.TreeView<Node>;
 
@@ -78,7 +79,13 @@ export class GitOpsSyncView implements vscode.TreeDataProvider<Node>, vscode.Dis
       vscode.workspace.onDidSaveTextDocument((doc) => {
         for (const e of repoIndex.entries()) if (e.uri.toString() === doc.uri.toString()) this.states.delete(entryKey(e));
       }),
-      this.view.onDidChangeVisibility((e) => e.visible && void this.check(false)),
+      // The first time the view shows, scan the workspace again: files created
+      // while the file watcher was still starting are otherwise missed.
+      this.view.onDidChangeVisibility((e) => {
+        if (!e.visible) return;
+        void this.check(!this.shown);
+        this.shown = true;
+      }),
       authProvider.onDidChangeSession(() => {
         this.states.clear();
         this.clusterOnly.clear();
@@ -87,14 +94,15 @@ export class GitOpsSyncView implements vscode.TreeDataProvider<Node>, vscode.Dis
     );
   }
 
-  /** Check entries against the cluster; `all` re-checks everything. */
+  /** Check entries against the cluster; `all` scans the workspace again and re-checks everything. */
   check(all: boolean): Promise<void> {
     if (this.checking) return this.checking;
     if (all) {
       this.states.clear();
       this.clusterOnly.clear();
     }
-    this.checking = this.runCheck()
+    this.checking = (all ? this.repoIndex.rebuild() : Promise.resolve())
+      .then(() => this.runCheck())
       .catch((err) => log.error('GitOps sync check failed', err))
       .finally(() => {
         this.checking = undefined;

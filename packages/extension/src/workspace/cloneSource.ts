@@ -127,7 +127,7 @@ async function openClone(context: vscode.ExtensionContext, folder: string, appPa
   const NEW = 'Open in New Window';
   const ADD = 'Add to Workspace';
   const choice = await vscode.window.showInformationMessage(
-    `Cloned ${component}'s source to ${folder}.`,
+    `Cloned ${component}'s source to ${tildify(folder)}.`,
     OPEN,
     NEW,
     ...(vscode.workspace.workspaceFolders?.length ? [ADD] : []),
@@ -160,4 +160,10 @@ async function revealPending(context: vscode.ExtensionContext): Promise<void> {
       break;
     }
   }
+}
+
+/** A path with the home folder written as ~, for messages (no user name on screen). */
+export function tildify(file: string): string {
+  const home = os.homedir();
+  return home && (file === home || file.startsWith(home + path.sep)) ? `~${file.slice(home.length)}` : file;
 }

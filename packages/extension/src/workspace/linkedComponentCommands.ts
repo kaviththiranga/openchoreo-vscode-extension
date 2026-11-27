@@ -74,7 +74,7 @@ export function registerLinkedComponentCommands(
             ]
           : []),
         ...(web ? [{ label: '$(github) Open Repository', description: web, run: () => vscode.env.openExternal(vscode.Uri.parse(web)) }] : []),
-        { label: '$(folder-opened) Reveal App Folder', description: link.appDir, run: () => vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(link.appDir)) },
+        { label: '$(folder-opened) Reveal App Folder', description: folderLabel(link.appDir, vscode.workspace.asRelativePath(link.appDir)), run: () => vscode.commands.executeCommand('revealInExplorer', vscode.Uri.file(link.appDir)) },
         { label: '$(refresh) Refresh Links', run: () => links.refresh() },
       ];
       const picked = await vscode.window.showQuickPick(actions, {
@@ -99,4 +99,12 @@ async function pickLink(links: ComponentLink[]): Promise<ComponentLink | undefin
     { placeHolder: 'Linked component' },
   );
   return picked?.link;
+}
+
+/**
+ * A folder for display: workspace-relative, or its name when VS Code has no relative path for it
+ * (it IS a workspace folder, or lies outside them) - never the absolute path with the home in it.
+ */
+export function folderLabel(dir: string, relative: string): string {
+  return relative && !path.isAbsolute(relative) ? relative : path.basename(dir);
 }

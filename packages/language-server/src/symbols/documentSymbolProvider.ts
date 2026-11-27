@@ -18,14 +18,33 @@ import {
   Scalar,
   Node,
 } from 'yaml';
+import { isolatedDocuments } from '../documents';
 
 /**
- * Extract document symbols from an OpenChoreo YAML document.
- * Provides outline view, breadcrumb navigation, and Go to Symbol.
+ * Extract document symbols from an OpenChoreo YAML file.
+ * Provides outline view, breadcrumb navigation, and Go to Symbol. A file
+ * with several YAML documents gets one entry per document, named by its
+ * kind and name.
  */
-export function getDocumentSymbols(
-  textDocument: TextDocument,
-): DocumentSymbol[] {
+export function getDocumentSymbols(file: TextDocument): DocumentSymbol[] {
+  const documents = isolatedDocuments(file);
+  if (documents.length === 1) return symbolsOf(file);
+  return documents.flatMap(({ document, start, end }) => {
+    const children = symbolsOf(document);
+    if (children.length === 0) return [];
+    const detail = (name: string, list = children) => list.find((c) => c.name === name)?.detail;
+    const name = detail('name', children.find((c) => c.name === 'metadata')?.children);
+    return [{
+      name: [detail('kind') ?? 'Document', name].filter(Boolean).join(' '),
+      kind: SymbolKind.Module,
+      range: { start: file.positionAt(start), end: file.positionAt(end) },
+      selectionRange: children[0].selectionRange,
+      children,
+    }];
+  });
+}
+
+function symbolsOf(textDocument: TextDocument): DocumentSymbol[] {
   const text = textDocument.getText();
 
   try {

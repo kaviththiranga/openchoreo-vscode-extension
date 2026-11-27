@@ -329,13 +329,13 @@
       },
       {
         "command": "openchoreo.deployToEnv",
-        "title": "Deploy Release...",
+        "title": "Deploy Release…",
         "category": "OpenChoreo",
         "icon": "$(cloud-upload)"
       },
       {
         "command": "openchoreo.deployRelease",
-        "title": "Deploy to Environment...",
+        "title": "Deploy to Environment…",
         "category": "OpenChoreo",
         "icon": "$(cloud-upload)"
       },
@@ -636,17 +636,17 @@
         },
         {
           "command": "openchoreo.troubleshootWithCopilot",
-          "when": "webviewId == openchoreo.sidebar && nodeType == 'workflow-run' && statusPhase =~ /^(Failed|Error)$/ || webviewId == openchoreo.sidebar && nodeType == 'release-binding'",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'workflow-run' && statusPhase =~ /^(Failed|Error)$/ && !config.chat.disableAIFeatures || webviewId == openchoreo.sidebar && nodeType == 'release-binding' && !config.chat.disableAIFeatures",
           "group": "4_chat@0"
         },
         {
           "command": "openchoreo.addToChat",
-          "when": "webviewId == openchoreo.sidebar && nodeType && nodeType != 'no-connection' && nodeType != empty && nodeType != 'component-category' && nodeType != 'infra-category' && nodeType != 'resource-category'",
+          "when": "webviewId == openchoreo.sidebar && nodeType && nodeType != 'no-connection' && nodeType != empty && nodeType != 'component-category' && nodeType != 'infra-category' && nodeType != 'resource-category' && !config.chat.disableAIFeatures",
           "group": "4_chat"
         },
         {
           "command": "openchoreo.addYamlToChat",
-          "when": "webviewId == openchoreo.sidebar && nodeType && nodeType != 'no-connection' && nodeType != empty && nodeType != 'component-category' && nodeType != 'infra-category' && nodeType != 'resource-category'",
+          "when": "webviewId == openchoreo.sidebar && nodeType && nodeType != 'no-connection' && nodeType != empty && nodeType != 'component-category' && nodeType != 'infra-category' && nodeType != 'resource-category' && !config.chat.disableAIFeatures",
           "group": "4_chat"
         },
         {
@@ -661,22 +661,12 @@
         },
         {
           "command": "openchoreo.runScheduledTaskNow",
-          "when": "webviewId == openchoreo.sidebar && nodeType == 'release-binding'",
+          "when": "webviewId == openchoreo.sidebar && nodeType == 'release-binding' && isScheduledTask",
           "group": "3_deploy"
         },
         {
           "command": "openchoreo.compareWithRepository",
-          "when": "webviewId == openchoreo.sidebar && openchoreo.gitopsRepository && isEditable",
-          "group": "2_observe@9"
-        },
-        {
-          "command": "openchoreo.compareWithRepository",
-          "when": "webviewId == openchoreo.sidebar && openchoreo.gitopsRepository && isGitOpsManaged",
-          "group": "2_observe@9"
-        },
-        {
-          "command": "openchoreo.compareWithRepository",
-          "when": "webviewId == openchoreo.sidebar && openchoreo.gitopsRepository && nodeType == 'component-release'",
+          "when": "webviewId == openchoreo.sidebar && openchoreo.gitopsRepository && (isEditable || isGitOpsManaged || nodeType == 'component-release')",
           "group": "2_observe@9"
         },
         {
@@ -723,6 +713,14 @@
         {
           "command": "openchoreo.troubleshootWithCopilot",
           "when": "false"
+        },
+        {
+          "command": "openchoreo.addToChat",
+          "when": "!config.chat.disableAIFeatures"
+        },
+        {
+          "command": "openchoreo.addYamlToChat",
+          "when": "!config.chat.disableAIFeatures"
         },
         {
           "command": "openchoreo.fixWithCopilot",
@@ -894,7 +892,6 @@
         }
       }
     },
-    "snippets": [],
     "chatSkills": [
       {
         "path": "./skills/migrate-to-openchoreo/SKILL.md",
@@ -1039,7 +1036,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.85.0",
-    "@vscode/test-electron": "^2.5.2",
+    "@vscode/test-electron": "^3.1.0",
     "@vscode/vsce": "^3.2.0",
     "esbuild": "^0.24.0",
     "fantasticon": "^4.1.0",

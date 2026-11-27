@@ -1,0 +1,24 @@
+{
+  "name": "product-demo-video",
+  "private": true,
+  "type": "module",
+  "description": "Remotion project for the product demo. Data comes from public/timeline.json (make timeline).",
+  "scripts": {
+    "studio": "remotion studio src/index.ts",
+    "render": "node render.mjs all",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.547",
+    "@remotion/cli": "4.0.547",
+    "@remotion/google-fonts": "4.0.547",
+    "@remotion/renderer": "4.0.547",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "remotion": "4.0.547"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.3",
+    "typescript": "^5.9.3"
+  }
+}

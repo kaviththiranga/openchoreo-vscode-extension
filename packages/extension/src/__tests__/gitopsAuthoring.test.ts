@@ -87,6 +87,7 @@ describe('references', () => {
     expect(referenceAt('Component', ['spec', 'componentType', 'name'], 'deployment/web-application', (k) => (k === 'kind' ? 'ComponentType' : undefined))).toEqual({
       kinds: ['ComponentType'],
       name: 'web-application',
+      workloadType: 'deployment',
     });
     expect(referenceAt('Component', ['spec', 'traits', 0, 'name'], 'storage', none)).toEqual({ kinds: ['ClusterTrait', 'Trait'], name: 'storage' });
     expect(referenceAt('ReleaseBinding', ['spec', 'environment'], 'staging', none)).toEqual({ kinds: ['Environment'], name: 'staging' });

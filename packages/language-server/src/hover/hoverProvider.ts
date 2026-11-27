@@ -3,6 +3,7 @@
 
 import { Hover, Position, MarkupKind } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
+import { isMap, isPair, isScalar, isSeq, parseDocument } from 'yaml';
 import type { JsonSchema } from '../schemas/schemaLoader';
 
 /**
@@ -13,31 +14,10 @@ export function getHoverInfo(
   position: Position,
   schema: JsonSchema,
 ): Hover | null {
-  const text = document.getText();
-  const lines = text.split('\n');
-  const currentLine = lines[position.line];
-  if (!currentLine) {
+  const yamlPath = keyPathAt(document.getText(), document.offsetAt(position));
+  if (!yamlPath) {
     return null;
   }
-
-  // Extract the key at cursor position
-  const keyMatch = currentLine.match(/^\s*(\w[\w.-]*):/);
-  if (!keyMatch) {
-    return null;
-  }
-
-  const key = keyMatch[1];
-  const keyStart = currentLine.indexOf(key);
-  const keyEnd = keyStart + key.length;
-
-  // Check if cursor is on the key
-  if (position.character < keyStart || position.character > keyEnd) {
-    return null;
-  }
-
-  // Resolve the YAML path to find the schema for this key
-  const yamlPath = resolveYamlPathForHover(lines, position.line);
-  yamlPath.push(key);
 
   const fieldSchema = resolveSchemaAtPath(schema, yamlPath);
   if (!fieldSchema) {
@@ -49,7 +29,7 @@ export function getHoverInfo(
 
   // Type info
   const typeStr = formatType(fieldSchema);
-  parts.push(`**${yamlPath.join('.')}**: \`${typeStr}\``);
+  parts.push(`**${formatPath(yamlPath)}**: \`${typeStr}\``);
 
   // Description
   if (fieldSchema.description) {
@@ -83,62 +63,53 @@ export function getHoverInfo(
   };
 }
 
-function resolveYamlPathForHover(
-  lines: string[],
-  targetLine: number,
-): string[] {
-  const path: string[] = [];
-  const indentStack: number[] = [];
+type YamlPath = (string | number)[];
 
-  for (let i = 0; i < targetLine; i++) {
-    const line = lines[i];
-    if (!line || line.trim() === '' || line.trim().startsWith('#')) {
-      continue;
+/**
+ * The path from the document root to the mapping key at `offset`, with list
+ * items as their index, or undefined when the offset is not on a key.
+ */
+function keyPathAt(text: string, offset: number): YamlPath | undefined {
+  const visit = (node: unknown, path: YamlPath): YamlPath | undefined => {
+    if (isMap(node)) {
+      for (const pair of node.items) {
+        if (!isPair(pair) || !isScalar(pair.key)) continue;
+        const key = String(pair.key.value);
+        const range = pair.key.range;
+        if (range && offset >= range[0] && offset <= range[1]) return [...path, key];
+        const hit = visit(pair.value, [...path, key]);
+        if (hit) return hit;
+      }
+    } else if (isSeq(node)) {
+      for (let i = 0; i < node.items.length; i++) {
+        const hit = visit(node.items[i], [...path, i]);
+        if (hit) return hit;
+      }
     }
-
-    const indent = line.search(/\S/);
-    const keyMatch = line.match(/^\s*(\w[\w.-]*):/);
-    if (!keyMatch) {
-      continue;
-    }
-
-    const key = keyMatch[1];
-
-    while (
-      indentStack.length > 0 &&
-      indent <= indentStack[indentStack.length - 1]
-    ) {
-      indentStack.pop();
-      path.pop();
-    }
-
-    path.push(key);
-    indentStack.push(indent);
+    return undefined;
+  };
+  try {
+    return visit(parseDocument(text).contents, []);
+  } catch {
+    return undefined;
   }
+}
 
-  // Unwind to the hovered line's own level: earlier siblings (and their
-  // nested keys) at the same or deeper indent are not its ancestors.
-  const targetIndent = (lines[targetLine] ?? '').search(/\S/);
-  while (indentStack.length > 0 && targetIndent >= 0 && targetIndent <= indentStack[indentStack.length - 1]) {
-    indentStack.pop();
-    path.pop();
-  }
-
-  return path;
+/** `spec.traits[].name` style. */
+function formatPath(path: YamlPath): string {
+  return path.reduce<string>((out, step) => (typeof step === 'number' ? `${out}[]` : out ? `${out}.${step}` : step), '');
 }
 
 function resolveSchemaAtPath(
   schema: JsonSchema,
-  path: string[],
+  path: YamlPath,
 ): JsonSchema | undefined {
   let current: JsonSchema = schema;
 
-  for (const key of path) {
-    if (current.properties && current.properties[key]) {
-      current = current.properties[key];
-    } else {
-      return undefined;
-    }
+  for (const step of path) {
+    const next = typeof step === 'number' ? current.items : current.properties?.[step];
+    if (!next) return undefined;
+    current = next;
   }
 
   return current;

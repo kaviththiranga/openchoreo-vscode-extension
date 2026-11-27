@@ -12,7 +12,7 @@
 import * as path from 'path';
 import * as vscode from 'vscode';
 import { parseAllDocuments, stringify, type Document } from 'yaml';
-import { kindSpec } from '../kinds/registry';
+import { kindSpec, referenceName } from '../kinds/registry';
 import { log } from '../logging/logger';
 import { toDesiredState } from './managed';
 
@@ -26,6 +26,8 @@ export interface RepoEntry {
   docIndex: number;
   /** Zero-based line where the document starts. */
   line: number;
+  /** spec.workloadType of a (Cluster)ComponentType. */
+  workloadType?: string;
 }
 
 const MAX_FILES = 5000;
@@ -33,6 +35,12 @@ const EXCLUDE = '{**/node_modules/**,**/.git/**,**/dist/**,**/out/**}';
 const OPENCHOREO_API = /^apiVersion:\s*["']?openchoreo\.dev\//m;
 
 /** Parse the OpenChoreo resources out of one file's text. Pure, for tests. */
+/** The keys of `files` (URI strings) inside `folder`. */
+export function filesUnder(files: Iterable<string>, folder: string): string[] {
+  const prefix = folder.endsWith('/') ? folder : `${folder}/`;
+  return [...files].filter((file) => file.startsWith(prefix));
+}
+
 export function entriesFromText(text: string, uri: vscode.Uri, relativePath: string): RepoEntry[] {
   if (!OPENCHOREO_API.test(text)) return [];
   const entries: RepoEntry[] = [];
@@ -40,7 +48,12 @@ export function entriesFromText(text: string, uri: vscode.Uri, relativePath: str
   const lineAt = lineIndex(text);
   parseAllDocuments(text).forEach((doc, docIndex) => {
     if (!('contents' in doc) || doc.errors.length > 0) return;
-    const value = doc.toJS() as { apiVersion?: string; kind?: string; metadata?: { name?: string; namespace?: string } };
+    const value = doc.toJS() as {
+      apiVersion?: string;
+      kind?: string;
+      metadata?: { name?: string; namespace?: string };
+      spec?: { workloadType?: unknown };
+    };
     if (!value?.apiVersion?.startsWith('openchoreo.dev/') || !value.kind || !value.metadata?.name) return;
     const clusterScoped = kindSpec(value.kind)?.scope === 'cluster';
     entries.push({
@@ -50,6 +63,7 @@ export function entriesFromText(text: string, uri: vscode.Uri, relativePath: str
       uri,
       docIndex,
       line: lineAt(doc.contents?.range?.[0] ?? 0),
+      ...(typeof value.spec?.workloadType === 'string' ? { workloadType: value.spec.workloadType } : {}),
     });
   });
   return entries;
@@ -77,12 +91,14 @@ function lineIndex(text: string): (offset: number) => number {
 }
 
 export class GitOpsRepoIndex implements vscode.Disposable {
-  private readonly byFile = new Map<string, RepoEntry[]>();
+  private byFile = new Map<string, RepoEntry[]>();
   private readonly repoFolders = new Set<string>();
   private readonly disposables: vscode.Disposable[] = [];
   private readonly changed = new vscode.EventEmitter<void>();
   readonly onDidChange = this.changed.event;
   private pending = new Set<string>();
+  /** Deleted paths among `pending`: a deleted folder takes the files indexed under it along. */
+  private deleted = new Set<string>();
   private timer: ReturnType<typeof setTimeout> | undefined;
   private ready: Promise<void> = Promise.resolve();
 
@@ -93,20 +109,31 @@ export class GitOpsRepoIndex implements vscode.Disposable {
       this.changed,
       watcher.onDidCreate((uri) => this.queue(uri)),
       watcher.onDidChange((uri) => this.queue(uri)),
-      watcher.onDidDelete((uri) => this.queue(uri)),
+      watcher.onDidDelete((uri) => this.queue(uri, true)),
       vscode.workspace.onDidChangeWorkspaceFolders(() => void this.rebuild()),
     );
   }
 
-  /** Scan the workspace. Resolves once the first index is built. */
+  /**
+   * Scan the workspace. Resolves once the index is built. The previous index
+   * stays in use until the scan finishes, and file changes that arrive
+   * meanwhile are applied after it.
+   */
   rebuild(): Promise<void> {
-    this.ready = (async () => {
-      this.byFile.clear();
-      if (!vscode.workspace.workspaceFolders?.length) return this.publish();
-      const files = await vscode.workspace.findFiles('**/*.{yaml,yml}', EXCLUDE, MAX_FILES);
-      await Promise.all(files.map((uri) => this.indexFile(uri)));
-      this.publish();
-    })().catch((err) => log.error('Indexing the GitOps repository failed', err));
+    this.ready = this.ready
+      .then(async () => {
+        const next = new Map<string, RepoEntry[]>();
+        if (vscode.workspace.workspaceFolders?.length) {
+          const files = await vscode.workspace.findFiles('**/*.{yaml,yml}', EXCLUDE, MAX_FILES);
+          await Promise.all(files.map(async (uri) => {
+            const entries = await this.readEntries(uri);
+            if (entries.length) next.set(uri.toString(), entries);
+          }));
+        }
+        this.byFile = next;
+        this.publish();
+      })
+      .catch((err) => log.error('Indexing the GitOps repository failed', err));
     return this.ready;
   }
 
@@ -142,12 +169,13 @@ export class GitOpsRepoIndex implements vscode.Disposable {
     return [...this.repoFolders].map((u) => vscode.Uri.parse(u));
   }
 
-  /** Resource names the repository declares, by kind, for a namespace (and cluster-scoped kinds). */
+  /** Names the repository declares, by kind, in the form references use, for a namespace (and cluster-scoped kinds). */
   namesByKind(namespace: string | undefined): Record<string, string[]> {
     const names: Record<string, string[]> = {};
     for (const e of this.entries()) {
       if (namespace && e.namespace && e.namespace !== namespace) continue;
-      (names[e.kind] ??= []).includes(e.name) || names[e.kind].push(e.name);
+      const name = referenceName(e.kind, e.name, e.workloadType);
+      (names[e.kind] ??= []).includes(name) || names[e.kind].push(name);
     }
     return names;
   }
@@ -256,27 +284,39 @@ export class GitOpsRepoIndex implements vscode.Disposable {
     return folder ? vscode.Uri.joinPath(vscode.Uri.parse(folder), fileName) : undefined;
   }
 
-  private queue(uri: vscode.Uri): void {
+  private queue(uri: vscode.Uri, deleted = false): void {
     if (/[\\/](node_modules|\.git)[\\/]/.test(uri.fsPath)) return;
     this.pending.add(uri.toString());
+    if (deleted) this.deleted.add(uri.toString());
     if (this.timer) clearTimeout(this.timer);
-    this.timer = setTimeout(() => {
-      const uris = [...this.pending].map((u) => vscode.Uri.parse(u));
-      this.pending.clear();
-      void Promise.all(uris.map((u) => this.indexFile(u))).then(() => this.publish());
-    }, 300);
+    this.timer = setTimeout(() => void this.flush(), 300);
   }
 
-  private async indexFile(uri: vscode.Uri): Promise<void> {
+  private async flush(): Promise<void> {
+    const uris = [...this.pending];
+    const deleted = [...this.deleted];
+    this.pending.clear();
+    this.deleted.clear();
+    // A scan in progress would replace the index and lose these updates.
+    await this.ready;
+    for (const folder of deleted) for (const key of filesUnder(this.byFile.keys(), folder)) this.byFile.delete(key);
+    await Promise.all(uris.map(async (u) => {
+      const entries = await this.readEntries(vscode.Uri.parse(u));
+      if (entries.length) this.byFile.set(u, entries);
+      else this.byFile.delete(u);
+    }));
+    this.publish();
+  }
+
+  /** The resources a file declares; none when it can't be read or is too large. */
+  private async readEntries(uri: vscode.Uri): Promise<RepoEntry[]> {
     try {
       const bytes = await vscode.workspace.fs.readFile(uri);
-      if (bytes.byteLength > 1_000_000) return;
+      if (bytes.byteLength > 1_000_000) return [];
       const relativePath = vscode.workspace.asRelativePath(uri, false);
-      const entries = entriesFromText(new TextDecoder().decode(bytes), uri, relativePath);
-      if (entries.length) this.byFile.set(uri.toString(), entries);
-      else this.byFile.delete(uri.toString());
+      return entriesFromText(new TextDecoder().decode(bytes), uri, relativePath);
     } catch {
-      this.byFile.delete(uri.toString());
+      return [];
     }
   }
 

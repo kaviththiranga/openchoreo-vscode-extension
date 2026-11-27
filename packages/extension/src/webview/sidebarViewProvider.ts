@@ -23,6 +23,8 @@ import type { ResourceNodeData } from '../treeView/types';
  */
 const ALLOWED_EXTERNAL_HOSTS = new Set(['openchoreo.dev', 'github.com']);
 
+const SECTIONS: readonly TreeSection[] = ['projects', 'infrastructure', 'cluster'];
+
 /** Build a local ID segment for a node. */
 function localNodeId(node: ResourceNodeData): string {
   const parts: string[] = [node.type];
@@ -47,6 +49,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
   private disposables: vscode.Disposable[] = [];
   /** Cache of nodes by ID — used to resolve context menu command arguments. */
   private nodeCache = new Map<string, ResourceNodeData>();
+  private readonly pendingRefresh = new Set<TreeSection>();
+  private refreshTimer: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     private readonly extensionUri: vscode.Uri,
@@ -61,9 +65,14 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     this.disposables.push(
       authProvider.onDidChangeSession(() => {
         this.sendAuthState();
-        this.postMessage({ type: 'refreshAll' });
+        this.refreshAll();
       }),
     );
+    // Any explorer refresh (refresh commands, auto-refresh, saves, actions
+    // that change resources) reloads its section of the sidebar.
+    for (const section of SECTIONS) {
+      this.disposables.push(this.getProvider(section).onDidChangeTreeData(() => this.scheduleRefresh(section)));
+    }
     // Re-send auth state when the login runner starts/stops/errors so the
     // sidebar can switch between no-session / logging-in / login-failed
     // without the 5s config-file-watcher lag. On exit (runner no longer
@@ -114,15 +123,24 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
 
   /** Trigger a full refresh of the webview. */
   refreshAll(): void {
-    this.postMessage({ type: 'refreshAll' });
+    this.scheduleRefresh(...SECTIONS);
   }
 
-  /** Trigger a section-level refresh. */
-  refreshSection(section: TreeSection): void {
-    this.postMessage({ type: 'refreshSection', section });
+  /** Reload sections in the webview, coalescing refreshes that arrive together. */
+  private scheduleRefresh(...sections: TreeSection[]): void {
+    for (const section of sections) this.pendingRefresh.add(section);
+    if (this.refreshTimer) return;
+    this.refreshTimer = setTimeout(() => {
+      this.refreshTimer = undefined;
+      const pending = SECTIONS.filter((s) => this.pendingRefresh.has(s));
+      this.pendingRefresh.clear();
+      if (pending.length === SECTIONS.length) this.postMessage({ type: 'refreshAll' });
+      else for (const section of pending) this.postMessage({ type: 'refreshSection', section });
+    }, 50);
   }
 
   dispose(): void {
+    if (this.refreshTimer) clearTimeout(this.refreshTimer);
     for (const d of this.disposables) {
       d.dispose();
     }
@@ -154,11 +172,9 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
         break;
 
       case 'refresh':
-        if (msg.section) {
-          this.refreshProviderAndSend(msg.section);
-        } else {
-          this.refreshAll();
-        }
+        // The provider's change event reloads the section (see the constructor).
+        if (msg.section) this.getProvider(msg.section).refresh();
+        else this.refreshAll();
         break;
 
       case 'selectNamespace':
@@ -283,13 +299,6 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider {
     } else {
       vscode.commands.executeCommand('openchoreo.openResource', node);
     }
-  }
-
-  private async refreshProviderAndSend(section: TreeSection): Promise<void> {
-    const provider = this.getProvider(section);
-    provider.refresh();
-    // Small delay to let the provider reset, then fetch new roots
-    setTimeout(() => this.sendRoots(section), 100);
   }
 
   // ── Helpers ───────────────────────────────────────────────────────

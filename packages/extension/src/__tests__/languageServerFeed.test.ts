@@ -48,6 +48,23 @@ describe('cluster completion feeds', () => {
     expect(locations.resources.some(item => item.name === 'service')).toBe(true);
     expect(locations.resources.some(item => item.name === 'repo-only' || item.name === 'repo-trait')).toBe(false);
   });
+  it('names component types the way a Component references them', async () => {
+    const f = fixture();
+    const get = f.api.GET.getMockImplementation()!;
+    f.api.GET.mockImplementation(async path => {
+      if (path.endsWith('/clustercomponenttypes')) {
+        return { data: { items: [
+          { metadata: { name: 'service' }, spec: { workloadType: 'deployment' } },
+          { metadata: { name: 'scheduled-task' }, spec: { workloadType: 'cronjob' } },
+        ] } };
+      }
+      return get(path);
+    });
+    await pushResourceNames(f.client, f.manager, f.auth, () => true, undefined, () => ({ ClusterComponentType: ['deployment/repo-type'] }));
+    const names = f.sendNotification.mock.calls.find(([method]) => method === 'openchoreo/updateResources')?.[1] as Record<string, string[]>;
+    expect(names.ClusterComponentType).toEqual(['deployment/service', 'cronjob/scheduled-task', 'deployment/repo-type']);
+    expect(names.Trait).toEqual(['service']);
+  });
   it.each([pushResourceNames, pushResourceSchemas])('discards results fetched for an obsolete context', async push => {
     const f = fixture();
     let current = true;

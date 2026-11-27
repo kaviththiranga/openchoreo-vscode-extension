@@ -8,6 +8,7 @@ import { OccConfigAuthProvider } from '../auth/authProvider';
 import type { ApiClientManager } from '../api/apiClient';
 import type { CapabilityService } from '../services/capabilityService';
 import type { ResourceNodeData, ResourceNodeType } from './types';
+import { workflowRunPhase } from './runPhase';
 import { markGitOps, toTreeItem } from './shared';
 
 type Client = NonNullable<
@@ -319,7 +320,7 @@ export class ClusterExplorerProvider
 
     return runs.map((item) => {
       const isDeleting = !!item.metadata?.deletionTimestamp;
-      const phase = item.status?.phase;
+      const phase = workflowRunPhase(item.status);
       return {
         label: (item.metadata?.name as string) ?? 'unknown',
         type: 'workflow-run' as const,

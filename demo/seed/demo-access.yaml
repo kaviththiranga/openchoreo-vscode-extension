@@ -1,0 +1,20 @@
+# Write access for the occ quick-start client (openchoreo-cli-quickstart) while
+# recording demo footage: scenes save, create, build, deploy and promote through
+# the API. Apply on a throwaway or demo cluster only.
+#   Apply:  kubectl apply -f demo/seed/demo-access.yaml
+#   Remove: kubectl delete -f demo/seed/demo-access.yaml
+apiVersion: openchoreo.dev/v1alpha1
+kind: ClusterAuthzRoleBinding
+metadata:
+  name: vscode-extension-demo-binding
+  labels:
+    app.kubernetes.io/part-of: vscode-extension-demo
+spec:
+  effect: allow
+  entitlement:
+    claim: client_id
+    value: openchoreo-cli-quickstart
+  roleMappings:
+    - roleRef:
+        kind: ClusterAuthzRole
+        name: platform-engineer

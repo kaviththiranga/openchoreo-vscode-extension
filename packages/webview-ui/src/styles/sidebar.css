@@ -391,7 +391,9 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  flex-shrink: 2;
+  /* Like VS Code's own trees: the description gives way before the label does. */
+  flex-shrink: 10000;
+  min-width: 0;
 }
 
 /* ── Status icon colors ───────────────────────────────────────────── */
