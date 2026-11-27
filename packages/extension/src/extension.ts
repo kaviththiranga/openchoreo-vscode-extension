@@ -273,6 +273,11 @@ export async function activate(
     }),
     { dispose: () => { if (repoPushTimer) clearTimeout(repoPushTimer); } },
     vscode.commands.registerCommand('openchoreo.restartLanguageServer', () => languageServer?.restart()),
+    loginRunner.onDidLogin(() => {
+      authProvider.reload();
+      void languageServer?.restart()
+        .catch(() => log.debug('Could not restart the language server after login.'));
+    }),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('openchoreo.languageServer')) void languageServer?.restart();
     }),

@@ -32,6 +32,9 @@ export class LoginRunner implements vscode.Disposable {
   private readonly onStateChangeEmitter = new vscode.EventEmitter<void>();
   /** Fired when a login starts, exits, or is cancelled. */
   readonly onStateChange = this.onStateChangeEmitter.event;
+  private readonly onDidLoginEmitter = new vscode.EventEmitter<void>();
+  /** Fired only after occ login exits successfully and session listeners reload config. */
+  readonly onDidLogin = this.onDidLoginEmitter.event;
 
   /**
    * @param resolveBinary Returns the current best path to spawn — see
@@ -132,6 +135,7 @@ export class LoginRunner implements vscode.Disposable {
         log.error(`occ login failed with code ${code ?? 'unknown'}`);
       }
       this.onStateChangeEmitter.fire();
+      if (code === 0) this.onDidLoginEmitter.fire();
     });
   }
 
@@ -154,6 +158,7 @@ export class LoginRunner implements vscode.Disposable {
   dispose(): void {
     this.cancel();
     this.onStateChangeEmitter.dispose();
+    this.onDidLoginEmitter.dispose();
     this.channel.dispose();
   }
 }
