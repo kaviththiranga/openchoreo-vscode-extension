@@ -657,7 +657,7 @@ To add a new icon: drop an SVG into `resources/icons/`, run `pnpm generate:icons
 | Control plane | Status |
 |---|---|
 | 1.3.x | Fully supported — client, `occ`, schemas and scaffolds target 1.3.3 |
-| 1.4 milestones (m.1, m.2) | Supported; 1.4-only kinds (Endpoints, Release Lines) aren't surfaced yet |
+| 1.4 milestones (m.1, m.2) | Supported; 1.4-only kinds (Endpoints, Release Lines) aren't surfaced yet, and fields new in 1.4 (such as `releaseLine` or `allowedEndpoints`) get "Unknown property" warnings |
 | 1.1.x, 1.2.x | Core browsing and editing are expected to work (not re-tested for this release); *1.3+* features report that they need 1.3 |
 
 The extension reads the control plane version from `/version` when it connects.

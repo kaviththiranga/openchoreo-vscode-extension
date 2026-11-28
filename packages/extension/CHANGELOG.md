@@ -1,32 +1,31 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — 2026-11-28
+
+For OpenChoreo 1.3.x: the API client, the `occ` it downloads (v1.3.3) and the CRD schemas target 1.3.3, and every API route and `occ` command the new features use is in 1.3.3. Also works with 1.4 milestone control planes; YAML using fields new in 1.4 gets "Unknown property" warnings until the 1.4 release.
+
+### New
 
 - **occ language server**: when the installed occ has `occ lsp`, the extension runs it for Go to Definition across local and cluster resources, CEL and reference suggestions, and pre/post-render validation (by @RukshanRanasinghe2000). Otherwise it uses the bundled server as before. New setting `openchoreo.languageServer` (`auto`, `occ`, `bundled`)
 - **Linked components**: the status bar shows the components built from the open folder, matched by git remote and app path through the workflow's repository parameter markers, with actions to build, view logs, open a shell, run locally and open the repository
 - **Clone Source** on a component, **Build This Commit** for a linked folder, and after a push, the auto-build for the pushed commit followed in the status bar (`openchoreo.builds.followAfterPush`)
 - **Compare Releases…** and **Roll Back…** on releases and deployed environments
 - **Debug Against Environment**: launch configurations with an `openchoreo` attribute open `occ remote` tunnels in the background and get the dependency bindings in their `env`; open tunnels show in the status bar (`openchoreo.localDev.keepTunnelsOpen`)
-- Run Locally and Debug Against Environment ask for the environment name when your role can't list environments
 - **Compare with Cluster** for OpenChoreo YAML files and **Compare with Repository** for sidebar resources, diffing desired state without status or server-set metadata
 - Resources managed by Flux or Argo CD are badged in the sidebar; saving, applying, promoting, deploying or deleting them through the API asks first and offers **Change in Repository**, which edits the GitOps repository instead. New settings `openchoreo.gitops.mode` and `openchoreo.gitops.allowDirectChanges`
 - **OpenChoreo GitOps view** with each declared resource's sync state and cluster-only resources; **Generate Releases in Repository…** and **Promote in Repository…** run occ in file-system mode and offer a branch, commit and pull request
 - **Go to Definition** for references between OpenChoreo resources (to the repository file, or the resource on the cluster); reference validation accepts resources declared in the repository
+
+### Improved
+
+- Run Locally and Debug Against Environment ask for the environment name when your role can't list environments
 - The extension now activates once VS Code has started, so linked components and the GitOps view appear without opening a YAML file first
-- Fix: the GitOps view and **Compare with Cluster** showed differences for zero values the API leaves out, such as `isProduction: false`, and for server defaults like `gateway: {}`
 - **Change in Repository** saves the repository file (unless it already had unsaved edits) and completes the save without a "Failed to save" error; the sidebar copy shows the cluster again
-- Fix: Components naming their type as `deployment/service` got a "not found" warning from the bundled language server
 - Commit and push errors from **Promote in Repository** and **Generate Releases** show git's own message
-- Fix: client-credentials logins (service accounts) showed "Session expired" once the token lapsed; the extension now mints a new token like occ does
-- Fix: with `openchoreo.configPath` set to another `.openchoreo/config`, the occ commands the extension runs now use that login
-- Fix: on OpenChoreo 1.4, workflow runs showed no status icon or phase (1.4 reports them as conditions), and failed runs had no **Troubleshoot with Copilot**
-- Fix: lists stopped at the API's first page of 20 items, so larger namespaces had missing tree items and completions and false "not found" warnings
-- Fix: the **Create Component** scaffold and **Scaffold Component from this Project** wrote component types and workflows the API rejects; they now reference a `ClusterComponentType` as `<workloadType>/<name>` (e.g. `deployment/service`) and a `ClusterWorkflow`, with the repository taken from the folder's git remote
 - Component type completions, reference checks and Go to Definition use the `<workloadType>/<name>` form
 - Scaffold previews open as `component.yaml` and `workload.yaml`, Save writes them and opens the files, and **Commit** works (it always failed before)
 - The sidebar refreshes after saves, Generate Release, **Refresh Resources** and `openchoreo.autoRefresh` (these did nothing before), and refreshing keeps expanded nodes open instead of collapsing the tree
 - The bundled language server handles multi-document YAML (validation, completions, hover and CEL per document, one outline entry per document), completes keys inside nested objects and list items (including `kind`), completes ComponentType parameters, shows object defaults properly, lists schema fields before CEL methods, and shows hover docs for keys in list items
-- Fix: completions for objects and arrays were indented twice
 - Workflow run logs are shown in time order (1.4 returned them grouped by step, so lines repeated or went missing)
 - Pickers opened from the sidebar no longer close when focus returns to it; Promote, Deploy and Roll Back drafts are clean YAML without status and server fields
 - **Compare Releases…** puts the older release on the left; **Run Now** shows only on scheduled tasks; sidebar labels keep their space before descriptions
@@ -35,7 +34,18 @@
 - Workflow runs the extension starts get short names (`<component>-<8 characters>`)
 - Removed an unused snippets file from the package
 - Run Locally and Open Shell terminals run `occ` by name when its folder is on the terminal `PATH`, and Reveal App Folder and Clone Source show workspace-relative paths, folder names or `~` paths instead of absolute ones
-- Fix: with an expired stored token, simultaneous requests at startup could each try to refresh it, and one failed refresh left the sidebar and status bar on "Session expired"; refreshes are now shared and retried once
+
+### Fixed
+
+- The GitOps view and **Compare with Cluster** showed differences for zero values the API leaves out, such as `isProduction: false`, and for server defaults like `gateway: {}`
+- Components naming their type as `deployment/service` got a "not found" warning from the bundled language server
+- Client-credentials logins (service accounts) showed "Session expired" once the token lapsed; the extension now mints a new token like occ does
+- With `openchoreo.configPath` set to another `.openchoreo/config`, the occ commands the extension runs now use that login
+- On OpenChoreo 1.4, workflow runs showed no status icon or phase (1.4 reports them as conditions), and failed runs had no **Troubleshoot with Copilot**
+- Lists stopped at the API's first page of 20 items, so larger namespaces had missing tree items and completions and false "not found" warnings
+- The **Create Component** scaffold and **Scaffold Component from this Project** wrote component types and workflows the API rejects; they now reference a `ClusterComponentType` as `<workloadType>/<name>` (e.g. `deployment/service`) and a `ClusterWorkflow`, with the repository taken from the folder's git remote
+- Completions for objects and arrays were indented twice
+- With an expired stored token, simultaneous requests at startup could each try to refresh it, and one failed refresh left the sidebar and status bar on "Session expired"; refreshes are now shared and retried once
 
 ## 0.3.0 — 2026-11-18
 

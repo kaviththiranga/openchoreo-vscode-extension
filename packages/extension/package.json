@@ -1,8 +1,8 @@
 {
   "name": "openchoreo-unofficial",
   "displayName": "OpenChoreo for VS Code",
-  "description": "Build, deploy and operate on the OpenChoreo developer platform from VS Code: resource explorer, CRD editing with validation and completions, run locally against real environments, runtime logs, and AI: OpenChoreo MCP servers, agent skills, custom agents and chat tools for Copilot.",
-  "version": "0.3.0",
+  "description": "Build, deploy and operate on the OpenChoreo developer platform from VS Code: resource explorer, CRD editing with validation and completions, folders linked to their components, GitOps, run and debug locally against real environments, runtime logs, and AI: OpenChoreo MCP servers, agent skills, custom agents and chat tools for Copilot.",
+  "version": "0.4.0",
   "publisher": "KavithLokuhewage",
   "license": "Apache-2.0",
   "icon": "resources/openchoreo.png",
@@ -35,6 +35,7 @@
     "crd",
     "yaml",
     "platform-engineering",
+    "gitops",
     "mcp",
     "copilot",
     "ai",
